@@ -72,3 +72,23 @@
 - 验证方式：`PROMPT.md` 中 Prompt 01–07 均含原始 Prompt 代码块，条目数与用户实际发送轮次一致；`AGENT.md` §3 要求与验证方式已同步。
 - 状态：Resolved
 - 关联提交：`docs(prompt)` / `docs(agent)` / `docs(issue)`
+
+### ISSUE-008 — `README.md` 未记录可执行的测试命令，与 TDD 规范存在空档
+
+- 日期：2026-10-21
+- 现象：`AGENT.md` §2 规定"测试命令以 `README.md` 中记录的真实脚本为准"，但 `README.md` 仅有标题，没有安装、运行、测试命令；`Docs/TESTING.md` §5.3 只能给出"暂定"命令。
+- 根因：仓库初始化阶段只创建了占位 README；技术栈在 S00 才落地，测试命令尚未产生。
+- 解决方案：**待办**——在 S00（工程基线）阶段把可执行的安装/运行/测试命令写入 `README.md`，并回填 `TESTING.md` §5.3。
+- 验证方式：`README.md` 中存在可直接执行的 `pytest` 命令；在干净环境按 README 步骤可跑通全量测试。
+- 状态：Open
+- 关联提交：无
+
+### ISSUE-009 — 文档基线未走 OpenSpec change 流程
+
+- 日期：2026-10-21
+- 现象：`AGENT.md` §6.1 要求新功能先建 OpenSpec change，但 `Docs/REQUIREMENT.md` 等四份文档是直接落盘的，`openspec list` 仍为 `No active changes found.`。
+- 根因：本阶段为"规范与文档基线"，尚未进入功能开发；`openspec/` 已初始化但未创建 change。
+- 解决方案：**待办**——首次功能开发（S00 之后）前，用 `openspec new change` 或 `openspec-propose` 建立 change；文档基线可补建一个 `requirement-baseline` change 以便归档。
+- 验证方式：`openspec list` 能看到活跃 change；`openspec validate <change-id>` 通过。
+- 状态：Open
+- 关联提交：无
