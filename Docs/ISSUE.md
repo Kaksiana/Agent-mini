@@ -48,17 +48,27 @@
 - 日期：2026-10-21
 - 现象：`openspec` CLI 可用（版本 1.12.0），但仓库内不存在 `openspec/` 目录，`openspec list` 无 change 可列。
 - 根因：仓库初始化阶段未执行 `openspec init`。
-- 解决方案：首次使用 OpenSpec 流程前执行 `openspec init` 初始化目录结构（本次未执行，避免超出当前任务范围）。
-- 验证方式：`openspec list` 可正常返回；仓库根目录存在 `openspec/` 目录。
-- 状态：Open
-- 关联提交：无
+- 解决方案：于 2026-10-21 执行 `openspec init --tools none --no-animation --no-copilot-cloud`，生成 `openspec/config.yaml`、`openspec/changes/archive/.gitkeep`、`openspec/specs/.gitkeep`。选用 `--tools none` 以避免初始化过程改写既有 AI 工具指令文件（含 `AGENT.md`）。
+- 验证方式：`openspec list` 返回 `No active changes found.`（命令可正常运行）；`git diff --name-only` 为空，确认初始化未修改任何已跟踪文件。
+- 状态：Resolved
+- 关联提交：`openspec` 初始化提交
 
 ### ISSUE-006 — 空目录不被 Git 跟踪，骨架目录不会入库
 
 - 日期：2026-10-21
 - 现象：`Frontend/`、`Backend/`、`Data/`、`Script/` 为本地空目录，`git status` 不显示，提交后远端仓库中将缺少这些目录。
 - 根因：Git 只跟踪文件，不跟踪空目录。
-- 解决方案：待确认——在各目录放置 `.gitkeep` 占位文件后提交（本次未执行，需确认后再做）。
-- 验证方式：`git ls-files | Select-String 'Frontend/'` 至少返回一条记录。
-- 状态：Open
-- 关联提交：无
+- 解决方案：在各空目录放置 `.gitkeep` 占位文件并提交：`Frontend/.gitkeep`、`Backend/.gitkeep`、`Data/.gitkeep`、`Script/.gitkeep`。
+- 验证方式：`git ls-files` 返回结果中包含上述四个 `.gitkeep`；远端仓库可看到对应目录。
+- 状态：Resolved
+- 关联提交：`chore: track empty project directories`
+
+### ISSUE-007 — PROMPT.md 初版只记录摘要，未保留用户原始 Prompt
+
+- 日期：2026-10-21
+- 现象：`Docs/PROMPT.md` 首版按模板仅记录目标、约束、产出等摘要字段，用户发送的原始 Prompt 原文没有入库，事后无法据此复核需求原话与措辞。
+- 根因：`AGENT.md` §3 的条目模板写的是"Prompt 摘要"，落地时被理解为只记摘要即可；且原模板明确写了"不必逐字粘贴超长对话"，与"完整记录原始 Prompt"的诉求冲突。
+- 解决方案：`PROMPT.md` 改为"原始 Prompt 逐字代码块 + 执行摘要"结构，并回溯补录 Prompt 01–06；同时修订 `AGENT.md` §3，将"逐字保留原始 Prompt"由惯例升级为强制要求。
+- 验证方式：`PROMPT.md` 中 Prompt 01–07 均含原始 Prompt 代码块，条目数与用户实际发送轮次一致；`AGENT.md` §3 要求与验证方式已同步。
+- 状态：Resolved
+- 关联提交：`docs(prompt)` / `docs(agent)` / `docs(issue)`
