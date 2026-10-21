@@ -1,0 +1,121 @@
+# ============================================================
+# Agent-mini .gitignore
+# 维护依据：AGENT.md §5.1 Git 规范
+# 新增技术栈或产物类型时同步补充本文件
+# ============================================================
+
+# ---------- 操作系统 ----------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ---------- 编辑器 / IDE ----------
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
+# ---------- Node.js / 前端 ----------
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm-debug.log*
+dist/
+build/
+out/
+.next/
+.nuxt/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.webpack-cache/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+.eggs/
+
+# ---------- Java / JVM ----------
+target/
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+*.hprof
+
+# ---------- Go ----------
+vendor/
+*.test
+*.prof
+*.cover
+
+# ---------- 日志与临时文件 ----------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+*.pid
+
+# ---------- 环境变量与密钥（严禁入库） ----------
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+credentials.*
+
+# ---------- 本地数据与数据库产物 ----------
+Data/tmp/
+Data/temp/
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.sqlite-journal
+*.local.*
+
+# ---------- 构建 / 工具缓存 ----------
+.cache/
+.tsc/
