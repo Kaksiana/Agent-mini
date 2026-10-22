@@ -1,8 +1,10 @@
 """Agent Runtime 结果与可观察轨迹模型。"""
 
+from __future__ import annotations
+
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from agent_mini.llm.models import Usage
 
@@ -54,6 +56,15 @@ class AgentResult(BaseModel):
     trace: tuple[ThoughtStep, ...] = ()
     tool_calls: int = Field(default=0, ge=0)
     tool_traces: tuple[ToolCallTrace, ...] = ()
+    truncated: bool = False
+    termination_reason: Literal["max_steps", "deadline", "repeat"] | None = None
+
+    @model_validator(mode="after")
+    def _truncation_is_consistent(self) -> AgentResult:
+        """truncated 与终止原因必须同时存在/同时为空。"""
+        if self.truncated != (self.termination_reason is not None):
+            raise ValueError("truncated 与 termination_reason 必须一致")
+        return self
 
     @field_validator("reply")
     @classmethod

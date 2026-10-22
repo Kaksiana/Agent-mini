@@ -1,14 +1,16 @@
-"""S04 ReAct 工具循环。"""
+"""S05 ReAct 工具循环与安全阀。"""
 
+import asyncio
+import json
 import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import Literal, Protocol
 
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.errors import LLMEmptyResponseError, LLMProtocolError
-from agent_mini.llm.models import Message, ToolCall, ToolSchema, Usage
+from agent_mini.llm.models import LLMResponse, Message, ToolCall, ToolSchema, Usage
 from agent_mini.runtime.result import (
     MAX_OBSERVATION_CHARS,
     AgentResult,
@@ -16,6 +18,18 @@ from agent_mini.runtime.result import (
     ToolCallTrace,
 )
 
+DEFAULT_MAX_STEPS = 8
+DEFAULT_DEADLINE_SECONDS = 120.0
+DEFAULT_REPEAT_THRESHOLD = 3
+MAX_STEPS_MESSAGE = "已达到最大步数限制，已停止。"
+DEADLINE_MESSAGE = "已达到截止时间限制，已停止。"
+REPEAT_MESSAGE = "检测到重复工具调用，已停止。"
+TerminationReason = Literal["max_steps", "deadline", "repeat"]
+_SAFETY_MESSAGES: dict[TerminationReason, str] = {
+    "max_steps": MAX_STEPS_MESSAGE,
+    "deadline": DEADLINE_MESSAGE,
+    "repeat": REPEAT_MESSAGE,
+}
 _SENSITIVE_KEYS = frozenset(
     {"api_key", "apikey", "access_key", "authorization", "password", "secret", "token"}
 )
@@ -29,12 +43,21 @@ _SECRET_SK = re.compile(r"\bsk-[A-Za-z0-9_-]{4,}\b")
 
 @dataclass(frozen=True)
 class LoopPolicy:
-    """S05 安全阀参数；默认不限制。"""
+    """S05 安全阀参数。"""
 
-    max_steps: int | None = None
-    deadline_seconds: float | None = None
-    repeat_threshold: int | None = None
+    max_steps: int = DEFAULT_MAX_STEPS
+    deadline_seconds: float = DEFAULT_DEADLINE_SECONDS
+    repeat_threshold: int = DEFAULT_REPEAT_THRESHOLD
     clock: Callable[[], float] = time.monotonic
+
+    def __post_init__(self) -> None:
+        """校验安全阀参数范围。"""
+        if self.max_steps < 1:
+            raise ValueError("max_steps 必须至少为 1")
+        if self.deadline_seconds <= 0:
+            raise ValueError("deadline_seconds 必须大于 0")
+        if self.repeat_threshold < 1:
+            raise ValueError("repeat_threshold 必须至少为 1")
 
 
 @dataclass(frozen=True)
@@ -58,104 +81,251 @@ class ToolExecutor(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class _ToolContext:
+    executor: ToolExecutor
+    policy: LoopPolicy
+    deadline: float | None
+
+
+@dataclass
+class _LoopState:
+    usage: Usage = field(default_factory=Usage)
+    trace: list[ThoughtStep] = field(default_factory=list)
+    tool_traces: list[ToolCallTrace] = field(default_factory=list)
+    tool_calls: int = 0
+    step: int = 0
+    last_signature: str | None = None
+    repeat_count: int = 0
+
+
 async def run_react_loop(
     llm_client: LLMClient,
     messages: list[Message],
     tool_executor: ToolExecutor | None,
     policy: LoopPolicy | None = None,
 ) -> AgentResult:
-    """运行至最终文本；S05 将通过 policy 接入步数/截止/重复检测。"""
+    """运行至最终文本；安全阀终止时返回 truncated 结果而不抛异常。"""
+    active_policy = policy if policy is not None else LoopPolicy()
     tools = tool_executor.schemas() if tool_executor is not None else None
-    usage = Usage()
-    trace: list[ThoughtStep] = []
-    tool_traces: list[ToolCallTrace] = []
-    tool_calls_count = 0
-    step = 0
+    deadline = _deadline_at(active_policy)
+    state = _LoopState()
     while True:
-        step += 1
-        response = await llm_client.chat(messages, tools=tools)
-        usage = _add_usage(usage, response.usage)
+        remaining = _remaining(deadline, active_policy.clock)
+        if remaining is not None and remaining <= 0:
+            return _truncated_result(state, "deadline")
+        state.step += 1
+        try:
+            response = await _request(llm_client, messages, tools, remaining)
+        except TimeoutError:
+            state.step = max(state.step - 1, 1)
+            return _truncated_result(state, "deadline")
+        state.usage = _add_usage(state.usage, response.usage)
         reasoning_present = bool(response.reasoning_content)
         if response.tool_calls:
             if tool_executor is None:
                 raise LLMProtocolError("未配置工具执行器，不能处理 tool_calls")
-            messages.append(
-                Message(
-                    role="assistant",
-                    content=response.content,
-                    tool_calls=response.tool_calls,
-                    reasoning_content=response.reasoning_content,
-                )
+            messages.append(_assistant_message(response))
+            context = _ToolContext(tool_executor, active_policy, deadline)
+            result = await _process_tools(
+                response.tool_calls,
+                messages,
+                context,
+                state,
+                reasoning_present,
             )
-            step_traces: list[ToolCallTrace] = []
-            for call in response.tool_calls:
-                outcome = await _execute_call(tool_executor, call)
-                messages.append(
-                    Message(
-                        role="tool",
-                        content=outcome.content,
-                        tool_call_id=call.id,
-                    )
-                )
-                item = _tool_trace(call, outcome)
-                step_traces.append(item)
-                tool_traces.append(item)
-                tool_calls_count += 1
-            trace.append(
-                ThoughtStep(
-                    step=step,
-                    decision="tool_call",
-                    thought=_tool_thought(response.tool_calls),
-                    reasoning_present=reasoning_present,
-                    tool_calls=tuple(step_traces),
-                )
-            )
+            if result is not None:
+                return result
+            if state.step >= active_policy.max_steps:
+                return _truncated_result(state, "max_steps")
             continue
-        if response.content is None or not response.content.strip():
-            raise LLMEmptyResponseError("模型没有返回有效答案")
-        messages.append(
-            Message(
-                role="assistant",
-                content=response.content,
-                reasoning_content=response.reasoning_content,
-            )
-        )
-        trace.append(
-            ThoughtStep(
-                step=step,
-                decision="final",
-                thought="返回最终答案",
-                reasoning_present=reasoning_present,
-            )
-        )
-        return AgentResult(
-            reply=response.content,
-            steps=step,
-            usage=usage,
-            trace=tuple(trace),
-            tool_calls=tool_calls_count,
-            tool_traces=tuple(tool_traces),
-        )
+        return _finish(response, messages, state, reasoning_present)
 
 
-async def _execute_call(
+async def _request(
+    llm_client: LLMClient,
+    messages: list[Message],
+    tools: list[ToolSchema] | None,
+    remaining: float | None,
+) -> LLMResponse:
+    if remaining is None:
+        return await llm_client.chat(messages, tools=tools)
+    return await asyncio.wait_for(llm_client.chat(messages, tools=tools), remaining)
+
+
+async def _process_tools(
+    calls: list[ToolCall],
+    messages: list[Message],
+    context: _ToolContext,
+    state: _LoopState,
+    reasoning_present: bool,
+) -> AgentResult | None:
+    step_traces: list[ToolCallTrace] = []
+    for index, call in enumerate(calls):
+        remaining = _remaining(context.deadline, context.policy.clock)
+        if remaining is not None and remaining <= 0:
+            _fill_cancelled(calls[index:], "deadline", messages, state, step_traces)
+            _append_tool_step(state, step_traces, reasoning_present)
+            return _truncated_result(state, "deadline")
+        outcome, timed_out = await _execute_tool(context.executor, call, remaining)
+        _append_tool(call, outcome, messages, state, step_traces)
+        if timed_out:
+            _fill_cancelled(calls[index + 1 :], "deadline", messages, state, step_traces)
+            _append_tool_step(state, step_traces, reasoning_present)
+            return _truncated_result(state, "deadline")
+        state.repeat_count = _repeat_count(state, call)
+        if state.repeat_count >= context.policy.repeat_threshold:
+            _fill_cancelled(calls[index + 1 :], "repeat", messages, state, step_traces)
+            _append_tool_step(state, step_traces, reasoning_present)
+            return _truncated_result(state, "repeat")
+    _append_tool_step(state, step_traces, reasoning_present)
+    return None
+
+
+async def _execute_tool(
     executor: ToolExecutor,
     call: ToolCall,
-) -> ToolOutcome:
+    remaining: float | None,
+) -> tuple[ToolOutcome, bool]:
     if call.error_code is not None:
-        return ToolOutcome(
-            ok=False,
-            content=f"工具参数不合法：{call.error_code}",
-            error_code=call.error_code,
-        )
+        return ToolOutcome(False, f"工具参数不合法：{call.error_code}", call.error_code), False
     try:
-        return await executor.execute(call)
+        if remaining is None:
+            return await executor.execute(call), False
+        return await asyncio.wait_for(executor.execute(call), remaining), False
+    except TimeoutError:
+        return ToolOutcome(False, "工具执行超时", "deadline"), True
     except Exception:
-        return ToolOutcome(
-            ok=False,
-            content="工具执行失败",
-            error_code="tool_execution_error",
+        return ToolOutcome(False, "工具执行失败", "tool_execution_error"), False
+
+
+def _finish(
+    response: LLMResponse,
+    messages: list[Message],
+    state: _LoopState,
+    reasoning_present: bool,
+) -> AgentResult:
+    if response.content is None or not response.content.strip():
+        raise LLMEmptyResponseError("模型没有返回有效答案")
+    messages.append(_assistant_message(response))
+    state.trace.append(
+        ThoughtStep(
+            step=state.step,
+            decision="final",
+            thought="返回最终答案",
+            reasoning_present=reasoning_present,
         )
+    )
+    return AgentResult(
+        reply=response.content,
+        steps=state.step,
+        usage=state.usage,
+        trace=tuple(state.trace),
+        tool_calls=state.tool_calls,
+        tool_traces=tuple(state.tool_traces),
+        truncated=False,
+        termination_reason=None,
+    )
+
+
+def _truncated_result(state: _LoopState, reason: TerminationReason) -> AgentResult:
+    return AgentResult(
+        reply=_SAFETY_MESSAGES[reason],
+        steps=max(state.step, 1),
+        usage=state.usage,
+        trace=tuple(state.trace),
+        tool_calls=state.tool_calls,
+        tool_traces=tuple(state.tool_traces),
+        truncated=True,
+        termination_reason=reason,
+    )
+
+
+def _assistant_message(response: LLMResponse) -> Message:
+    return Message(
+        role="assistant",
+        content=response.content,
+        tool_calls=response.tool_calls,
+        reasoning_content=response.reasoning_content,
+    )
+
+
+def _append_tool(
+    call: ToolCall,
+    outcome: ToolOutcome,
+    messages: list[Message],
+    state: _LoopState,
+    step_traces: list[ToolCallTrace],
+) -> None:
+    messages.append(Message(role="tool", content=outcome.content, tool_call_id=call.id))
+    item = _tool_trace(call, outcome)
+    step_traces.append(item)
+    state.tool_traces.append(item)
+    state.tool_calls += 1
+
+
+def _fill_cancelled(
+    calls: list[ToolCall],
+    reason: str,
+    messages: list[Message],
+    state: _LoopState,
+    step_traces: list[ToolCallTrace],
+) -> None:
+    content = "工具调用已取消" if reason == "deadline" else "重复调用已取消"
+    for call in calls:
+        _append_tool(call, ToolOutcome(False, content, reason), messages, state, step_traces)
+
+
+def _append_tool_step(
+    state: _LoopState,
+    step_traces: list[ToolCallTrace],
+    reasoning_present: bool,
+) -> None:
+    names = ", ".join(trace.tool for trace in step_traces)
+    state.trace.append(
+        ThoughtStep(
+            step=state.step,
+            decision="tool_call",
+            thought=f"调用工具 {names}",
+            reasoning_present=reasoning_present,
+            tool_calls=tuple(step_traces),
+        )
+    )
+
+
+def _repeat_count(state: _LoopState, call: ToolCall) -> int:
+    signature = _signature(call)
+    if signature == state.last_signature:
+        state.repeat_count += 1
+    else:
+        state.last_signature = signature
+        state.repeat_count = 1
+    return state.repeat_count
+
+
+def _signature(call: ToolCall) -> str:
+    args = json.dumps(call.arguments or {}, sort_keys=True, ensure_ascii=False, default=str)
+    return f"{call.name}:{args}"
+
+
+def _deadline_at(policy: LoopPolicy) -> float | None:
+    if policy.deadline_seconds is None:
+        return None
+    return policy.clock() + policy.deadline_seconds
+
+
+def _remaining(deadline: float | None, clock: Callable[[], float]) -> float | None:
+    if deadline is None:
+        return None
+    return deadline - clock()
+
+
+def _add_usage(total: Usage, item: Usage) -> Usage:
+    return Usage(
+        prompt_tokens=total.prompt_tokens + item.prompt_tokens,
+        completion_tokens=total.completion_tokens + item.completion_tokens,
+        total_tokens=total.total_tokens + item.total_tokens,
+    )
 
 
 def _tool_trace(call: ToolCall, outcome: ToolOutcome) -> ToolCallTrace:
@@ -168,19 +338,6 @@ def _tool_trace(call: ToolCall, outcome: ToolOutcome) -> ToolCallTrace:
         ok=outcome.ok,
         error_code=outcome.error_code,
         observation=observation[:MAX_OBSERVATION_CHARS],
-    )
-
-
-def _tool_thought(calls: list[ToolCall]) -> str:
-    names = ", ".join(call.name for call in calls)
-    return f"调用工具 {names}"
-
-
-def _add_usage(total: Usage, item: Usage) -> Usage:
-    return Usage(
-        prompt_tokens=total.prompt_tokens + item.prompt_tokens,
-        completion_tokens=total.completion_tokens + item.completion_tokens,
-        total_tokens=total.total_tokens + item.total_tokens,
     )
 
 

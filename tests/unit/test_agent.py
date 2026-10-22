@@ -75,6 +75,8 @@ async def test_direct_reply_returns_one_step_result() -> None:
         "trace",
         "tool_calls",
         "tool_traces",
+        "truncated",
+        "termination_reason",
     }
     assert len(stub.calls) == 1
     messages, tools = stub.calls[0]
