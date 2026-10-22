@@ -718,3 +718,62 @@ S00 已标记为“已完成”，但实际只创建了 `agent_mini/__init__.py`
 - 文档：新增 ISSUE-018；PLAN 先回退“进行中”并在复验后恢复“已完成”；MEMORY 记录 wheel 35/35 与 7 passed；README 无需修改。
 - OpenSpec：新增 `s00-package-integrity-fix` change，归档为 `2026-10-22-s00-package-integrity-fix`；主规格 `engineering-baseline` 增至 6 项 Requirement；`openspec validate --all --strict` 为 2 passed、0 failed。
 - 提交：`4b538cb` 记录 ISSUE-018/PLAN 回退与 OpenSpec change；`3637d93` 完成 package-data 修正与测试；`130fa7f` 记录文档收口。
+
+### Prompt 21 — 2026-10-22（时分未采样）— 执行 S01 模型接入单轮调用
+
+#### 原始 Prompt
+
+```text
+【角色】
+你是 S01「模型接入：单轮调用」阶段的执行 Agent，熟悉 OpenAI Chat Completions 协议、httpx 异步客户端、pydantic、pytest + respx 契约测试、OpenSpec、SuperPower SKILL，并严格遵循项目 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+项目：Agent-mini。
+S00 工程基线已完成并通过验收。
+当前准备执行 S01 阶段，阶段定义、对应需求、目标、输入、输出、验收标准、测试项、前置阶段均在 `Docs/PLAN.md` 的 S01 条目中。
+S01 的协议契约、响应归一、判别规则、错误边界见 `Docs/DESIGN.md` §3.1。
+S01 相关测试用例定义见 `Docs/TESTING.md` 中 TC-L2-001、TC-L2-002、TC-L2-003、TC-L2-007、TC-L2-008、TC-L2-009、TC-L2-010。
+S01 对应的功能需求见 `Docs/REQUIREMENT.md` 中 FR-LLM-01、FR-LLM-02、FR-LLM-04。
+S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-017 预防措施、`Docs/TESTING.md` 里程碑 wheel 准出条款、`Docs/PLAN.md` §5.2 里程碑 DoD、`Docs/PLAN.md` S00 验收标准、`Docs/DESIGN.md` §2.2 占位规范。
+【任务】
+执行 S01 阶段：先按上述文档自行提取阶段范围、测试用例定义、验收标准与实现边界，完成 S00 遗留收尾，然后用 TDD 实现模型接入层的单轮调用与响应归一，完成验收、文档收口与 Git 交付。
+【约束】
+1. 开工前必须完整阅读：`AGENT.md`、OpenSpec 全局规范、`Docs/PLAN.md` S01、`Docs/DESIGN.md` §1.1、§1.3、§3.1、§4、§6、`Docs/TESTING.md` 中 S01 涉及的 TC 定义、`Docs/REQUIREMENT.md` 中 FR-LLM-01/02/04、`Docs/ISSUE.md`、`MEMORY.md`、`Docs/PROMPT.md`，以及 `agent_mini/llm/` 现有占位文件。
+2. 阶段范围、验收标准、测试项一律以 `Docs/PLAN.md`、`Docs/DESIGN.md`、`Docs/TESTING.md` 为准；本 Prompt 不重复其内容。若三份文档之间对 S01 存在不一致或缺口，停止并在 `Docs/ISSUE.md` 登记，不得自行补写需求或补写测试用例定义。
+3. 严格按 `Docs/PLAN.md` S01 声明的「前置阶段」与「输出」范围实施；凡未列在 S01 输出的功能一律视为越界，不得实现，也不得为跑通测试在其他子包加入实现。
+4. 不得调用真实 DeepSeek API，不得读取 `DEEPSEEK_API_KEY`；真实 API 能力按 `Docs/PLAN.md` 中 S01「测试项」的说明留待对应阶段验收。
+5. 依赖管理遵循「先声明 → 再安装 → 再 import → 再测试」；新增依赖需核对 `Docs/DESIGN.md` §1.3 与 §6.1，并在 `Docs/PROMPT.md` 中记录包名、版本约束、用途与禁止清单核对结论。
+6. 必须使用 OpenSpec 先编写本阶段 change 并通过 `openspec validate --strict`，再开始 TDD；必须使用 SuperPower SKILL，不可用时登记 ISSUE，不得伪造。
+7. 必须 TDD：对 `Docs/TESTING.md` 中属于本阶段的每条 TC 先写失败测试、确认红因与「未实现」相关，再实现到绿、再重构；不得以语法或夹具错误冒充红。
+8. 代码质量遵循 OpenSpec 全局规范与 `AGENT.md`：单行单语句、行宽、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无注释掉的代码、无魔法数字。
+9. 验收命令按 `AGENT.md` 与 `Docs/TESTING.md` 执行，至少包含：可编辑安装、全量 pytest（含 S00 用例无回归）、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict`、wheel 构建校验、仓库外导入验证；每项需复跑并留证，不得编造输出。
+10. S00 遗留收尾项需在 S01 代码提交之前以独立提交完成；若其中任一项因故无法完成，登记 ISSUE 后继续 S01，不得中断。
+11. 文档收口必须完成：`Docs/PLAN.md` 状态、`MEMORY.md`、`Docs/PROMPT.md`、`Docs/ISSUE.md`、`Docs/TESTING.md`、`Docs/DESIGN.md`、`README.md`（如需）；若 S01 澄清了协议或判别细节，须同步文档，不得只改代码。
+12. 按 `AGENT.md` Commit 规范提交并主动推送；提交需按逻辑拆分（S00 收尾、OpenSpec 规划、代码+测试、文档收口、归档）。冲突或推送失败时停止并报告，不得强推。
+【输出格式】
+仅返回 Markdown 执行结果，包含：
+1. 阶段目标重申：一句话说明 S01 目标与边界，须与 `Docs/PLAN.md` 一致。
+2. 前置收尾结果：S00 遗留各项的完成情况与对应 commit。
+3. 测试用例映射表：`Docs/TESTING.md` 中属于 S01 的每条 TC，逐条列出「定义摘要 / 本阶段覆盖部分 / 留待后续部分 / 对应用例文件」。
+4. 变更文件：区分「运行依赖」「dev 依赖」「实现」「测试」「文档」「OpenSpec」。
+5. OpenSpec 与 SKILL：change 名称、spec/tasks 路径、validate 结果、归档结果；SuperPower SKILL 使用情况。
+6. TDD 记录：每条 TC 先红后绿的证据摘要（红因、绿因），不得只给总数。
+7. 验收结果：按 `AGENT.md` 与 `Docs/TESTING.md` 要求的各项验收命令逐条给出命令、结果、是否通过。
+8. 依赖审计：新增依赖清单（包名、版本约束、用途、禁止清单核对结论、声明位置）。
+9. 可读性与注释检查：核对方式与结果。
+10. 文档收口：各文档是否已更新及更新要点。
+11. Git 状态：各 commit hash、分支名、推送结果、工作区是否干净。
+12. 异常与待确认：无异常写「无」；有异常给出错误摘要、影响范围和建议下一步。
+不要输出任何代码正文或文档正文。
+```
+
+#### 执行摘要
+
+- S00 收尾：新增 ISSUE-019；更新 `TESTING.md` §6.2、`PLAN.md` §5.2 与 S00 验收、`DESIGN.md` §2.2 占位规范；独立提交 `cc2ff81`。
+- OpenSpec：新增 `s01-llm-single-turn` change（新能力 `llm-client`），规划提交 `a0142ca`；编码前 `openspec validate --strict` 通过。
+- 边界裁决：ISSUE-020 记录 S01/S02/S21 的重叠；S01 只实现错误类型、临时 `ModelConfig`、客户端归一与非法参数结构化，不实现 Runtime/ToolResult/重试。
+- 依赖：运行时 `httpx>=0.27`、`pydantic>=2.6`；dev `respx>=0.21`、`pytest-asyncio>=0.23`；已安装并验证导入。
+- TDD 红：6 个契约测试模块在实现前全部因缺少 `HttpLLMClient`/`LLMResponse`/错误类型而在收集阶段失败。
+- TDD 绿：实现后 `tests/contract` 为 29 passed；全量 `pytest` 为 36 passed；`ruff check .`、`ruff format --check .`、`mypy agent_mini` 均通过。
+- 实现：`llm/models.py` 负责消息/工具/Usage/响应归一；`llm/errors.py` 提供 S01 判别错误；`llm/client.py` 提供 `LLMClient` Protocol 与 `HttpLLMClient`。
+- 文档：PLAN S01 标记完成；MEMORY 记录 S01；DESIGN v0.8 澄清 S01 边界；TESTING 说明 L2 已实现；README 增加 `pytest -m unit`/`pytest -m contract`。
+- 提交：`4fef560` 完成代码+测试；文档收口、归档与推送见最终报告。

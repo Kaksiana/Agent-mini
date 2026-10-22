@@ -5,7 +5,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.7（环境变量命名统一） |
+| 版本 | v0.8（S01 协议边界澄清） |
 | 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
@@ -151,6 +151,7 @@ agent_mini/
 - **模式配置**：首版默认显式发送 `thinking={"type":"disabled"}`；可配置开启思考模式，开启后按供应商协议保留 `reasoning_content`，实际模型名通过配置指定，不写死旧型号。
 - **协议依据（2026-10-21 核对）**：DeepSeek 的 `reasoning_content` 与 `content` 是独立字段；思考模式下携带 `tools` 的后续请求，需要回传所保留历史的推理字段，包括未调用工具的历史 assistant 消息。仅对当前保留的完整轮次回传，不复活已裁剪历史。见 [官方思考模式](https://api-docs.deepseek.com/guides/thinking_mode/) 与 [官方工具调用](https://api-docs.deepseek.com/guides/tool_calls/)。
 - **错误解析边界**：无 choices、空 choices、message 类型不合法、tool_calls 结构不合法或调用 ID 重复，抛 `LLMProtocolError`（`LLM_PROTOCOL_ERROR/502`），本响应的任何工具均不执行。原始响应仅用于内存解析，默认不落盘、不记日志；诊断只输出脱敏的错误类型与 trace_id。
+- **S01 实现边界**：客户端只负责请求、归一与判别；非法工具参数以 `ToolCall.error_code="invalid_arguments"` 保留 call_id，Runtime/ToolResult 映射在 S04/S06；HTTP 状态分类与重试在 S02。S01 临时 `ModelConfig`（base_url/model/timeout）位于 `llm/models.py`，S21 配置层迁移或复用。
 - **错误处理**：`401/403` → `LLMAuthError`；`429` 与 `5xx` → 指数退避重试（默认 3 次，底数 0.5s，带抖动）；`400` → `LLMBadRequest`（不重试）；超时 → `LLMTimeout`（不重试，交由 Runtime 收敛）。
 - **无状态**：不持有会话；调用方传入完整 `messages`。
 
@@ -498,3 +499,4 @@ AgentResult →
 | --- | --- | --- | --- |
 | v0.6 | 2026-10-21 | 解析契约、完整请求预算与验收用例修订 | 全文 |
 | v0.7 | 2026-10-22 | 环境变量统一为 `DEEPSEEK_API_KEY`，移除 `LLM_API_KEY` 别名 | §3.8；联动 `Docs/ISSUE.md` ISSUE-013、`openspec/specs/engineering-standards/spec.md` C-02 |
+| v0.8 | 2026-10-22 | 澄清 S01 客户端/错误/临时 ModelConfig/非法工具参数边界 | §3.1；联动 ISSUE-020 |

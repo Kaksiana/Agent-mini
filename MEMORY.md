@@ -1,5 +1,12 @@
 # MEMORY <!-- omit in toc -->
 
+## 2026-10-22 — S01 模型接入
+
+- S01 完成：`agent_mini/llm/{models,errors,client}.py`，支持 OpenAI Chat Completions 单轮请求、响应归一、工具参数严格解析与 thinking/reasoning 回传。
+- 依赖：运行时 `httpx>=0.27`、`pydantic>=2.6`；dev `respx>=0.21`、`pytest-asyncio>=0.23`。未调用真实 API，未读取 `DEEPSEEK_API_KEY`。
+- 验收：L2 契约测试 29 个、全量 36 passed；ruff/format/mypy/openspec 通过。
+- 边界：`ModelConfig` 为 S01 临时模型；非法工具参数以 `ToolCall.error_code=invalid_arguments` 返回；Runtime/ToolResult 与循环留 S04/S06，错误分类/重试留 S02（ISSUE-020）。
+
 ## 2026-10-22 — S00 工程基线
 
 - S00 完成：`pyproject.toml`、`agent_mini/__init__.py` + `agent_mini/version.py`（0.1.0）、`tests/unit/test_smoke.py`、README 安装/测试命令。

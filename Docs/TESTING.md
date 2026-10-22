@@ -81,7 +81,7 @@
 | L5 非功能 | 性能、并发、安全、脱敏 | 视用例 | 10–120s | 否（`@slow`） | `pytest -m slow` |
 | LIVE 真实验收 | DeepSeek 直答、工具闭环、可选思考模式 | 真实 API + 密钥，有限调用次数 | 视模型时延 | 否，显式 opt-in；发布前必验 001/002 | 待实现后写入 README |
 
-> 测试命令以 `README.md` 记录的真实脚本为准（`AGENT.md` §2）。当前尚未实现，上表仅为设计约定；README 缺口已登记为 ISSUE-008。
+> 测试命令以 `README.md` 记录的真实脚本为准（`AGENT.md` §2）。S01 已实现 L2 契约测试（`pytest -m contract`）；L3–L5 与 LIVE 仍待后续阶段。
 
 ## 4. 每层测试用例清单
 

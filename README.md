@@ -28,6 +28,8 @@ python -c "import agent_mini; print(agent_mini.get_version())"
 
 ```bash
 pytest
+pytest -m unit
+pytest -m contract
 ```
 
 ## 静态检查

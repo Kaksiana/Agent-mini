@@ -236,5 +236,6 @@
   4. TC-L2-010 在 S01 只覆盖“content + 多个 tool_calls 的解析与顺序”；循环、消息配对与 trace 留 S04。
   5. TC-L2-007 在 S01 覆盖 reasoning 解析与客户端请求回传；轮次裁剪后不回传留 S15/S16。
 - 验证方式：对应 TC 的契约测试通过；文档在 DESIGN/TESTING/PLAN 的边界说明保持同步；不在 S01 引入 Runtime/Tool/Memory 实现。
-- 状态：Resolved（边界已裁决，按此实施）
-- 关联提交：无（S01 规划记录）
+- 验证结果：L2 契约测试 29 passed，全量 36 passed；S01 未引入 Runtime/Tool/Memory 实现；DESIGN §3.1、TESTING §3、PLAN S01 已同步边界。
+- 状态：Resolved
+- 关联提交：S01 规划与实现提交（见最终报告）
