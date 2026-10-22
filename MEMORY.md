@@ -4,7 +4,7 @@
 
 - 前置 `1a9bdb3`：`LoopPolicy` 参数化，默认不限制，S04 行为不变。
 - 实现：`max_steps=8`、`deadline=120s`、`repeat_threshold=3`；`truncated`/`termination_reason` 与三条固定文案；deadline 使用 `asyncio.wait_for` 取消；重复按连续 `name+规范化 args`；中断时补齐同 call_id 的 tool 消息。
-- 验收：103 passed、覆盖率 94.51%；unit 39、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec 通过。
+- 验收：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec 通过。
 - M1（S00–S05）已收口；S06 真实注册表、S13–S18 后续。
 
 ## 2026-10-22 — S04 ReAct 工具循环

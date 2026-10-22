@@ -1317,6 +1317,23 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 人工修正 / 决策：无；等待后续修复决策。
 - 关联提交：无（本轮未提交）。
 
+## 2026-10-22 21:06 — 修复 S05 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】修复S05-report中问题
+```
+
+### 执行摘要
+
+- 目标：修复 S05 报告 P1 与相关 P2，恢复 S05/M1 准入。
+- 产出：工具本地 TimeoutError 分类、非法参数签名隔离、finite deadline、start-before-schemas、LLM steps 保留、TC-L1-029 矩阵、累计 runtime 规格、M1 演示命令。
+- 关键约束：不改归档 change；历史 Prompt/红灯缺证如实保留；不伪造测试时序。
+- 验证：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec/wheel 通过。
+- 已知限制：工具本地 TimeoutError 测试先红；P1-06 的 5 个新增子场景均已转绿；S05 历史 Prompt 摘要缺失仍记录为历史债。
+- 关联提交：本轮修复提交见最终报告。
+
 ## 2026-10-22 20:07 — 修复 S04 评估报告
 
 ### 原始 Prompt
@@ -1353,6 +1370,24 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 产出：`LoopPolicy`、max_steps=8、deadline=120s、repeat=3、`truncated`/`termination_reason`、三条固定文案、deadline 取消与中断 tool 消息补齐。
 - 前置：`1a9bdb3` 参数化，默认不限制；S04 行为不变。PLR0915/PLR0912 已启用且无告警。
 - 人工修正 / 决策：deadline 使用自 run 启动计时与 `asyncio.wait_for` 取消；重复签名按连续 name+规范化 args；终止原因放 AgentResult，ThoughtStep 不增字段。
-- 验证：103 passed、覆盖率 94.51%；unit 39、contract 64；`mypy agent_mini tests` 49 files 0 errors。
+- 验证：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors。
 - 关联提交：`1a9bdb3`（参数化）、S05 代码/文档提交、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-22-s05-runtime-safety-valve`；runtime 主规格增至 11 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
+
+## 2026-10-22 21:00 — S05 与 M1 独立评估
+
+### 原始 Prompt
+
+```text
+【评估】S05阶段以及M1
+```
+
+### 执行摘要
+
+- 目标：独立评估 S05 循环安全阀及 M1（S00～S05）里程碑是否满足准出条件。
+- 关键约束：只读评估；不修改实现、测试、OpenSpec、PLAN、Issue 或远程状态；仅归档报告和本轮 Prompt。
+- 产出：`Docs/S05-report.md`；结论为 S05 暂不可进入 S06，M1 当前不满足里程碑 DoD。
+- 关键发现：工具本地 `TimeoutError` 被误判为 deadline；非法参数与合法空对象签名碰撞；非有限 deadline 绕过硬边界；LLM deadline 少计 steps；TC-L1-029、OpenSpec 累计规格和流程记录未闭环。
+- 验证：全量 103 passed、覆盖率 94.51%；unit 39、contract 64；ruff/format/mypy/OpenSpec/pip check/wheel/仓库外导入通过；4 个定向探针暴露上述行为缺陷。
+- 人工修正 / 决策：未实施修复；P0=0，P1=10，P2=4，Info=2；需先修复 P1 并补 M1 可复现演示。
+- 关联提交：无（评估工作区未提交）。

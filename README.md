@@ -33,6 +33,20 @@ pytest -m contract
 pytest --cov=agent_mini --cov-report=term-missing
 ```
 
+## M1 离线演示
+
+使用测试替身展示“直答 → 工具循环 → 安全阀”，不访问网络：
+
+```bash
+pytest -q \
+  tests/unit/test_agent.py::test_direct_reply_returns_one_step_result \
+  tests/unit/test_react_loop.py::test_two_step_tool_loop_pairs_messages \
+  tests/unit/test_safety_valve.py::test_max_steps_stops_exactly_at_limit \
+  tests/unit/test_safety_valve.py::test_deadline_cancels_hanging_tool_and_fills_batch
+```
+
+预期：`4 passed`。覆盖直接回复、两步工具配对、max_steps 固定文案与 deadline 取消/补齐。
+
 ## 静态检查
 
 ```bash

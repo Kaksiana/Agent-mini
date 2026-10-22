@@ -2,7 +2,7 @@
 
 ## Purpose
 
-定义 Agent Runtime 的累计契约：S03 无工具单轮直答与 S04 ReAct 工具循环；构造器注入 `LLMClient`/可选 `ToolExecutor`，冻结 `AgentResult(reply/steps/usage/trace/tool_calls/tool_traces)`，公开 trace 脱敏，LLM 异常原样传播。
+定义 Agent Runtime 的累计契约：S03 无工具单轮直答、S04 ReAct 工具循环与 S05 安全阀；构造器注入 `LLMClient`/可选 `ToolExecutor`/`LoopPolicy`，冻结 `AgentResult(reply/steps/usage/trace/tool_calls/tool_traces/truncated/termination_reason)`，公开 trace 脱敏，LLM 异常原样传播。
 
 ## Requirements
 
