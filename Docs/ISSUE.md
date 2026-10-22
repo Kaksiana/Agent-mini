@@ -208,7 +208,7 @@
 - 根因：`[tool.setuptools.packages.find]` 只负责发现 Python 包，非 Python 文件必须通过 `package-data` 显式声明；S00 验收和测试未覆盖构建产物内容，也未约束占位模块只能含 docstring。
 - 解决方案：在 `pyproject.toml` 增加 `agent_mini.systemdb` 的 `package-data` 声明；新增打包配置测试、DESIGN §2.2 结构完整性测试、占位模块 AST 检查；重建 wheel 并逐项核对 35 个 `agent_mini/` 文件（含 2 个既有文件）。
 - 验证方式：`python -m pip wheel . --no-deps` 构建 wheel；用 `zipfile` 对比 `DESIGN.md` §2.2 文件清单；`pytest`、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 全部通过。
-- 验证结果：待修正完成后回填。
+- 验证结果：wheel 内 `agent_mini/` 文件数为 35，包含 `systemdb/schema.sql`；将 wheel 安装到临时 target 后，10 个子包全部可导入，`importlib.resources` 读取 `schema.sql` 返回 True；`pytest` 7 passed；`ruff check .` 零告警；`ruff format --check .` 37 files already formatted；`mypy agent_mini` 34 source files 无错误。
 - 预防：S00/S01 DoD 增加“wheel 内容与设计目录一致”的检查；保留打包配置测试与结构测试作为回归。
-- 状态：Open
-- 关联提交：无（问题登记）
+- 状态：Resolved
+- 关联提交：`4b538cb`（修正启动）、`3637d93`（打包修正与测试）

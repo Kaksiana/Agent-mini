@@ -698,3 +698,23 @@ S00 已标记为“已完成”，但实际只创建了 `agent_mini/__init__.py`
 - 文档：PLAN 先回退“进行中”并在验收后恢复“已完成”；MEMORY 记录骨架修正；ISSUE-017 记录差异、根因、解决方案、验证与预防；README 命令未受包结构影响，无需修改。
 - 提交：`c642b2f` 记录 ISSUE-017/PLAN 回退与 OpenSpec change；`4e7e900` 补齐骨架与测试；`ee5e96d` 记录文档收口。
 - OpenSpec 归档：change 归档为 `2026-10-22-s00-baseline-skeleton-fix`；主规格 `engineering-baseline` 增至 5 项 Requirement；`openspec validate --all --strict` 为 2 passed、0 failed。
+
+### Prompt 20 — 2026-10-22（时分未采样）— 校验 wheel 打包与占位约束
+
+#### 原始 Prompt
+
+```text
+【调整】1.报告显示”pyproject.toml 与依赖清单未改动“，新增的子包会被真正打包吗？2.验收标准：agent_mini/ 目录结构与 DESIGN.md §2.2 完全一致；import agent_mini.<子包> 全部成功。骨架阶段占位文件仅包含模块级中文 docstring，禁止 import 任何第三方库或本包子模块，直至对应阶段实现。
+```
+
+#### 执行摘要
+
+- 目标：核查新增子包是否真正进入 wheel，并把结构完整性、子包导入、占位模块 docstring 约束固化为验收测试。
+- 打包核查：修正前 wheel 含 34 个 `agent_mini/*.py`，10 个子包均已打包，但 `agent_mini/systemdb/schema.sql` 缺失；确认 `packages.find` 只覆盖 Python 包，非 Python 文件需 `package-data`。
+- 修正：`pyproject.toml` 增加 `agent_mini.systemdb = ["schema.sql"]`；新增 `tests/unit/test_packaging_config.py`、DESIGN §2.2 文件清单测试、占位模块 AST 测试与 `schema.sql` 注释测试。
+- TDD 红：`test_systemdb_schema_is_declared_as_package_data` 在修正前因 `KeyError: 'package-data'` 失败。
+- TDD 绿：增加 package-data 后该测试通过；全量 `pytest` 为 7 passed；`ruff check .`、`ruff format --check .`（37 files）、`mypy agent_mini`（34 source files）均通过。
+- wheel 验收：重建 wheel 后 `agent_mini/` 文件数为 35/35，包含 `systemdb/schema.sql`；将 wheel 安装到临时 target 后，10 个子包全部可导入，`importlib.resources` 读取 `schema.sql` 返回 True。
+- 文档：新增 ISSUE-018；PLAN 先回退“进行中”并在复验后恢复“已完成”；MEMORY 记录 wheel 35/35 与 7 passed；README 无需修改。
+- OpenSpec：新增 `s00-package-integrity-fix` change；归档与主规格 6 项 Requirement 的最终校验见报告。
+- 提交：`4b538cb` 记录 ISSUE-018/PLAN 回退与 OpenSpec change；`3637d93` 完成 package-data 修正与测试。
