@@ -28,5 +28,5 @@
 ## 5. 收口
 
 - [x] 5.1 更新 PLAN、MEMORY、PROMPT、ISSUE，恢复 S00“已完成”
-- [ ] 5.2 归档 change 并校验主规格
-- [ ] 5.3 按 Conventional Commits 提交并推送
+- [x] 5.2 归档 change 并校验主规格
+- [x] 5.3 按 Conventional Commits 提交并推送

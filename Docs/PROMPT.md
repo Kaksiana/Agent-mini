@@ -716,5 +716,5 @@ S00 已标记为“已完成”，但实际只创建了 `agent_mini/__init__.py`
 - TDD 绿：增加 package-data 后该测试通过；全量 `pytest` 为 7 passed；`ruff check .`、`ruff format --check .`（37 files）、`mypy agent_mini`（34 source files）均通过。
 - wheel 验收：重建 wheel 后 `agent_mini/` 文件数为 35/35，包含 `systemdb/schema.sql`；将 wheel 安装到临时 target 后，10 个子包全部可导入，`importlib.resources` 读取 `schema.sql` 返回 True。
 - 文档：新增 ISSUE-018；PLAN 先回退“进行中”并在复验后恢复“已完成”；MEMORY 记录 wheel 35/35 与 7 passed；README 无需修改。
-- OpenSpec：新增 `s00-package-integrity-fix` change；归档与主规格 6 项 Requirement 的最终校验见报告。
-- 提交：`4b538cb` 记录 ISSUE-018/PLAN 回退与 OpenSpec change；`3637d93` 完成 package-data 修正与测试。
+- OpenSpec：新增 `s00-package-integrity-fix` change，归档为 `2026-10-22-s00-package-integrity-fix`；主规格 `engineering-baseline` 增至 6 项 Requirement；`openspec validate --all --strict` 为 2 passed、0 failed。
+- 提交：`4b538cb` 记录 ISSUE-018/PLAN 回退与 OpenSpec change；`3637d93` 完成 package-data 修正与测试；`130fa7f` 记录文档收口。
