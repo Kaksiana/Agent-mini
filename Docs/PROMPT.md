@@ -1,4 +1,4 @@
-﻿# PROMPT <!-- omit in toc -->
+# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1410,6 +1410,7 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 产出：`ToolResult`（ok/error 不变量）、`ToolContext` 预留、`ToolSpec`、`ToolRegistry`、`@tool`、`RegistryExecutor`。
 - P2-04：Runtime `ToolOutcome` 复用 `ToolResult`；`ToolCallTrace.args` 改为只读映射。
 - 验收：120 passed、覆盖率 95.22%；unit 56、contract 64；mypy 51 files 0 errors。
-- 关联提交：S06 代码/文档/归档提交见最终报告。
+- 关联提交：`dcffea5`（代码+测试）、`371f982`（文档/change）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s06-tool-registry`；新建 `tool-registry` 规格（4 项 Requirement）；`openspec validate --all --strict` 为 5 passed、0 failed。
 
 
