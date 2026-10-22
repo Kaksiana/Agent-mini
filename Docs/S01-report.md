@@ -352,3 +352,5 @@
 
 **复验**：`pytest` 50 passed；覆盖率 93%；`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 通过。修复后建议进入 S02；最终以交付报告为准。
 
+**真实 API 尝试（2026-10-22）**：当前环境无 `DEEPSEEK_API_KEY`，未发送请求；网络可达但无凭据，详见 ISSUE-023。
+

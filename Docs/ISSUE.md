@@ -261,3 +261,14 @@
 - 验证结果：P0-01 已修（非 object 顶层 → `LLMProtocolError`）；P1-01 已修（保留字段拒绝）；P1-09 已修（reasoning 仅 assistant）；P1-02/03/04/06/07/10 已闭环；P1-05 规范已补，历史收集级红证据保留说明；P1-08 由新 change 承接且未重写历史；P2-02/03/05/07 已修，P2-01/04/06 记录为后续可选改进。50 passed、覆盖率 93%、ruff/format/mypy/openspec 通过。
 - 状态：Resolved
 - 关联提交：S01 修复提交（见最终报告）
+
+### ISSUE-023 — 真实 DeepSeek API 测试因缺少 `DEEPSEEK_API_KEY` 未执行
+
+- 日期：2026-10-22
+- 现象：进程环境、Windows User/Machine 环境均无 `DEEPSEEK_API_KEY`，仓库根目录也没有 `.env`；`https://api.deepseek.com` 的 HEAD 请求返回 401，说明网络可达但缺少凭据。未发送任何带消息的模型请求。
+- 根因：执行环境未注入真实 API 密钥；S01 文档禁止读取密钥，当前用户明确要求真实测试，但环境中仍无可用凭据。
+- 解决方案：不发送无凭据或伪造密钥请求；等待用户在环境中设置 `DEEPSEEK_API_KEY` 后重试。密钥不得写入仓库、Prompt、命令输出或日志。
+- 验证方式：确认 `DEEPSEEK_API_KEY` 存在且不打印值；使用 `HttpLLMClient` 发送最小文本消息；记录模型、trace_id、usage、回复与脱敏结果；失败时记录 HTTP 状态/错误类型，不记录 Authorization 或原始响应。
+- 验证结果：未执行（缺少凭据），未产生 API 调用费用，未伪造响应。
+- 状态：Open
+- 关联提交：本次文档记录（见最终报告）

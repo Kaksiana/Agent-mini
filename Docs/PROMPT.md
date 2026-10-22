@@ -814,3 +814,19 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - 异常/边界：P1-05 的历史红证据为收集级，无法追溯补造，已补规则并如实记录；P1-08 通过新 change 承接，未重写历史；P2-01/04/06 保留为可选改进。
 - 提交：`411bb39` 归档评估报告；`b4bb98b` 记录报告修复计划；`b2cdb10` 完成协议硬化与依赖 pin；`bfb8d53` 完成文档闭环。
 - OpenSpec 归档：change 归档为 `2026-10-22-s01-report-fixes`；`llm-client` 主规格增至 8 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
+
+### Prompt 24 — 2026-10-22 — 尝试真实 DeepSeek API
+
+#### 原始 Prompt
+
+```text
+【测试】尝试使用真实DeepSeekAPI发送消息
+```
+
+#### 执行摘要
+
+- 目标：使用真实 DeepSeek API 发送一条最小文本消息，验证 S01 客户端。
+- 凭据检查：当前进程、Windows User/Machine 环境均无 `DEEPSEEK_API_KEY`；仓库无 `.env`；未读取或输出任何密钥值。
+- 网络检查：`https://api.deepseek.com` HEAD 返回 401，网络可达但缺少鉴权；未发送模型消息请求，未产生 API 调用费用。
+- 结果：真实 API 测试未执行；不伪造成功响应。已登记 ISSUE-023（Open），待设置环境变量后重试。
+- 边界：未把密钥写入仓库、Prompt、命令输出或日志；未修改 S01 实现与测试。
