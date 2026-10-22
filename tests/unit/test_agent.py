@@ -1,14 +1,14 @@
 """TC-L1-015A/B/C：S03 单轮直答与 AgentResult。"""
 
 import inspect
-from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
 from agent_mini.llm import models as llm_models
 from agent_mini.llm.errors import LLMEmptyResponseError, LLMProtocolError, LLMTimeoutError
-from agent_mini.runtime import agent as agent_module
+from agent_mini.runtime.agent import Agent
+from agent_mini.runtime.result import AgentResult
 
 pytestmark = pytest.mark.unit
 
@@ -47,12 +47,6 @@ class ErrorLLM:
         raise self.error
 
 
-def _agent_class() -> Any:
-    agent_class = getattr(agent_module, "Agent", None)
-    assert agent_class is not None, "Agent 尚未实现"
-    return agent_class
-
-
 def _usage() -> llm_models.Usage:
     return llm_models.Usage(prompt_tokens=2, completion_tokens=1, total_tokens=3)
 
@@ -67,7 +61,7 @@ async def test_direct_reply_returns_one_step_result() -> None:
             usage=usage,
         )
     )
-    agent = _agent_class()(stub)
+    agent = Agent(stub)
 
     result = await agent.run("你好")
 
@@ -85,23 +79,23 @@ async def test_direct_reply_returns_one_step_result() -> None:
 
 
 async def test_agent_result_is_frozen() -> None:
-    result = await _agent_class()(StubLLM(_response("答案"))).run("你好")
+    result = await Agent(StubLLM(_response("答案"))).run("你好")
 
     with pytest.raises(ValidationError):
         result.reply = "被修改"
 
 
 def test_run_signature_has_no_session_id() -> None:
-    parameters = inspect.signature(_agent_class().run).parameters
+    parameters = inspect.signature(Agent.run).parameters
 
     assert list(parameters) == ["self", "user_input"]
-    assert inspect.iscoroutinefunction(_agent_class().run)
+    assert inspect.iscoroutinefunction(Agent.run)
 
 
 async def test_empty_response_error_is_propagated() -> None:
     error = LLMEmptyResponseError("模型没有返回有效答案")
     stub = ErrorLLM(error)
-    agent = _agent_class()(stub)
+    agent = Agent(stub)
 
     with pytest.raises(LLMEmptyResponseError) as exc_info:
         await agent.run("你好")
@@ -113,7 +107,7 @@ async def test_empty_response_error_is_propagated() -> None:
 async def test_llm_error_is_propagated_without_wrapping() -> None:
     error = LLMTimeoutError("模型调用超时（5.0 秒）")
     stub = ErrorLLM(error)
-    agent = _agent_class()(stub)
+    agent = Agent(stub)
 
     with pytest.raises(LLMTimeoutError) as exc_info:
         await agent.run("你好")
@@ -122,9 +116,10 @@ async def test_llm_error_is_propagated_without_wrapping() -> None:
     assert stub.calls == 1
 
 
-async def test_unexpected_tool_calls_are_rejected() -> None:
+@pytest.mark.parametrize("content", [None, "伴随文本"])
+async def test_unexpected_tool_calls_are_rejected(content: str | None) -> None:
     response = llm_models.LLMResponse(
-        content=None,
+        content=content,
         finish_reason="tool_calls",
         tool_calls=[
             llm_models.ToolCall(
@@ -135,7 +130,7 @@ async def test_unexpected_tool_calls_are_rejected() -> None:
         ],
         usage=_usage(),
     )
-    agent = _agent_class()(StubLLM(response))
+    agent = Agent(StubLLM(response))
 
     with pytest.raises(LLMProtocolError):
         await agent.run("你好")
@@ -143,10 +138,38 @@ async def test_unexpected_tool_calls_are_rejected() -> None:
 
 async def test_none_content_without_tool_calls_is_rejected() -> None:
     response = llm_models.LLMResponse(content=None, finish_reason="stop", usage=_usage())
-    agent = _agent_class()(StubLLM(response))
+    agent = Agent(StubLLM(response))
 
     with pytest.raises(LLMEmptyResponseError):
         await agent.run("你好")
+
+
+@pytest.mark.parametrize("content", ["", "   ", "\n\t"])
+async def test_blank_content_is_rejected(content: str) -> None:
+    response = llm_models.LLMResponse(content=content, finish_reason="stop", usage=_usage())
+    agent = Agent(StubLLM(response))
+
+    with pytest.raises(LLMEmptyResponseError):
+        await agent.run("你好")
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"reply": "", "steps": 1},
+        {"reply": "   ", "steps": 1},
+        {"reply": "答案", "steps": 0},
+        {"reply": "答案", "steps": -1},
+    ],
+)
+def test_agent_result_rejects_invalid_fields(kwargs: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        AgentResult.model_validate({**kwargs, "usage": _usage()})
+
+
+def test_agent_result_rejects_extra_fields() -> None:
+    with pytest.raises(ValidationError):
+        AgentResult.model_validate({"reply": "答案", "steps": 1, "usage": _usage(), "trace": []})
 
 
 def _response(content: str) -> llm_models.LLMResponse:

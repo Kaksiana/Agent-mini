@@ -20,7 +20,7 @@ class Agent:
         response = await self._llm_client.chat([Message(role="user", content=user_input)])
         if response.tool_calls:
             raise LLMProtocolError("S03 不支持工具调用")
-        if response.content is None:
+        if response.content is None or not response.content.strip():
             raise LLMEmptyResponseError("模型没有返回有效答案")
         return AgentResult(
             reply=response.content,
