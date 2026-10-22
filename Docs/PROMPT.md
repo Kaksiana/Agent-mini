@@ -1,4 +1,4 @@
-﻿# PROMPT <!-- omit in toc -->
+# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1431,6 +1431,23 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 验证：全量 120 passed；unit 56、contract 64；总覆盖率 95%；ruff/format/mypy/OpenSpec/pip check/wheel/仓库外导入通过；定向探针复现 4 类行为缺陷。
 - 人工修正 / 决策：未实施修复；P0=0，P1=7，P2=4，Info=2；需修复 P1 后复验。
 - 关联提交：无（评估工作区未提交）。
+
+## 2026-10-22 22:16 — 修复 S06 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】修复S06-report问题
+```
+
+### 执行摘要
+
+- 目标：修复 S06 报告 P1/P2，恢复 S06 进入 S07 准入。
+- 产出：启停过滤、asyncio.to_thread、额外参数拒绝、严格 ToolResult、ToolSpec 元数据校验、ToolCallTrace 深只读、未知工具/同步/返回类型测试。
+- 验证：修复测试 14 个先红；129 passed、覆盖率 95.25%；unit 65、contract 64；mypy 51 files 0 errors；OpenSpec/wheel 通过。
+- 已知限制：S06 历史 Prompt 仍为摘要且无原始红灯输出；不伪造历史证据。
+- 关联提交：`67aceed`（代码+测试）、`63c167f`（文档/change）、`9135649`（覆盖边界）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s06-report-fixes`；tool-registry 主规格增至 8 项 Requirement；`openspec validate --all --strict` 为 5 passed、0 failed。
 
 
 
