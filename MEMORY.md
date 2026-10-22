@@ -4,7 +4,7 @@
 
 - S04 完成：`Agent(llm_client, tool_executor)` 的 ReAct 循环；`ToolExecutor`/`ToolOutcome` Protocol；assistant/tool 按 call_id 顺序配对；未知工具/参数/Schema 错误回灌；S05 安全阀未实现。
 - `AgentResult` 增量：`trace`、`tool_calls`、`tool_traces`；`ThoughtStep/ToolCallTrace` 冻结，`thought_source=runtime_summary`，reasoning 只在 assistant messages，公开 trace 脱敏并截断 200 字符。
-- 验收：96 passed、覆盖率 95.70%；unit 32、contract 64；`mypy agent_mini tests` 48 files 0 errors；ruff/format/openspec 通过。
+- 验收：97 passed、覆盖率 95.70%；unit 33、contract 64；`mypy agent_mini tests` 48 files 0 errors；ruff/format/openspec 通过。
 - 边界：S05 安全阀、S06 真实注册表、S13–S16 Memory/Context、S18 真实 API/HTTP 留后续。
 
 ## 2026-10-22 — S03 单轮直答

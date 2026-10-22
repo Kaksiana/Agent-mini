@@ -126,6 +126,28 @@ async def test_two_step_tool_loop_pairs_messages() -> None:
     assert executor.calls == [call]
 
 
+async def test_three_steps_converge() -> None:
+    llm = ScriptedLLM(
+        [
+            _response(calls=[_tool_call("call_1")], finish_reason="tool_calls"),
+            _response(calls=[_tool_call("call_2")], finish_reason="tool_calls"),
+            _response(content="三步完成"),
+        ]
+    )
+    executor = FakeExecutor()
+
+    result = await Agent(llm, executor).run("hi")
+
+    assert result.reply == "三步完成"
+    assert result.steps == 3
+    assert result.tool_calls == 2
+    assert [item.decision for item in result.trace] == [
+        "tool_call",
+        "tool_call",
+        "final",
+    ]
+
+
 async def test_content_with_multiple_tools_preserves_order() -> None:
     calls = [_tool_call("call_1"), _tool_call("call_2")]
     llm = ScriptedLLM(
