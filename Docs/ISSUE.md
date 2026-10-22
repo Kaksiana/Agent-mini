@@ -239,3 +239,25 @@
 - 验证结果：L2 契约测试 29 passed，全量 36 passed；S01 未引入 Runtime/Tool/Memory 实现；DESIGN §3.1、TESTING §3、PLAN S01 已同步边界。
 - 状态：Resolved
 - 关联提交：S01 规划与实现提交（见最终报告）
+
+### ISSUE-021 — dev 工具依赖仅设下界，版本漂移且 `pytest-cov` 未声明
+
+- 日期：2026-10-22
+- 现象：`pyproject.toml` 的 dev 依赖对 `ruff`、`mypy`、`pytest-asyncio`、`respx` 只设最低版本；验收中使用的 `pytest-cov` 未声明。`pip install -e ".[dev]"` 实际把 ruff 从 0.15.10 升到 0.17.1、mypy 从 1.11.2 升到 2.4.0。
+- 根因：初版依赖只按“最低版本”声明，没有为 dev 工具设置 minor 兼容上界，也没有把覆盖率工具纳入依赖清单。
+- 解决方案：将四个指定 dev 工具 pin 到当前 minor 兼容范围；补充 `pytest-cov` 并 pin 到 minor；在 ISSUE 与本轮 PROMPT 记录升级原因。
+- 验证方式：检查 `pyproject.toml` 的 dev 约束；`pip install -e ".[dev]"` 成功；`pytest --cov=agent_mini --cov-report=term-missing` 可运行；全量测试与静态检查通过。
+- 验证结果：待修复完成后回填。
+- 状态：Open
+- 关联提交：无（问题登记）
+
+### ISSUE-022 — S01 评估报告的 P0/P1 问题修复
+
+- 日期：2026-10-22
+- 现象：`Docs/S01-report.md` 判定 S01 不宜直接进入 S02，指出 P0-01（非 object JSON 顶层泄漏 `AttributeError`）、P1-01（params 覆盖受控字段）、P1-02~P1-10（异常层次、阶段输出、TC 覆盖、TDD 证据、README/MEMORY、pytest-cov、归档顺序、reasoning 角色、Ruff 变更记录）。
+- 根因：S01 主路径完成，但协议硬化、跨阶段边界与文档闭环不足。
+- 解决方案：创建 `s01-report-fixes` OpenSpec change；修复 P0-01、P1-01、P1-09；同步 PLAN/TESTING/DESIGN/README/MEMORY/ISSUE；补充 pytest-cov 与依赖 pinning；记录 P1-05/P1-08 的流程改进；P2 可选项按风险选择性处理。
+- 验证方式：定向负例测试先红后绿；全量 pytest、ruff、format、mypy、openspec、wheel/仓库外导入全部通过；S01-report 增加修复记录。
+- 验证结果：待修复完成后回填。
+- 状态：Open
+- 关联提交：无（问题登记）
