@@ -1033,3 +1033,26 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - 阻塞：PLAN S03 的“TC-L1-015（直答分支）”在 TESTING 中不存在；TESTING TC-L1-015 是 S04 的两步工具循环。DESIGN §3.2 未定义 `AgentResult` 字段表与 `Agent.run` 正式签名，且伪代码 `final/steps/trace` 与 PLAN 的 `reply/steps/usage` 冲突。
 - 决策：按“三份文档不一致时停止、不得自行补写需求/测试定义”约束，登记 ISSUE-028，停止 S03 代码与 OpenSpec change；未修改 `runtime/`、`llm/`。
 - 待用户选择：A 增加 S03 直答 TC 与 DESIGN 字段/签名（推荐）；B 合并入 S04；C 明确批准 PLAN 字段并以 TC-L4-003 映射。
+
+### Prompt 32 — 2026-10-22 — S03 方向 A 与两 Phase 执行
+
+#### 原始 Prompt（要点）
+
+```text
+已确认方向 A。
+1. AgentResult 使用 reply（不用 final）；DESIGN §3.2 伪代码同步改为 reply，PLAN 不改。
+2. Agent.run 在 S03 签名为 async def run(self, user_input: str) -> AgentResult；session_id 延后到 S13。
+3. S03 的 TC 使用 TC-L1-015A（正常直答）、TC-L1-015B（空响应走 S01 错误路径）、TC-L1-015C（LLM 异常向 Agent 传播且不吞）。
+开工前追加核对 ISSUE-024/025；TESTS.md 写入 mypy agent_mini tests 准出。
+Phase 1 文档补全先于 Phase 2 实现；同一 change 分列 tasks，Phase 1 通过 openspec validate 后 Phase 2 才能开工。
+```
+
+#### 执行摘要
+
+- Phase 1：DESIGN §3.2 增加 `AgentResult(reply/steps/usage)` 字段表、`Agent.run(user_input)` 签名、session_id 延后 S13、异常契约；伪代码 `final→reply`。
+- Phase 1：TESTING 增加 TC-L1-015A/B/C 与 S03 覆盖边界；mypy `agent_mini tests` 写入准出；PLAN 更新测试项/接口；ISSUE-028 Resolved，ISSUE-024/025 判定不阻塞。
+- OpenSpec：`s03-runtime-direct-reply` 的 tasks 分 Phase 1/2/3，Phase 1 strict validate 通过后进入 Phase 2。
+- Phase 2 TDD 红：7 个 S03 测试执行失败，红因是 `Agent` 尚未实现（不是收集错误）。
+- Phase 2 绿：`Agent(llm_client).run(user_input)`、冻结 `AgentResult`；异常原样传播；意外 tool_calls/空 content 防御；7 个 S03 单元测试通过。
+- 验收：79 passed、覆盖率 95.97%；unit 15、contract 64；`mypy agent_mini tests` 47 files 0 errors；ruff/format/openspec/wheel/仓库外导入见最终报告。
+- 提交：`dda1a10` Phase 1 文档；`111439b` Phase 2 代码+测试；文档/归档提交见最终报告。

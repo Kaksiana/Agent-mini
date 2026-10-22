@@ -342,3 +342,9 @@
 - 文档：TESTING 新增 3 条 TC 与 S03 覆盖边界；mypy `agent_mini tests` 已写入准出条款。
 - 状态：Resolved
 - 关联提交：S03 Phase 1 文档补全（见最终报告）
+
+### S03 阶段问题记录（2026-10-22）
+
+- Phase 1 完成：DESIGN §3.2 字段/签名、TESTING TC-L1-015A/B/C、PLAN 测试项、mypy `agent_mini tests` 准出条款；ISSUE-028 Resolved。
+- Phase 2 完成：单轮直答与冻结 `AgentResult` 实现，7 个 S03 单元测试通过；全量 79 passed、覆盖率 95.97%。
+- 无新增阻塞问题；ISSUE-024/025 为已登记债务，不阻塞 S03。

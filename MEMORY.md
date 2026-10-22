@@ -1,10 +1,12 @@
 # MEMORY <!-- omit in toc -->
 
-## 2026-10-22 — S03 单轮直答（开工阻塞）
+## 2026-10-22 — S03 单轮直答
 
-- S02 已完成：72 passed、覆盖率 95.69%；`LLMError` 临时根沿用至 S19，S20 迁移（ISSUE-024）；运行依赖下界债务 ISSUE-025。
-- S03 开工核对发现文档契约冲突：PLAN 的 TC-L1-015 直答分支在 TESTING 中不存在（TESTING TC-L1-015 是 S04 工具循环）；DESIGN §3.2 无 `AgentResult` 字段表与 `Agent.run` 正式签名，伪代码 `final/steps/trace` 与 PLAN 的 `reply/steps/usage` 冲突。
-- 决策：按约束停止，不写 S03 代码/测试/OpenSpec change；登记 ISSUE-028，待文档澄清后启动。
+- S02 已完成：72 passed、覆盖率 95.69%；`LLMError` 临时根沿用至 S19，S20 迁移（ISSUE-024）；运行依赖下界债务 ISSUE-025，不阻塞 S03。
+- Phase 1：方向 A 补 TC-L1-015A/B/C、DESIGN §3.2 字段表与 `Agent.run(user_input)` 签名；session_id 延后 S13；ISSUE-028 Resolved。
+- Phase 2：`Agent(llm_client)` 构造器注入；`async run(user_input)` 发送单条 user 消息；冻结 `AgentResult(reply, steps, usage)`；`LLMError` 原样传播，意外 tool_calls 抛 `LLMProtocolError`。
+- 验收：79 passed、覆盖率 95.97%；unit 15、contract 64；`mypy agent_mini tests` 47 files 0 errors；ruff/format/openspec 通过。
+- 边界：不含工具循环（S04）、trace/truncated（S04/S05）、session_id/Memory（S13）、真实 API（S18）。
 
 ## 2026-10-22 — S02 错误处理与重试
 
