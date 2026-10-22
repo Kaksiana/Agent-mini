@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -401,9 +401,21 @@
 - 根因：S04 先定义最小 Protocol，S06 才交付注册表与执行结果。
 - 解决方案：S06 在 `tools/registry.py` 定义唯一 `ToolResult`（成功/失败不变量）与 `ToolContext` 预留；Runtime 通过 `RegistryExecutor` 适配，不复制第二套执行结果；`ToolCallTrace.args` 采用只读映射/防御性副本。
 - 验证方式：注册/Schema/重复/执行异常/集成回填测试；全量回归。
-- 验证结果：ToolResult 不变量、ToolCallTrace.args 只读映射、RegistryExecutor 适配均通过；120 passed、覆盖率 95.22%；mypy 51 files 0 errors。
+- 验证结果：ToolResult 不变量、ToolCallTrace.args 只读映射、RegistryExecutor 适配均通过；129 passed、覆盖率 95.25%；mypy 51 files 0 errors。
 - 状态：Resolved
 - 关联提交：`s06-tool-registry` change、代码/文档提交（见最终报告）
+
+### ISSUE-033 — S06 报告 P1 修复与历史流程缺口
+
+- 日期：2026-10-22
+- 现象：`enabled_key` 只存不执行；同步 handler 阻塞事件循环；额外模型参数被静默接受；handler 返回 None 被包装成功；FR-TOOL-01 启停未映射测试；OpenSpec/测试/文档晚于实现；S06 Prompt 非逐字且无有效红灯。
+- 根因：S06 把启停当元数据；handler 直接同步调用；未在注册/执行边界拒绝额外字段与非 ToolResult；流程记录在实现后补。
+- 解决方案：新 change `s06-report-fixes`；启停过滤、`asyncio.to_thread`、参数键白名单、严格 ToolResult 返回、元数据/内容校验、深冻结 args；补未知工具/启停/同步/额外参数/返回类型测试；记录流程例外。
+- 验证方式：新增测试先红后绿；全量 pytest、覆盖率、ruff/format、mypy tests、OpenSpec、wheel。
+- 验证结果：新增启停、同步 handler、额外参数、非 ToolResult、元数据、失败内容、深冻结等用例先红后绿；全量 129 passed、覆盖率 95.25%；unit 65、contract 64；mypy 51 files 0 errors；OpenSpec/wheel 通过。
+- 历史限制：S06 原始 Prompt 仍为摘要；不伪造历史红灯。
+- 状态：Resolved
+- 关联提交：`s06-report-fixes` change、代码/文档提交（见最终报告）
 
 ### S05 阶段问题记录（2026-10-22）
 
@@ -412,5 +424,6 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 

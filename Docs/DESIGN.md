@@ -298,10 +298,11 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 
 ### 3.3 Tool 能力层
 
-- **S04 最小 Protocol**：`runtime/loop.py` 定义 `ToolExecutor`（`schemas() -> list[ToolSchema]`、`async execute(ToolCall) -> ToolOutcome`）与 `ToolOutcome(ok, content, error_code)`。S04 只接受测试替身；S06 的注册表实现该协议，不把注册实现放入 runtime。
-- **注册机制**：`@tool(name, description, params_model, enabled_key)` 装饰器写入全局 `ToolRegistry`；启动时由配置决定启停；`ToolSpec.to_json_schema()` 由 pydantic 模型生成，保证模型侧与服务侧 Schema 同源（FR-TOOL-01）。
-- **执行契约**：`handler(**validated_args) -> ToolResult`；**所有异常必须被捕获并转为** `ToolResult(ok=False, error_code=..., content=可读说明)`，不得向上抛出（FR-RT-06）。
-- **可信会话上下文**：注册表以 `ToolContext(session_id, trace_id)` 向 todo 等状态工具注入会话信息；session_id 不放入模型可写参数 Schema，若模型伪造该参数则按额外字段拒绝。模型不能自行指定另一个会话的待办分区。
+- **S04 最小 Protocol**：`runtime/loop.py` 定义 `ToolExecutor`（`schemas() -> list[ToolSchema]`、`async execute(ToolCall) -> ToolResult`）；`ToolOutcome` 是 `ToolResult` 的兼容别名，不再保留第二套结果结构。`runtime/registry_adapter.py` 的 `RegistryExecutor` 负责适配，注册实现不进入 runtime。
+- **注册机制**：`@tool(name, description, params_model, enabled_key)` 装饰器写入指定/默认 `ToolRegistry`；`ToolRegistry(enabled=...)` 在 `schemas()`/`execute()` 统一过滤启停，未配置的 `enabled_key` 默认启用；`ToolSpec` 注册期校验名称、描述、pydantic 模型、handler 与 enabled_key（FR-TOOL-01）。
+- **Schema**：`ToolSpec.to_json_schema()` 由 pydantic 模型生成 `{name, description, parameters}`；顶层额外参数按字段白名单拒绝，不依赖模型 `extra` 配置。
+- **执行契约**：`handler(**validated_args) -> ToolResult`；同步 handler 通过 `asyncio.to_thread`，async handler 直接 await；**所有异常必须被捕获并转为** `ToolResult(ok=False, error_code=..., content=可读说明)`，其他返回类型归 `invalid_tool_result`；不得向上抛出（FR-RT-06）。
+- **可信会话上下文**：`ToolContext(session_id, trace_id)` 已在注册表预留；S06 不注入，S09 通过 `execute(..., context=...)` 落实会话工具；session_id 不放入模型可写参数 Schema，若模型伪造该参数则按额外字段拒绝。模型不能自行指定另一个会话的待办分区。
 - **沙箱**：`Sandbox(root).resolve(rel_path)` 执行四步校验——① 拒绝绝对路径；② 拼接后 `Path.resolve()` 求真实路径；③ 校验真实路径仍在 `root` 之下（防 `..` 与符号链接逃逸）；④ 校验大小与扩展名白名单。任何一步失败抛 `SandboxViolation`（FR-TOOL-07）。
 - **六个工具**
 
@@ -553,3 +554,4 @@ AgentResult →
 | v0.14 | 2026-10-22 | S04 ReAct 循环：AgentResult 增量字段、ToolExecutor Protocol、LLMProtocolError 语义收敛、S05 安全阀边界 | §3.2、§3.3、§3.7；联动 ISSUE-029、TC-L1-015/024/028/030、TC-L2-009/010、TC-L3-006 |
 | v0.15 | 2026-10-22 | S04 报告修复：独立工具结果秘密脱敏、累计 runtime 规格、失败→成功链与执行异常回归 | §3.2.3、§3.3；联动 ISSUE-030、S04-report |
 | v0.16 | 2026-10-22 | S05 安全阀：max_steps/deadline/repeat、truncated/终止原因、固定文案、取消补齐、P2-05/P2-01 前置处理 | §3.2.0、§3.2.4；联动 TC-L1-016/029、TC-L4-008 |
+| v0.17 | 2026-10-22 | S06 工具注册：ToolResult/ToolContext/ToolRegistry/@tool、启停、pydantic Schema、严格参数与返回、Runtime adapter、深层只读 trace | §2.2、§3.2.3、§3.3；联动 FR-TOOL-01、TC-L1-007/008/009、ISSUE-032/033 |

@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-22
+goal: S06 报告修复：启停、异步 handler、严格参数/返回与流程
