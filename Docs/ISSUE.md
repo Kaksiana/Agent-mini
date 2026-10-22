@@ -212,3 +212,14 @@
 - 预防：S00/S01 DoD 增加“wheel 内容与设计目录一致”的检查；保留打包配置测试与结构测试作为回归。
 - 状态：Resolved
 - 关联提交：`4b538cb`（修正启动）、`3637d93`（打包修正与测试）
+
+### ISSUE-019 — S00 遗留收口项未同步到 DoD/准出/占位规范
+
+- 日期：2026-10-22
+- 现象：S00 修正完成后，上一轮评审提出的收口项仍未落地：ISSUE-017 预防措施、`Docs/TESTING.md` §6.2 wheel 准出、`Docs/PLAN.md` §5.2 里程碑 DoD、`Docs/PLAN.md` S00 验收标准、`Docs/DESIGN.md` §2.2 占位规范均未同步；仓库原先不存在 ISSUE-019。
+- 根因：S00 修正聚焦代码、测试与进度，未把评审结论回填到阶段与里程碑门禁。
+- 解决方案：新增本 ISSUE；更新 `TESTING.md` §6.2、`PLAN.md` §5.2 与 S00 验收、`DESIGN.md` §2.2；保留 ISSUE-017/018 的 wheel 与结构测试作为回归。
+- 验证方式：逐项检查上述文档条款；`pytest`、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 通过。
+- 验证结果：四项文档条款已补齐；S00 验收新增 wheel 35/35 与占位规范；测试与静态检查全绿。
+- 状态：Resolved
+- 关联提交：S00 收尾提交（见最终报告）

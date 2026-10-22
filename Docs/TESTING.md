@@ -259,6 +259,7 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 ### 6.2 准出标准（合并/推送前必须满足）
 
 - [ ] 全量测试通过（`pytest`），无失败、无 error
+- [ ] wheel 构建成功，且 wheel 内 `agent_mini/` 与 `DESIGN.md` §2.2 清单一致（含 `schema.sql` 等 package-data）
 - [ ] P0 与 P1 用例 100% 通过
 - [ ] 新增代码覆盖率 ≥ 80%（NFR-TEST-01、AC-16）
 - [ ] 沙箱安全用例集（TC-L5-003）全通过

@@ -49,7 +49,7 @@
 - **目标**：建立可安装、可测试、可静态检查的包骨架，后续所有阶段都在此之上增量开发。
 - **输入**：现有仓库（文档已就绪）。
 - **输出**：`pyproject.toml`、`agent_mini/` 包结构、`tests/` 目录、pytest/ruff 配置、`README.md` 中的测试命令。
-- **验收标准**：`pip install -e .` 成功；`pytest` 运行通过 1 个 smoke 用例；`ruff check` 零告警。
+- **验收标准**：`pip install -e .` 成功；`pytest` 通过 S00 smoke/结构/打包测试（7 个）；`ruff check` 零告警；wheel 构建成功且 `agent_mini/` 35/35 文件（含 `schema.sql`）进入 wheel。
 - **测试项**：TC-SMOKE-001（新增：导入包并运行版本查询）。
 - **前置阶段**：无。
 
@@ -313,6 +313,7 @@
 
 - [ ] 覆盖阶段全部满足单阶段 DoD
 - [ ] 里程碑可演示（有可运行的命令与可复现的演示步骤）
+- [ ] wheel 构建成功，且 wheel 内 `agent_mini/` 与 `DESIGN.md` §2.2 清单一致（含 package-data）
 - [ ] 新增代码覆盖率 ≥ 80%
 - [ ] 无 P0 / P1 缺陷
 - [ ] 依赖清单复核：未引入被禁 Agent 框架（`AC-18`）

@@ -132,6 +132,8 @@ agent_mini/
     └── errors.py      # 异常分类与错误码
 ```
 
+> **占位规范**：除 `__init__.py` 与 `version.py` 外，S00 骨架文件仅允许模块级中文 docstring；`schema.sql` 仅允许注释。占位文件不得 import 第三方库或本包子模块，不得包含函数、类或业务逻辑；对应阶段实现时再补实现。非 Python 文件通过 `package-data` 进入 wheel。
+
 ## 3. 各模块设计要点
 
 ### 3.1 模型接入层
