@@ -352,5 +352,5 @@
 
 **复验**：`pytest` 50 passed；覆盖率 93%；`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 通过。修复后建议进入 S02；最终以交付报告为准。
 
-**真实 API 尝试（2026-10-22）**：当前环境无 `DEEPSEEK_API_KEY`，未发送请求；网络可达但无凭据，详见 ISSUE-023。
+**真实 API 尝试（2026-10-22）**：首次因环境无 `DEEPSEEK_API_KEY` 未执行；用户配置 `.env` 后成功发送一次最小文本消息，模型 `deepseek-chat` 返回 `OK`，usage 8/1/9，耗时约 1519ms。该烟雾测试不作为 TC-LIVE-001 正式通过记录（S01 尚无 trace_id），详见 ISSUE-023。
 

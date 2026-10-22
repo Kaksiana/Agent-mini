@@ -6,7 +6,7 @@
 - 依赖：运行时 `httpx>=0.27`、`pydantic>=2.6`；dev `pytest-asyncio>=1.3,<1.4`、`pytest-cov>=7.1,<7.2`、`respx>=0.23,<0.24`、`ruff>=0.17,<0.18`、`mypy>=2.4,<2.5`。未调用真实 API，未读取 `DEEPSEEK_API_KEY`。
 - 验收：L2 契约测试 29 个、全量 36 passed；ruff/format/mypy/openspec 通过。
 - 2026-10-22 评估修复：非 object 顶层统一 `LLMProtocolError`；拒绝 `model/thinking` 覆盖与非法 tools；reasoning 仅 assistant；全量 50 passed、覆盖率 93%；dev 工具 pin 到 minor（ISSUE-021/022）。
-- 2026-10-22 真实 API 测试：当前环境无 `DEEPSEEK_API_KEY`，未发送请求；见 ISSUE-023。
+- 2026-10-22 真实 API 测试：从被忽略的 `.env` 载入密钥并成功调用 `deepseek-chat`；返回 `OK`，usage 8/1/9，耗时约 1519ms；未记录密钥。正式 TC-LIVE-001 仍待 S18/S19（trace_id）。
 - 边界：`ModelConfig` 为 S01 临时模型；非法工具参数以 `ToolCall.error_code=invalid_arguments` 返回；Runtime/ToolResult 与循环留 S04/S06，错误分类/重试留 S02（ISSUE-020）。
 
 ## 2026-10-22 — S00 工程基线

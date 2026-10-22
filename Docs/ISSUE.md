@@ -269,6 +269,6 @@
 - 根因：执行环境未注入真实 API 密钥；S01 文档禁止读取密钥，当前用户明确要求真实测试，但环境中仍无可用凭据。
 - 解决方案：不发送无凭据或伪造密钥请求；等待用户在环境中设置 `DEEPSEEK_API_KEY` 后重试。密钥不得写入仓库、Prompt、命令输出或日志。
 - 验证方式：确认 `DEEPSEEK_API_KEY` 存在且不打印值；使用 `HttpLLMClient` 发送最小文本消息；记录模型、trace_id、usage、回复与脱敏结果；失败时记录 HTTP 状态/错误类型，不记录 Authorization 或原始响应。
-- 验证结果：未执行（缺少凭据），未产生 API 调用费用，未伪造响应。
-- 状态：Open
+- 验证结果：用户配置 `.env` 后，从该文件载入当前子进程环境并成功发送一次最小文本消息；模型 `deepseek-chat` 返回 `OK`，`finish_reason=stop`，usage 为 prompt 8 / completion 1 / total 9，耗时约 1519ms，无 reasoning。未记录 Authorization、密钥或原始响应正文。
+- 状态：Resolved
 - 关联提交：本次文档记录（见最终报告）

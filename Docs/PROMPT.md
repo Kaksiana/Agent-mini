@@ -830,3 +830,19 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - 网络检查：`https://api.deepseek.com` HEAD 返回 401，网络可达但缺少鉴权；未发送模型消息请求，未产生 API 调用费用。
 - 结果：真实 API 测试未执行；不伪造成功响应。已登记 ISSUE-023（Open），待设置环境变量后重试。
 - 边界：未把密钥写入仓库、Prompt、命令输出或日志；未修改 S01 实现与测试。
+
+### Prompt 25 — 2026-10-22 — 配置密钥后重试真实 DeepSeek API
+
+#### 原始 Prompt
+
+```text
+【调整】DeepSeekAPIKey已配置
+```
+
+#### 执行摘要
+
+- 凭据：`.env` 已存在且被 `.gitignore` 忽略；仅在本次子进程中读取 `DEEPSEEK_API_KEY`，未打印值、未写入仓库/日志。
+- 调用：`HttpLLMClient` 使用 `https://api.deepseek.com`、`deepseek-chat`、`thinking.disabled`，发送最小文本消息“只回复：OK”。
+- 结果：返回 `OK`，`finish_reason=stop`，usage 8/1/9，`reasoning_present=false`，耗时约 1519ms。
+- 边界：这是真实 API 烟雾测试，不替代 TC-LIVE-001 正式验收；S01 尚无 trace_id，正式记录待 S18/S19。
+- 文档：ISSUE-023 更新为 Resolved；S01-report §10 与 MEMORY 同步结果。
