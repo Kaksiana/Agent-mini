@@ -1298,23 +1298,6 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 关联提交：`34c9758`（规划）、`ffd5ce6`（代码+测试）、`a69ec1f`（文档）、`78e9aee`（归档）。
 - OpenSpec 归档：change 归档为 `2026-10-22-s04-runtime-react-loop`；`runtime` 主规格增至 8 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
 
-## 2026-10-22 20:07 — 修复 S04 评估报告
-
-### 原始 Prompt
-
-```text
-【调整】根据S04-report修复
-```
-
-### 执行摘要
-
-- 目标：修复 S04-report 的 P0/P1，并处理可直接闭环的 P2。
-- 产出：独立工具结果 secret 脱敏（敏感键值、`sk-*`、Bearer、已知 secret）；失败→合法→final、未知工具→合法→final、executor 异常→final 回归；runtime 主规格改为 S03+S04 累计契约；新 change 记录归档后变更例外；统一 observation 常量并补 usage/tools 断言。
-- 关键约束：不实现 S05/S06/S13–S18；不改已归档 change；P1 既有实现行为不为伪造红灯而改写。
-- 验证：全量 99 passed、覆盖率 96.17%；unit 35、contract 64；`mypy agent_mini tests` 48 files 0 errors；ruff/format/openspec/wheel 通过。
-- 已知限制：P1-01/P1-02 是补既有实现回归，首次即绿；P0 有 1 failed→green 证据，已在 S04-report §10 如实记录。P2-01/02/03/04/05 保留为技术债。
-- 关联提交：本轮修复提交见最终报告。
-
 ## 2026-10-22 20:05 — S04 代码产出独立评估
 
 ### 原始 Prompt
@@ -1333,3 +1316,21 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 技能：使用 `code-review-and-quality`，从正确性、测试、架构、安全、性能维度交叉复核。
 - 人工修正 / 决策：无；等待后续修复决策。
 - 关联提交：无（本轮未提交）。
+
+## 2026-10-22 20:07 — 修复 S04 评估报告
+
+### 原始 Prompt
+
+```text
+【调整】根据S04-report修复
+```
+
+### 执行摘要
+
+- 目标：修复 S04-report 的 P0/P1，并处理可直接闭环的 P2。
+- 产出：独立工具结果 secret 脱敏（敏感键值、`sk-*`、Bearer、已知 secret）；失败→合法→final、未知工具→合法→final、executor 异常→final 回归；runtime 主规格改为 S03+S04 累计契约；新 change 记录归档后变更例外；统一 observation 常量并补 usage/tools 断言。
+- 关键约束：不实现 S05/S06/S13–S18；不改已归档 change；P1 既有实现行为不为伪造红灯而改写。
+- 验证：全量 99 passed、覆盖率 96.17%；unit 35、contract 64；`mypy agent_mini tests` 48 files 0 errors；ruff/format/openspec/wheel 通过。
+- 已知限制：P1-01/P1-02 是补既有实现回归，首次即绿；P0 有 1 failed→green 证据，已在 S04-report §10 如实记录。P2-01/02/03/04/05 保留为技术债。
+- 关联提交：`2a43440`（代码）、`698a515`（文档/change）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s04-report-fixes`；runtime 主规格增至 9 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
