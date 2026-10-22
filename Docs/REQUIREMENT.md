@@ -5,8 +5,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.7（解析契约、Schema 预算与验收补充） |
-| 日期 | 2026-10-21 |
+| 版本 | v0.8（S03 直答测试追溯） |
+| 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 关联文档 | `Docs/DESIGN.md`、`Docs/TESTING.md`、`Docs/PLAN.md` |
 
@@ -176,7 +176,7 @@ Agent-mini 是一个**最小可用 Agent**。
 
 | 编号 | 需求 | 优先级 | 验收要点（测试项） |
 | --- | --- | --- | --- |
-| FR-RT-01 | 单轮直答：模型无 tool_calls 时直接返回 | P0 | TC-L1-015、TC-L4-003 |
+| FR-RT-01 | 单轮直答：模型无 tool_calls 时直接返回 | P0 | TC-L1-015A/B/C（S03）、TC-L1-015（S04 循环部分）、TC-L4-003（S18） |
 | FR-RT-02 | 工具调用决策：解析 tool_calls 并逐个执行 | P0 | TC-L1-015、TC-L3-006 |
 | FR-RT-03 | 多步循环：支持至少 3 步（工具→结果→再决策）与带工具追问 | P0 | TC-L3-006、TC-L4-010、TC-L4-011 |
 | FR-RT-04 | 消息顺序正确：assistant(tool_calls) 与 tool(result) 成对出现 | P0 | TC-L1-015 |
@@ -278,7 +278,7 @@ Agent-mini 是一个**最小可用 Agent**。
 
 | 编号 | 验收标准 | 对应需求 | 测试用例 |
 | --- | --- | --- | --- |
-| AC-01 | 单轮直答在无工具需求时 1 步收敛且不产生工具调用 | FR-RT-01 | TC-L4-003 |
+| AC-01 | 单轮直答在无工具需求时 1 步收敛且不产生工具调用 | FR-RT-01 | TC-L1-015A/B/C、TC-L4-003 |
 | AC-02 | 计算类指令能触发 calculator 并返回正确结果 | FR-TOOL-02 | TC-L1-001、TC-L4-002 |
 | AC-03 | 危险表达式（如 `__import__('os')`）被拒绝且无副作用 | FR-TOOL-02、NFR-SEC-03 | TC-L1-002 |
 | AC-04 | 沙箱外路径（`../`、绝对路径、符号链接）一律阻断 | FR-TOOL-07、NFR-SEC-01 | TC-L1-010、TC-L1-011、TC-L5-003 |
@@ -319,3 +319,4 @@ Agent-mini 是一个**最小可用 Agent**。
 | v0.5 | 2026-10-21 | Token 计算优先采用**官方离线 tokenizer** + 响应 `usage` 校准，官方方案不可用时降级为字符比例估算；明确官方 API 无在线计数接口 | FR-CTX-02、§5.5；联动 `DESIGN` §1.1/§3.5/ADR-015、`TESTING` TC-L1-022、`PLAN` S15 |
 | v0.6 | 2026-10-21 | **放弃官方 tokenizer 方案**，改回**本地 tokenizer 估算**（`tiktoken` + 10% 安全余量）；`usage` 仅用于观测对账，不参与预算判断 | FR-CTX-02；联动 `DESIGN` §1.1/§2.2/§3.5/ADR-015/§8、`TESTING` TC-L1-022 与工具表、`PLAN` S15 |
 | v0.7 | 2026-10-21 | 完善 reasoning/content/tool_calls 解析和 trace 来源；完整请求预算统计 tools Schema、循环增长与本地超限拒绝；补充双窗口、工具追问和真实 API 验收；Redis 改为整轮保留 | DESIGN v0.6、TESTING v0.6（75 个用例）、PLAN v0.6；AC-06/08/20/22 修订，新增 AC-23；ISSUE-010~012 |
+| v0.8 | 2026-10-22 | FR-RT-01/AC-01 映射 S03 的 TC-L1-015A/B/C；TC-L1-015 与 TC-L4-003 分别明确为 S04/S18 | TESTING v0.7、PLAN S03、ISSUE-028 |

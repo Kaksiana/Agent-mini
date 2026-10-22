@@ -5,7 +5,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.12（S03 单轮直答：AgentResult 字段与 run 签名） |
+| 版本 | v0.13（S03 复验修复：空白拒绝、字段不变量、调用链分层） |
 | 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
@@ -181,27 +181,34 @@ S03 只实现无工具的单轮闭环；构造器注入 `LLMClient`，不读取�
 
 `AgentResult` MUST 为冻结模型，禁止下游静默修改。`trace`、`truncated`、`tool_calls`、`tool_traces`、`session_id` 延后到 S04/S05/S13 引入。
 
-**异常契约**：`LLMError` 及其子类必须原样向调用方传播，不吞、不包装；S03 不传 tools，若上游意外返回 tool_calls，抛 `LLMProtocolError` 并拒绝静默丢弃；无 content 且无 tool_calls 时抛 `LLMEmptyResponseError`。
+**异常契约**：`LLMError` 及其子类必须原样向调用方传播，不吞、不包装；S03 不传 tools，若上游意外返回 tool_calls，抛 `LLMProtocolError` 并拒绝静默丢弃；content 为 `None`、空字符串或纯空白且无 tool_calls 时抛 `LLMEmptyResponseError`。
 
 #### 3.2.1 调用链
 
+**S03 当前链路**
+
+```
+user_input
+ └─ Agent.run(user_input)
+     ├─ LLMClient.chat([user])
+     └─ 无 tool_calls 且 content 非空白
+         └─ AgentResult(reply, steps=1, usage)
+```
+
+**最终目标链路（S04+，按阶段落地）**
+
 ```
 HTTP handler
- └─ Agent.run(user_input)                         # S03；S13 起增加 session_id
-     ├─ 0. session_id 与 SystemDB.ensure_session  # S13
-     ├─ 1. ContextBuilder.build(...)              # S07+；S03 仅构造单条 user 消息
-     ├─ 1. SystemDB.ensure_session(session_id)              # 会话登记 / 活跃时间更新
-     ├─ 2. ContextBuilder.build(session_id, user_input)     # 读 Memory → 拼接 → 计 token → 裁剪
-     ├─ 3. ReAct 循环（上限 max_steps）
-     │     ├─ 3.1 Context.fit(messages, tools_snapshot)     # 每次出站前重算预算，超限则本地终止
-     │     ├─ 3.2 LLMClient.chat(messages, tools_snapshot)  # 解析 reasoning/content/tool_calls
-     │     ├─ 3.3 若返回 tool_calls：
-     │     │      ToolRegistry.execute(name, args) → ToolResult
-     │     │      SystemDB.record_tool_invocation(...)      # 审计（异步）
-     │     │      messages += assistant(tool_calls) / tool(call_id, result)
-     │     └─ 3.4 每次 LLM 响应记录一条 ThoughtStep（同一步可含多个调用）
-     ├─ 4. Memory 写回（时机见 3.2.2）
-     └─ 5. SystemDB.record_metrics(...)                     # 请求指标（异步）
+ └─ Agent.run(session_id, user_input)              # S13 增加 session_id
+     ├─ 1. SystemDB.ensure_session(session_id)     # S13
+     ├─ 2. ContextBuilder.build(...)               # S07+
+     ├─ 3. ReAct 循环（上限 max_steps）             # S04；安全阀 S05
+     │     ├─ 3.1 Context.fit(messages, tools)     # S07+
+     │     ├─ 3.2 LLMClient.chat(messages, tools)
+     │     ├─ 3.3 tool_calls → ToolRegistry.execute / 消息配对
+     │     └─ 3.4 每次响应记录 ThoughtStep         # S04
+     ├─ 4. Memory 写回（时机见 3.2.2）              # S13
+     └─ 5. SystemDB.record_metrics(...)            # S17
  └─ HTTP response {reply, steps, tool_calls, usage, trace, trace_id}
 ```
 
@@ -409,7 +416,7 @@ Client → POST /chat → Interface
   → ContextBuilder.build()        # 读 Memory → 拼接 → 计 token → 双触发裁剪
   → LLMClient.chat(messages, tools)
   → 无 tool_calls
-  → AgentResult(final, trace)
+  → AgentResult(reply, steps, usage)        # S03；trace 等 S04/S05，session_id S13
   → Memory.write_back_short_term()          # 同步，响应返回前
   → 200 {session_id, reply, steps=1, usage, trace, trace_id}
   → [异步] Memory.write_back_mid_term() + SystemDB.record_metrics()
@@ -532,3 +539,4 @@ AgentResult →
 | v0.10 | 2026-10-22 | S02 错误分类与退避重试：状态码/httpx 异常映射、3 次尝试、抖动与不重试边界 | §3.1；联动 TC-L2-004/005/006 |
 | v0.11 | 2026-10-22 | 重试策略硬上限 1–3、RetryEvent、cap 后非递减、3xx 归协议错误；临时异常根 S20 到期 | §3.1、§3.7；联动 S02-report、ISSUE-026 |
 | v0.12 | 2026-10-22 | S03 单轮直答：`AgentResult.reply/steps/usage`、`Agent.run(user_input)`、构造器注入；session_id 延后 S13 | §3.2；联动 ISSUE-028、TC-L1-015A/B/C |
+| v0.13 | 2026-10-22 | S03 复验：拒绝空白 reply、AgentResult 不变量、§5.1 final→reply、调用链分层 | §3.2、§5.1；联动 S03-report P1/P2 |

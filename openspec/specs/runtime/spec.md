@@ -20,9 +20,19 @@
 - **WHEN** S03 运行
 - **THEN** 不访问工具注册表、不执行工具，结果模型不包含 tool_calls/trace/truncated 字段
 
+#### Scenario: 空或纯空白内容
+
+- **WHEN** 客户端返回 `content=None`、空字符串或纯空白且无 tool_calls
+- **THEN** 抛 `LLMEmptyResponseError`，不得构造成功 `AgentResult`
+
+#### Scenario: 意外 tool_calls
+
+- **WHEN** 客户端返回非空 tool_calls，无论是否同时带 content
+- **THEN** 抛 `LLMProtocolError`，不执行工具、不把 content 当最终回复
+
 ### Requirement: AgentResult 字段与不可变性
 
-`AgentResult` MUST 是冻结模型，且只包含 `reply: str`、`steps: int`、`usage: Usage`；`usage` MUST 直接来自 `LLMResponse.usage`，`reply` MUST 不混入 reasoning 或 trace。
+`AgentResult` MUST 是冻结模型，且只包含 `reply: str`、`steps: int`、`usage: Usage`；`usage` MUST 直接来自 `LLMResponse.usage`，`reply` MUST 不混入 reasoning 或 trace。`reply` MUST 非空且非纯空白，`steps` MUST ≥ 1，额外字段 MUST 被拒绝。
 
 #### Scenario: 字段完整性
 

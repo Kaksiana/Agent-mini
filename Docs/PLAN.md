@@ -339,7 +339,7 @@
 | S00 | 已完成 | 2026-10-22 | 2026-10-22 修正：补齐 DESIGN §2.2 骨架（ISSUE-017）；补 schema.sql package-data 与 wheel/结构/占位测试（ISSUE-018），复验通过 |
 | S01 | 已完成 | 2026-10-22 | 2026-10-22 评估修复：P0-01/P1-01/P1-09 已修，依赖 pin 与文档闭环完成（S01-report、ISSUE-021/022） |
 | S02 | 已完成 | 2026-10-22 | 错误分类、429/5xx 退避重试、超时不重试；复验修复完成：默认 `retry_events`、具体异常断言、thinking+tools+reasoning 组合、`mypy agent_mini tests` 门禁；72 passed、覆盖率 95.69%；临时 LLMError 根 S20 迁移（ISSUE-024/026/027） |
-| S03 | 已完成 | 2026-10-22 | 单轮直答：`Agent(llm_client).run(user_input)` 返回冻结 `AgentResult(reply/steps/usage)`；TC-L1-015A/B/C 通过；79 passed、覆盖率 95.97%；session_id 延后 S13（ISSUE-028） |
+| S03 | 已完成 | 2026-10-22 | 单轮直答：`Agent(llm_client).run(user_input)` 返回冻结 `AgentResult(reply/steps/usage)`；TC-L1-015A/B/C 通过；88 passed、覆盖率 96.03%；session_id 延后 S13（ISSUE-028） |
 | S04–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。

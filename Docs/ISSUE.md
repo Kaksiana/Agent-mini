@@ -329,6 +329,7 @@
   1. `Docs/PLAN.md` S03 将测试项写为“TC-L1-015（直答分支）”，但 `Docs/TESTING.md` 的 TC-L1-015 明确是 S04 的两步工具循环（第 1 次 tool_calls、第 2 次文本），没有 S03 直答分支的步骤/断言定义；`Docs/REQUIREMENT.md` FR-RT-01 只映射 TC-L1-015 与 TC-L4-003，未提供 S03 可执行用例。
   2. `Docs/DESIGN.md` §3.2 的调用链给出 `Agent.run(session_id, user_input)`，但未给出 S03 的正式签名；同节没有 `AgentResult` 字段表，伪代码使用 `AgentResult(final, steps, trace)`，而 `Docs/PLAN.md` S03 要求 `AgentResult` 含 `reply/steps/usage`，字段名与来源冲突。
 - 影响：若继续实现，只能自行补写 TC 或字段契约，违反“三份文档不一致时停止、不得自行补写需求/测试定义”的约束；同时会导致 S04 返工。
+- 根因：S03 测试项沿用 S04 的 TC-L1-015，三份文档未同步拆分直答分支；DESIGN 只有调用链/伪代码，没有 S03 正式字段表与签名。
 - 决策：**S03 代码与 OpenSpec change 暂不开始**；不修改 `runtime/` 实现。先解决文档契约。
 - 可选解决方向：
   - A（推荐）：在 TESTING 增加 S03 直答 TC（如 TC-L1-015A），并在 DESIGN §3.2 增加 `AgentResult` 字段表与 `Agent.run` 签名。
@@ -339,12 +340,15 @@
   2. S03 签名固定为 `async def run(self, user_input: str) -> AgentResult`；`session_id` 延后 S13，并在 DESIGN 写明。
   3. 新增 TC-L1-015A（正常直答）、TC-L1-015B（空响应走 S01 错误路径）、TC-L1-015C（LLM 异常传播且不吞），与 TC-L1-015 形成兄弟用例。
 - 开工追加核对：ISSUE-024 仅涉及 `LLMError` 根迁移，不改 `LLMResponse` 字段；ISSUE-025 仅涉及依赖版本策略；均**不阻塞 S03**。
+- 解决方案：按 Phase 1 补 DESIGN/TESTING/PLAN 契约并 strict validate；Phase 2 用 TDD 实现 `Agent(llm_client).run(user_input)` 与冻结 `AgentResult`；Phase 3 完成验收、文档与归档。
 - 文档：TESTING 新增 3 条 TC 与 S03 覆盖边界；mypy `agent_mini tests` 已写入准出条款。
+- 验证方式：`openspec validate s03-runtime-direct-reply --strict`；新增 S03 测试先红后绿；全量 pytest、覆盖率、ruff/format、`mypy agent_mini tests`、wheel/仓库外导入。
+- 验证结果：Phase 1 通过 strict；Phase 2 的 S03 测试先红后绿（后续补空白/不变量回归至 16 个 S03 单测）；全量 88 passed、覆盖率 96.03%；`mypy agent_mini tests` 47 files 0 errors。
 - 状态：Resolved
-- 关联提交：S03 Phase 1 文档补全（见最终报告）
+- 关联提交：`dda1a10`（Phase 1）、`111439b`（Phase 2）、`13fa639`（文档）、`31f2221`（归档）
 
 ### S03 阶段问题记录（2026-10-22）
 
 - Phase 1 完成：DESIGN §3.2 字段/签名、TESTING TC-L1-015A/B/C、PLAN 测试项、mypy `agent_mini tests` 准出条款；ISSUE-028 Resolved。
-- Phase 2 完成：单轮直答与冻结 `AgentResult` 实现，7 个 S03 单元测试通过；全量 79 passed、覆盖率 95.97%。
+- Phase 2 完成：单轮直答与冻结 `AgentResult` 实现，16 个 S03 单元测试通过；全量 88 passed、覆盖率 96.03%。
 - 无新增阻塞问题；ISSUE-024/025 为已登记债务，不阻塞 S03。
