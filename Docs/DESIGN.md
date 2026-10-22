@@ -245,7 +245,7 @@ HTTP handler
 | `tool_calls` | `tuple[ToolCallTrace, ...]` | 元素为 `{call_id, tool, args, ok, error_code, observation}`；参数按白名单脱敏，结果摘要先脱敏再截断至 200 字符 |
 | `error_code` | 可选的步骤错误码 | final 步骤的 tool_calls 为空列表 |
 
-- HTTP `trace` 与 `event=react.step` 日志仅使用上述公开字段，`AgentResult.tool_calls` 仅表示调用总次数；`tool_traces` 是所有步骤的工具调用记录展平结果。
+- HTTP `trace` 与 `event=react.step` 日志仅使用上述公开字段，`AgentResult.tool_calls` 仅表示调用总次数；`tool_traces` 是所有步骤的工具调用记录展平结果。`ToolCallTrace.args` 与 `observation` 在进入公开结果前统一脱敏（参数敏感键、独立 `sk-*`、Bearer、敏感 key=value），再按单一 200 字符上限截断。
 - 原始 `reasoning_content` 不出现在 HTTP、日志、MySQL、搜索召回片段或公开 trace；不额外请求模型生成推理。思考模式启用且携带 tools 时，仅作为同一 session 的私有协议状态随原 assistant 消息保存在 Redis/Mongo，按完整轮次保留/裁剪，并计入实际请求 token；跨会话不可读。非思考模式不主动收集该字段。
 - `content` 在有 tool_calls 时是伴随文本，不能提前作为最终回复；无 tool_calls 时才可被判定为最终答案。工具结果以 tool 消息回灌，公开 trace 摘要不再注入上下文，避免重复和污染。
 
@@ -545,3 +545,4 @@ AgentResult →
 | v0.12 | 2026-10-22 | S03 单轮直答：`AgentResult.reply/steps/usage`、`Agent.run(user_input)`、构造器注入；session_id 延后 S13 | §3.2；联动 ISSUE-028、TC-L1-015A/B/C |
 | v0.13 | 2026-10-22 | S03 复验：拒绝空白 reply、AgentResult 不变量、§5.1 final→reply、调用链分层 | §3.2、§5.1；联动 S03-report P1/P2 |
 | v0.14 | 2026-10-22 | S04 ReAct 循环：AgentResult 增量字段、ToolExecutor Protocol、LLMProtocolError 语义收敛、S05 安全阀边界 | §3.2、§3.3、§3.7；联动 ISSUE-029、TC-L1-015/024/028/030、TC-L2-009/010、TC-L3-006 |
+| v0.15 | 2026-10-22 | S04 报告修复：独立工具结果秘密脱敏、累计 runtime 规格、失败→成功链与执行异常回归 | §3.2.3、§3.3；联动 ISSUE-030、S04-report |

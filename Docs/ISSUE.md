@@ -354,7 +354,7 @@
 - 根因：S03 没有循环和工具执行器，只能用协议异常拒绝工具调用，未区分“请求契约违反”和“响应结构非法”。
 - 解决方案：S04 增加 `ToolExecutor` 与循环；有 executor 时执行 tool_calls；无 executor 时收到 tool_calls 才视为请求契约违反；`LLMProtocolError` 继续只表示协议/结构/请求契约非法。DESIGN §3.2、§3.3 与 runtime 规格同步。
 - 验证方式：S04 契约测试覆盖有 executor 的工具循环、无 executor 的 tool_calls 拒绝、结构非法响应；`openspec validate --all --strict`。
-- 验证结果：S04 循环在配置 executor 时执行 tool_calls，未配置 executor 时以 `LLMProtocolError` 拒绝；结构非法仍由同一异常表示；S03 的“Agent 不支持 tools”分支已删除。97 passed、覆盖率 95.70%。
+- 验证结果：S04 循环在配置 executor 时执行 tool_calls，未配置 executor 时以 `LLMProtocolError` 拒绝；结构非法仍由同一异常表示；S03 的“Agent 不支持 tools”分支已删除。99 passed、覆盖率 96.17%。
 - 状态：Resolved
 - 关联提交：`34c9758`（规划）、S04 代码/文档提交（见最终报告）
 
@@ -364,8 +364,20 @@
 - Phase 2 完成：单轮直答与冻结 `AgentResult` 实现，16 个 S03 单元测试通过；全量 88 passed、覆盖率 96.03%。
 - 无新增阻塞问题；ISSUE-024/025 为已登记债务，不阻塞 S03。
 
+### ISSUE-030 — S04 报告 P0/P1 修复与归档后流程补记
+
+- 日期：2026-10-22
+- 现象：S04 报告发现公开 `ToolCallTrace.observation` 可泄露独立于调用参数的工具结果密钥；TC-L1-028/TC-L2-009 未覆盖“失败→合法调用→收敛”；执行异常回灌无正式测试；runtime 主规格仍保留 S03 排他字段；S04 归档后才补三步测试与红证据。
+- 根因：脱敏只从参数敏感键推导 secret；错误测试直接返回最终文本；异常分支仅探针验证；主规格按阶段追加未改为累计契约；归档顺序未等全部验收测试完成。
+- 解决方案：新 change `s04-report-fixes`；统一结果脱敏（敏感键、`sk-*`、Bearer、key=value 模式）；补失败→成功链、未知工具链、执行异常测试；修订 runtime 主规格为 S03+S04 累计契约；记录归档后变更例外与逐 TC 红证据。
+- 验证方式：新增安全/修正/异常测试先红后绿；全量 pytest、覆盖率、ruff/format、`mypy agent_mini tests`、OpenSpec、wheel。
+- 验证结果：独立结果 `token=...`/`sk-*` 用例修复前 1 failed、修复后 11 个 S04 测试全绿；失败→合法→final、未知工具→合法→final、executor 异常→final 均已固化；runtime 主规格改为 S03+S04 累计契约；全量 99 passed、覆盖率 96.17%；unit 35、contract 64；`mypy agent_mini tests` 48 files 0 errors。
+- P1-05 限制：P0 有逐用例失败证据；P1-01/P1-02 是补既有实现回归，首次运行即绿，不能伪造红灯，已在 S04-report §10 如实记录。
+- 状态：Resolved
+- 关联提交：`s04-report-fixes` change、代码/文档提交（见最终报告）
+
 ### S04 阶段问题记录（2026-10-22）
 
 - S04 完成 ReAct 工具循环、消息配对、ThoughtStep/ToolCallTrace、错误回灌与隐私脱敏；ISSUE-029 的 `LLMProtocolError` 语义已收敛。
-- 验收：97 passed、覆盖率 95.70%；unit 33、contract 64；`mypy agent_mini tests` 48 files 0 errors；OpenSpec 通过。
+- 验收：99 passed、覆盖率 96.17%；unit 35、contract 64；`mypy agent_mini tests` 48 files 0 errors；OpenSpec 通过。
 - 无新增阻塞问题；S05 安全阀、S06 真实注册表、S18 真实 API/HTTP 未实现。

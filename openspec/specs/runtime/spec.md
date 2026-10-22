@@ -2,7 +2,7 @@
 
 ## Purpose
 
-定义 S03 Agent Runtime 的单轮直答契约：构造器注入 `LLMClient`、`Agent.run(user_input)` 一步返回、冻结 `AgentResult(reply/steps/usage)`，以及 LLM 异常原样传播。
+定义 Agent Runtime 的累计契约：S03 无工具单轮直答与 S04 ReAct 工具循环；构造器注入 `LLMClient`/可选 `ToolExecutor`，冻结 `AgentResult(reply/steps/usage/trace/tool_calls/tool_traces)`，公开 trace 脱敏，LLM 异常原样传播。
 
 ## Requirements
 
