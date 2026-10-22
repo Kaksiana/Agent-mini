@@ -22,16 +22,22 @@ TOOL = llm_models.ToolSchema(
 class FakeExecutor:
     """最小工具执行器替身。"""
 
-    def __init__(self) -> None:
+    def __init__(self, content: str | None = None, raise_error: bool = False) -> None:
         self.calls: list[llm_models.ToolCall] = []
+        self.content = content
+        self.raise_error = raise_error
 
     def schemas(self) -> list[llm_models.ToolSchema]:
         return [TOOL]
 
     async def execute(self, call: llm_models.ToolCall) -> ToolOutcome:
-        self.calls.append(call)
         if call.name == "unknown":
             return _outcome(False, "未知工具", "unknown_tool")
+        self.calls.append(call)
+        if self.raise_error:
+            raise RuntimeError("tool boom")
+        if self.content is not None:
+            return _outcome(True, self.content)
         return _outcome(True, f"echo:{call.arguments}")
 
 
@@ -96,7 +102,10 @@ async def test_two_step_tool_loop_pairs_messages() -> None:
     assert result.reply == "完成"
     assert result.steps == 2
     assert result.tool_calls == 1
+    assert result.usage.prompt_tokens == 2
+    assert result.usage.completion_tokens == 2
     assert result.usage.total_tokens == 4
+    assert llm.requests[0][1] is llm.requests[1][1]
     assert len(result.trace) == 2
     assert result.trace[0].decision == "tool_call"
     assert result.trace[1].decision == "final"
@@ -220,16 +229,18 @@ async def test_thinking_reasoning_is_kept_in_assistant_history() -> None:
     assert second_messages[1].role == "assistant"
 
 
-async def test_invalid_arguments_are_not_executed_and_are_refed() -> None:
+async def test_invalid_arguments_then_valid_call_converges() -> None:
     invalid = llm_models.ToolCall(
         id="bad_1",
         name="echo",
         arguments=None,
         error_code="invalid_arguments",
     )
+    valid = _tool_call("good_1")
     llm = ScriptedLLM(
         [
             _response(calls=[invalid], finish_reason="tool_calls"),
+            _response(calls=[valid], finish_reason="tool_calls"),
             _response(content="修正后完成"),
         ]
     )
@@ -237,18 +248,26 @@ async def test_invalid_arguments_are_not_executed_and_are_refed() -> None:
 
     result = await Agent(llm, executor).run("hi")
 
-    assert executor.calls == []
-    assert result.tool_traces[0].error_code == "invalid_arguments"
-    assert result.tool_traces[0].ok is False
-    tool_message = llm.requests[1][0][2]
-    assert tool_message.tool_call_id == "bad_1"
-    assert "invalid_arguments" in (tool_message.content or "")
+    assert executor.calls == [valid]
+    assert [trace.error_code for trace in result.tool_traces] == [
+        "invalid_arguments",
+        None,
+    ]
+    assert [trace.ok for trace in result.tool_traces] == [False, True]
+    first_tool = llm.requests[1][0][2]
+    second_tool = llm.requests[2][0][4]
+    assert first_tool.tool_call_id == "bad_1"
+    assert second_tool.tool_call_id == "good_1"
+    assert "invalid_arguments" in (first_tool.content or "")
+    assert result.reply == "修正后完成"
 
 
-async def test_unknown_tool_error_is_refed() -> None:
+async def test_unknown_tool_then_valid_call_converges() -> None:
+    valid = _tool_call("good_1")
     llm = ScriptedLLM(
         [
             _response(calls=[_tool_call("unknown_1", name="unknown")], finish_reason="tool_calls"),
+            _response(calls=[valid], finish_reason="tool_calls"),
             _response(content="完成"),
         ]
     )
@@ -256,9 +275,28 @@ async def test_unknown_tool_error_is_refed() -> None:
 
     result = await Agent(llm, executor).run("hi")
 
-    assert result.tool_traces[0].error_code == "unknown_tool"
-    assert result.tool_traces[0].ok is False
+    assert executor.calls == [valid]
+    assert [trace.error_code for trace in result.tool_traces] == ["unknown_tool", None]
     assert llm.requests[1][0][2].tool_call_id == "unknown_1"
+    assert llm.requests[2][0][4].tool_call_id == "good_1"
+
+
+async def test_executor_exception_is_refed_and_loop_converges() -> None:
+    llm = ScriptedLLM(
+        [
+            _response(calls=[_tool_call("boom_1")], finish_reason="tool_calls"),
+            _response(content="异常后完成"),
+        ]
+    )
+    executor = FakeExecutor(raise_error=True)
+
+    result = await Agent(llm, executor).run("hi")
+
+    assert result.reply == "异常后完成"
+    assert result.tool_traces[0].ok is False
+    assert result.tool_traces[0].error_code == "tool_execution_error"
+    assert llm.requests[1][0][2].tool_call_id == "boom_1"
+    assert "工具执行失败" in (llm.requests[1][0][2].content or "")
 
 
 async def test_sensitive_arguments_and_observation_are_redacted() -> None:
@@ -278,6 +316,25 @@ async def test_sensitive_arguments_and_observation_are_redacted() -> None:
     assert trace.args["api_key"] == "***"
     assert secret not in json.dumps(result.model_dump(), ensure_ascii=False)
     assert len(trace.observation) <= 200
+
+
+async def test_independent_result_secret_is_redacted() -> None:
+    llm = ScriptedLLM(
+        [
+            _response(calls=[_tool_call("call_1")], finish_reason="tool_calls"),
+            _response(content="完成"),
+        ]
+    )
+    executor = FakeExecutor(
+        content="token=INDEPENDENT_SECRET sk-live-ABCDEFG",
+    )
+
+    result = await Agent(llm, executor).run("hi")
+
+    serialized = json.dumps(result.model_dump(), ensure_ascii=False)
+    assert "INDEPENDENT_SECRET" not in serialized
+    assert "sk-live-ABCDEFG" not in serialized
+    assert "***" in result.tool_traces[0].observation
 
 
 async def test_no_executor_rejects_tool_calls() -> None:

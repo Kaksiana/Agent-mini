@@ -1,17 +1,28 @@
 """S04 ReAct 工具循环。"""
 
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.errors import LLMEmptyResponseError, LLMProtocolError
 from agent_mini.llm.models import Message, ToolCall, ToolSchema, Usage
-from agent_mini.runtime.result import AgentResult, ThoughtStep, ToolCallTrace
+from agent_mini.runtime.result import (
+    MAX_OBSERVATION_CHARS,
+    AgentResult,
+    ThoughtStep,
+    ToolCallTrace,
+)
 
 _SENSITIVE_KEYS = frozenset(
     {"api_key", "apikey", "access_key", "authorization", "password", "secret", "token"}
 )
-_MAX_OBSERVATION_CHARS = 200
+_SECRET_KEY_VALUE = re.compile(
+    r"(?i)\b(api[_-]?key|apikey|access[_-]?key|authorization|cookie|password|secret|token)"
+    r"(\s*[:=]\s*)([^\s,;]+)"
+)
+_SECRET_BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_SECRET_SK = re.compile(r"\bsk-[A-Za-z0-9_-]{4,}\b")
 
 
 @dataclass(frozen=True)
@@ -136,14 +147,14 @@ async def _execute_call(
 
 def _tool_trace(call: ToolCall, outcome: ToolOutcome) -> ToolCallTrace:
     secrets = _secret_values(call.arguments or {})
-    observation = _redact_text(outcome.content, secrets)
+    observation = _sanitize_public_text(outcome.content, secrets)
     return ToolCallTrace(
         call_id=call.id,
         tool=call.name,
         args=_redact_args(call.arguments or {}),
         ok=outcome.ok,
         error_code=outcome.error_code,
-        observation=observation[:_MAX_OBSERVATION_CHARS],
+        observation=observation[:MAX_OBSERVATION_CHARS],
     )
 
 
@@ -187,8 +198,11 @@ def _secret_values(value: object, key: str | None = None) -> set[str]:
     return secrets
 
 
-def _redact_text(text: str, secrets: set[str]) -> str:
-    result = text
+def _sanitize_public_text(text: str, secrets: set[str]) -> str:
+    """对公开 observation 做已知值、键值、Bearer 与 sk-* 脱敏。"""
+    result = _SECRET_KEY_VALUE.sub(r"\1\2***", text)
+    result = _SECRET_BEARER.sub("Bearer ***", result)
+    result = _SECRET_SK.sub("***", result)
     for secret in secrets:
         if secret:
             result = result.replace(secret, "***")
