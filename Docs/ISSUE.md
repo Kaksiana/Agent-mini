@@ -334,5 +334,11 @@
   - A（推荐）：在 TESTING 增加 S03 直答 TC（如 TC-L1-015A），并在 DESIGN §3.2 增加 `AgentResult` 字段表与 `Agent.run` 签名。
   - B：将 S03 并入 S04，取消独立 S03。
   - C：明确批准以 PLAN 的 `reply/steps/usage` 为 S03 契约，并以 TC-L4-003 作为直答验收映射，同时登记字段延后。
-- 状态：Open
-- 关联提交：S03 开工阻塞记录（见最终报告）
+- 决策（用户确认方向 A）：
+  1. `AgentResult` 使用 `reply`（不用 `final`）；DESIGN §3.2 伪代码同步为 `reply`，PLAN 不改。
+  2. S03 签名固定为 `async def run(self, user_input: str) -> AgentResult`；`session_id` 延后 S13，并在 DESIGN 写明。
+  3. 新增 TC-L1-015A（正常直答）、TC-L1-015B（空响应走 S01 错误路径）、TC-L1-015C（LLM 异常传播且不吞），与 TC-L1-015 形成兄弟用例。
+- 开工追加核对：ISSUE-024 仅涉及 `LLMError` 根迁移，不改 `LLMResponse` 字段；ISSUE-025 仅涉及依赖版本策略；均**不阻塞 S03**。
+- 文档：TESTING 新增 3 条 TC 与 S03 覆盖边界；mypy `agent_mini tests` 已写入准出条款。
+- 状态：Resolved
+- 关联提交：S03 Phase 1 文档补全（见最终报告）

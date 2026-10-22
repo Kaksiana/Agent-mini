@@ -106,6 +106,9 @@
 | TC-L1-013 | 构造 5 轮历史，token 远低于预算，K=10 | 调用 `ContextBuilder.build()` | 5 轮全部保留；system prompt 在首位；`payload.tokens_after` 有值且 > 0；`trim_reason` 为空 |
 | TC-L1-014 | 历史 14 轮（含第 3 轮的 calculator 往返），K=10，token 预算充足 | 触发裁剪 | `dropped_rounds=4`、`rounds_after=10`、`trim_reason=rounds`；被丢弃轮次内部消息**成对完整移除**，不残留孤立 `tool` 消息 |
 | TC-L1-015 | mock LLM：第 1 次返回 tool_calls，第 2 次返回文本 | 运行 `Agent.run()` | steps=2；messages 中 `assistant(tool_calls)` 与 `tool(call_id)` 成对且顺序正确；最终返回第 2 次文本 |
+| TC-L1-015A | mock LLM 返回无 tool_calls 的文本 | 运行 `Agent.run(user_input)` | steps=1；`reply` 等于模型文本；`usage` 与响应同源；不出现工具调用路径 |
+| TC-L1-015B | mock LLM 抛出 S01 的 `LLMEmptyResponseError` | 运行 `Agent.run(user_input)` | 同一异常原样传播，Agent 不吞、不转换 |
+| TC-L1-015C | mock LLM 抛出 `LLMTimeoutError` 实例 | 运行 `Agent.run(user_input)` | 传播同一异常实例，类型与消息不变，不重试、不包装 |
 | TC-L1-016 | `max_steps=3`，mock LLM 永远返回 tool_calls | 运行 `Agent.run()` | 恰好 3 步后停止；`truncated=True`；返回明确提示文案；不抛异常 |
 | TC-L1-017 | 无配置文件 / 必填项缺失 | 加载配置 | 抛 `ConfigError` 且消息含缺失字段名；合法配置可正常解析 |
 | TC-L1-018 | 已注册 LLM 与 Memory 的假实现 | 从容器解析 `Agent` | 返回实例且其依赖为注入的假实现（同一次解析为同一单例） |
@@ -156,6 +159,14 @@
 | TC-L2-004 | 429/500/200 三次请求、两次退避、间隔单调递增、重试耗尽映射；`RetryPolicy` 1–3 上界与 `RetryEvent` attempt 记录 | 真实限流行为由 S18 LIVE 覆盖 |
 | TC-L2-005 | `httpx.ReadTimeout` → `LLMTimeoutError`、单次请求、消息含超时秒数；底层 `httpx.AsyncClient.timeout` 与配置一致 | 真实网络超时由 S18 覆盖 |
 | TC-L2-006 | 400/401/403 分类且仅 1 次请求；3xx/未知状态归协议错误；连接错误分类且不重试 | 对外 HTTP 状态映射由 S18 覆盖 |
+
+#### 4.2.3 S03 覆盖边界
+
+| TC | S03 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L1-015A | 单条 user 消息、一步直答、reply/steps/usage、无工具路径 | 会话、Memory、Context 由 S07/S13 覆盖 |
+| TC-L1-015B | `LLMEmptyResponseError` 原样传播 | HTTP 错误映射由 S18 覆盖 |
+| TC-L1-015C | `LLMTimeoutError` 原样传播、不重试/不包装 | Runtime 安全阀由 S05 覆盖；真实超时由 S18 覆盖 |
 
 ### 4.3 L3 集成测试
 
@@ -287,7 +298,7 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 - [ ] 沙箱安全用例集（TC-L5-003）全通过
 - [ ] 日志脱敏用例（TC-L5-004）通过
 - [ ] 最终交付时 LIVE-001/002 真实 API 验收通过；开启思考模式时 LIVE-003 也通过；缺少外部条件不能算验收成功
-- [ ] `ruff` 零告警、`mypy` 无新增错误
+- [ ] `ruff` 零告警、`mypy agent_mini tests` 0 errors（S03 起正式门禁）
 - [ ] 无 P0/P1 未解决缺陷
 - [ ] `Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、本文件与实现保持一致
 - [ ] `Docs/ISSUE.md` 已记录本次新增/关闭的问题

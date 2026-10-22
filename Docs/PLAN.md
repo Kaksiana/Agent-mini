@@ -86,8 +86,9 @@
 - **输入**：S02 的 `LLMClient`。
 - **输出**：`runtime/agent.py`、`runtime/result.py`（`AgentResult`）。
 - **验收标准**：模型无 tool_calls 时 1 步返回；`AgentResult` 含 reply、steps、usage。
-- **测试项**：TC-L1-015（直答分支）。
+- **测试项**：TC-L1-015A（正常直答）、TC-L1-015B（空响应错误路径）、TC-L1-015C（LLM 异常传播）；TC-L1-015 的工具循环部分留 S04。
 - **前置阶段**：S02。
+- **接口**：`Agent(llm_client)` 构造器注入；`async def run(self, user_input: str) -> AgentResult`；`session_id` 延后 S13。
 
 ### S04 — Runtime：工具调用循环（ReAct 核心）
 
@@ -338,7 +339,7 @@
 | S00 | 已完成 | 2026-10-22 | 2026-10-22 修正：补齐 DESIGN §2.2 骨架（ISSUE-017）；补 schema.sql package-data 与 wheel/结构/占位测试（ISSUE-018），复验通过 |
 | S01 | 已完成 | 2026-10-22 | 2026-10-22 评估修复：P0-01/P1-01/P1-09 已修，依赖 pin 与文档闭环完成（S01-report、ISSUE-021/022） |
 | S02 | 已完成 | 2026-10-22 | 错误分类、429/5xx 退避重试、超时不重试；复验修复完成：默认 `retry_events`、具体异常断言、thinking+tools+reasoning 组合、`mypy agent_mini tests` 门禁；72 passed、覆盖率 95.69%；临时 LLMError 根 S20 迁移（ISSUE-024/026/027） |
-| S03 | 阻塞 | — | 2026-10-22 开工核对：TC-L1-015 直答分支未定义，`AgentResult`/`Agent.run` 设计字段与签名冲突；见 ISSUE-028，待文档澄清后启动 |
+| S03 | 进行中 | — | 2026-10-22 已确认方向 A：补 TC-L1-015A/B/C、DESIGN §3.2 字段与签名；Phase 1 文档补全后 TDD |
 | S04–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。

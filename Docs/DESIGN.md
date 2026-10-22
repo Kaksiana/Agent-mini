@@ -5,7 +5,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.11（S02 评估修复：策略上界、事件与状态边界） |
+| 版本 | v0.12（S03 单轮直答：AgentResult 字段与 run 签名） |
 | 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
@@ -159,11 +159,37 @@ agent_mini/
 
 ### 3.2 Agent Runtime
 
+#### 3.2.0 S03 单轮直答接口
+
+S03 只实现无工具的单轮闭环；构造器注入 `LLMClient`，不读取环境变量，不在内部实例化客户端。
+
+| 项目 | S03 契约 |
+| --- | --- |
+| 构造器 | `Agent(llm_client: LLMClient)` |
+| 运行签名 | `async def run(self, user_input: str) -> AgentResult` |
+| 会话参数 | `session_id` 延后到 S13；S03 不接收会话 ID |
+| 消息 | 仅发送一条 `user` 消息 |
+| 成功 | 无 tool_calls 且 `content` 非空时返回一步结果 |
+
+**AgentResult（S03）**
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `reply` | `str` | 仅最终回复文本，不混入 reasoning/trace |
+| `steps` | `int` | S03 固定为 1 |
+| `usage` | `Usage` | 直接使用 `LLMResponse.usage`，不二次归一化 |
+
+`AgentResult` MUST 为冻结模型，禁止下游静默修改。`trace`、`truncated`、`tool_calls`、`tool_traces`、`session_id` 延后到 S04/S05/S13 引入。
+
+**异常契约**：`LLMError` 及其子类必须原样向调用方传播，不吞、不包装；S03 不传 tools，若上游意外返回 tool_calls，抛 `LLMProtocolError` 并拒绝静默丢弃；无 content 且无 tool_calls 时抛 `LLMEmptyResponseError`。
+
 #### 3.2.1 调用链
 
 ```
 HTTP handler
- └─ Agent.run(session_id, user_input)
+ └─ Agent.run(user_input)                         # S03；S13 起增加 session_id
+     ├─ 0. session_id 与 SystemDB.ensure_session  # S13
+     ├─ 1. ContextBuilder.build(...)              # S07+；S03 仅构造单条 user 消息
      ├─ 1. SystemDB.ensure_session(session_id)              # 会话登记 / 活跃时间更新
      ├─ 2. ContextBuilder.build(session_id, user_input)     # 读 Memory → 拼接 → 计 token → 裁剪
      ├─ 3. ReAct 循环（上限 max_steps）
@@ -226,7 +252,7 @@ for step in 1..max_steps:
     if decision == final:
         messages.append(assistant(content=resp.content, private_reasoning=resp.reasoning_content))
         trace.append(final_step(step, reasoning_present=bool(resp.reasoning_content)))
-        return AgentResult(final=resp.content, steps=step, trace=trace)
+        return AgentResult(reply=resp.content, steps=step, trace=trace)
     messages.append(assistant(content=resp.content, tool_calls=resp.tool_calls,
                               private_reasoning=resp.reasoning_content))
     calls_trace = []
@@ -236,7 +262,7 @@ for step in 1..max_steps:
         calls_trace.append(public_tool_trace(call, result))
     trace.append(tool_step(step, calls_trace, reasoning_present=bool(resp.reasoning_content)))
     if repeated_signature(messages) exceeds threshold: break   # 死循环检测
-return AgentResult(final=fallback_message, steps=len(trace), truncated=True, trace=trace)
+return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, trace=trace)
 ```
 
 - **工具结果的消息格式**：必须成对写入 `assistant(tool_calls)` 与 `tool(tool_call_id)`，否则模型会报协议错误（对应 FR-RT-04）。
@@ -505,3 +531,4 @@ AgentResult →
 | v0.9 | 2026-10-22 | 协议硬化：非 object 顶层、保留字段、reasoning 角色；异常临时根说明 | §3.1、§3.7；联动 S01-report、ISSUE-022 |
 | v0.10 | 2026-10-22 | S02 错误分类与退避重试：状态码/httpx 异常映射、3 次尝试、抖动与不重试边界 | §3.1；联动 TC-L2-004/005/006 |
 | v0.11 | 2026-10-22 | 重试策略硬上限 1–3、RetryEvent、cap 后非递减、3xx 归协议错误；临时异常根 S20 到期 | §3.1、§3.7；联动 S02-report、ISSUE-026 |
+| v0.12 | 2026-10-22 | S03 单轮直答：`AgentResult.reply/steps/usage`、`Agent.run(user_input)`、构造器注入；session_id 延后 S13 | §3.2；联动 ISSUE-028、TC-L1-015A/B/C |
