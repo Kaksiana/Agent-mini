@@ -223,3 +223,18 @@
 - 验证结果：四项文档条款已补齐；S00 验收新增 wheel 35/35 与占位规范；测试与静态检查全绿。
 - 状态：Resolved
 - 关联提交：S00 收尾提交（见最终报告）
+
+### ISSUE-020 — S01 测试项涉及后续阶段类型与 Runtime/Tool 行为
+
+- 日期：2026-10-22
+- 现象：`PLAN.md` S01 测试项包含 TC-L2-008/009/010，需要 LLM 错误类型与非法工具参数的结构化结果；但 S01 输出只列 `llm/client.py`、`llm/models.py`，`llm/errors.py` 被列为 S02 输出；`ModelConfig` 被列为 S21 配置层输出；TC-L2-009/010 还涉及 Runtime/ToolResult 与循环 trace。
+- 根因：测试项按协议契约层归类，但错误类型、配置类型和 Runtime 行为分散在后续阶段，阶段输出边界未同步。
+- 解决方案/裁决：
+  1. `llm/errors.py` 在 S01 只提供协议判别所需的 `LLMError`、`LLMProtocolError`、`LLMEmptyResponse`、`LLMOutputTruncated`、`LLMOutputRejected`；鉴权/限流/超时与重试留 S02。
+  2. `llm/models.py` 提供 S01 临时 `ModelConfig`（`base_url`、`model`、`timeout`）；S21 配置层落地时迁移或复用，不新增配置层实现。
+  3. 非法工具参数在 S01 表示为 `ToolCall(error_code="invalid_arguments", arguments=None)` 并保留 `call_id`；映射为 `ToolResult`、执行工具与模型修正闭环留 S04/S06。
+  4. TC-L2-010 在 S01 只覆盖“content + 多个 tool_calls 的解析与顺序”；循环、消息配对与 trace 留 S04。
+  5. TC-L2-007 在 S01 覆盖 reasoning 解析与客户端请求回传；轮次裁剪后不回传留 S15/S16。
+- 验证方式：对应 TC 的契约测试通过；文档在 DESIGN/TESTING/PLAN 的边界说明保持同步；不在 S01 引入 Runtime/Tool/Memory 实现。
+- 状态：Resolved（边界已裁决，按此实施）
+- 关联提交：无（S01 规划记录）

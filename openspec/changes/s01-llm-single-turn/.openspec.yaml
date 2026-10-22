@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-22
+goal: S01 模型接入：单轮调用、响应归一、工具参数严格解析与判别
