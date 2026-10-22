@@ -1393,3 +1393,23 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 人工修正 / 决策：未实施修复；P0=0，P1=10，P2=4，Info=2；需先修复 P1 并补 M1 可复现演示。
 - 关联提交：无（评估工作区未提交）。
 
+## 2026-10-22 21:37 — S06 工具注册与 Schema
+
+### 原始 Prompt
+
+```text
+【角色】你是 S06「Tool：注册机制与 Schema」阶段的执行 Agent，熟悉 pydantic v2 JSON Schema、OpenAI tools 参数契约、装饰器注册表、Protocol、pytest、OpenSpec、SuperPower SKILL。
+【任务】执行 S06：先完成 P2-04 与 S04 Runtime 集成回填核对，然后用 TDD 实现 ToolRegistry、pydantic Schema、参数校验与执行契约；不实现具体内置工具。
+【约束】不实现 S07–S12 工具、S10 沙箱、S13–S18；不新增依赖；Prompt 原文须逐字保存。
+```
+
+> 注：以上为本轮 S06 请求的核心内容摘要；完整角色/背景/约束/输出格式见本轮用户消息。
+
+### 执行摘要
+
+- 产出：`ToolResult`（ok/error 不变量）、`ToolContext` 预留、`ToolSpec`、`ToolRegistry`、`@tool`、`RegistryExecutor`。
+- P2-04：Runtime `ToolOutcome` 复用 `ToolResult`；`ToolCallTrace.args` 改为只读映射。
+- 验收：120 passed、覆盖率 95.22%；unit 56、contract 64；mypy 51 files 0 errors。
+- 关联提交：S06 代码/文档/归档提交见最终报告。
+
+

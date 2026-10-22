@@ -394,6 +394,17 @@
 - 状态：Resolved
 - 关联提交：`s05-report-fixes` change、代码/文档提交（见最终报告）
 
+### ISSUE-032 — S06 工具执行结果与 S04 Protocol 对接
+
+- 日期：2026-10-22
+- 现象：S04 `ToolOutcome` 可表达 `ok=True + error_code` 或 `ok=False` 无错误码的矛盾状态；`ToolCallTrace.args` 浅冻结；S04 Runtime 只接受测试替身，尚无注册表适配。
+- 根因：S04 先定义最小 Protocol，S06 才交付注册表与执行结果。
+- 解决方案：S06 在 `tools/registry.py` 定义唯一 `ToolResult`（成功/失败不变量）与 `ToolContext` 预留；Runtime 通过 `RegistryExecutor` 适配，不复制第二套执行结果；`ToolCallTrace.args` 采用只读映射/防御性副本。
+- 验证方式：注册/Schema/重复/执行异常/集成回填测试；全量回归。
+- 验证结果：ToolResult 不变量、ToolCallTrace.args 只读映射、RegistryExecutor 适配均通过；120 passed、覆盖率 95.22%；mypy 51 files 0 errors。
+- 状态：Resolved
+- 关联提交：`s06-tool-registry` change、代码/文档提交（见最终报告）
+
 ### S05 阶段问题记录（2026-10-22）
 
 - 前置：`LoopPolicy` 参数化提交 `1a9bdb3`，默认不限制；S04 行为不变、99 passed。
@@ -401,4 +412,5 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 

@@ -108,6 +108,7 @@ agent_mini/
 ├── runtime/           # Agent Runtime（ReAct）
 │   ├── agent.py       # Agent.run 入口
 │   ├── loop.py        # 主循环 + 安全阀
+│   ├── registry_adapter.py # ToolRegistry → ToolExecutor 适配
 │   └── result.py      # AgentResult / ToolCallTrace
 ├── tools/             # Tool 能力层
 │   ├── registry.py    # ToolSpec / ToolRegistry / @tool 装饰器

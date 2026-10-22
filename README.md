@@ -1,6 +1,6 @@
 # Agent-mini
 
-Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 M1 可对话骨架（S00–S05）：工程基线、单轮模型接入、错误分类/退避重试、单轮直答、ReAct 工具循环与循环安全阀；包含 `Agent.run(user_input)`、`ToolExecutor` 协议、`max_steps`/`deadline`/重复检测与 `truncated`，不包含真实工具注册表、Memory 或 HTTP 接口。
+Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00–S06：工程基线、单轮模型接入、错误分类/退避重试、单轮直答、ReAct 工具循环、安全阀与工具注册/Schema；包含 `ToolRegistry`、pydantic Schema、`RegistryExecutor` 适配，不包含具体内置工具、Memory 或 HTTP 接口。
 
 ## 环境要求
 
