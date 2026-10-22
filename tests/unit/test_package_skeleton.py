@@ -58,10 +58,16 @@ DESIGN_FILES = [
     "observability/errors.py",
 ]
 
+NON_PLACEHOLDER_MODULES = {
+    "__init__.py",
+    "version.py",
+    "llm/client.py",
+    "llm/errors.py",
+    "llm/models.py",
+}
+
 PLACEHOLDER_MODULES = [
-    path
-    for path in DESIGN_FILES
-    if path.endswith(".py") and path not in {"__init__.py", "version.py"}
+    path for path in DESIGN_FILES if path.endswith(".py") and path not in NON_PLACEHOLDER_MODULES
 ]
 
 
