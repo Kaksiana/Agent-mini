@@ -18,6 +18,7 @@ from agent_mini.runtime.result import (
     ThoughtStep,
     ToolCallTrace,
 )
+from agent_mini.tools.registry import ToolResult
 
 DEFAULT_MAX_STEPS = 8
 DEFAULT_DEADLINE_SECONDS = 120.0
@@ -63,13 +64,7 @@ class LoopPolicy:
             raise ValueError("repeat_threshold 必须至少为 1")
 
 
-@dataclass(frozen=True)
-class ToolOutcome:
-    """工具执行结果的最小结构；ok 与 error_code 由实现方保持语义一致。"""
-
-    ok: bool
-    content: str
-    error_code: str | None = None
+ToolOutcome = ToolResult
 
 
 class ToolExecutor(Protocol):

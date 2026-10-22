@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from types import MappingProxyType
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from agent_mini.llm.models import Usage
 
@@ -23,6 +31,15 @@ class ToolCallTrace(BaseModel):
     ok: bool
     error_code: str | None = None
     observation: str
+
+    def model_post_init(self, __context: object) -> None:
+        """把可写字典替换为只读映射。"""
+        object.__setattr__(self, "args", MappingProxyType(dict(self.args)))
+
+    @field_serializer("args")
+    def _serialize_args(self, value: dict[str, object]) -> dict[str, object]:
+        """序列化时恢复普通 dict，实例本身保持只读。"""
+        return dict(value)
 
     @field_validator("observation")
     @classmethod

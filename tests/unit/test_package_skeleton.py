@@ -38,6 +38,7 @@ DESIGN_FILES = [
     "runtime/__init__.py",
     "runtime/agent.py",
     "runtime/loop.py",
+    "runtime/registry_adapter.py",
     "runtime/result.py",
     "tools/__init__.py",
     "tools/registry.py",
@@ -70,7 +71,9 @@ NON_PLACEHOLDER_MODULES = {
     "llm/models.py",
     "runtime/agent.py",
     "runtime/loop.py",
+    "runtime/registry_adapter.py",
     "runtime/result.py",
+    "tools/registry.py",
 }
 
 PLACEHOLDER_MODULES = [
