@@ -68,6 +68,8 @@ NON_PLACEHOLDER_MODULES = {
     "llm/client.py",
     "llm/errors.py",
     "llm/models.py",
+    "runtime/agent.py",
+    "runtime/result.py",
 }
 
 PLACEHOLDER_MODULES = [

@@ -1,1 +1,1 @@
-"""Agent Runtime 子包占位，待 S03–S05 落地。"""
+"""Agent Runtime 子包：S03 单轮直答；循环与安全阀留 S04–S05。"""
