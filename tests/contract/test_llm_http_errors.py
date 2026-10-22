@@ -35,17 +35,20 @@ def sleep_delays(monkeypatch: pytest.MonkeyPatch) -> list[float]:
 
 
 @pytest.mark.parametrize(
-    ("status", "error_name", "error_code"),
+    ("status", "error_name", "error_code", "http_status"),
     [
-        (400, "LLMBadRequestError", "LLM_BAD_REQUEST"),
-        (401, "LLMAuthError", "LLM_AUTH"),
-        (403, "LLMAuthError", "LLM_AUTH"),
+        (400, "LLMBadRequestError", "LLM_BAD_REQUEST", 502),
+        (401, "LLMAuthError", "LLM_AUTH", 502),
+        (403, "LLMAuthError", "LLM_AUTH", 502),
+        (418, "LLMBadRequestError", "LLM_BAD_REQUEST", 502),
+        (302, "LLMProtocolError", "LLM_PROTOCOL_ERROR", 502),
     ],
 )
-async def test_4xx_is_not_retried(
+async def test_http_error_is_not_retried(
     status: int,
     error_name: str,
     error_code: str,
+    http_status: int,
     sleep_delays: list[float],
 ) -> None:
     with respx.mock:
@@ -57,6 +60,7 @@ async def test_4xx_is_not_retried(
     assert route.call_count == 1
     assert sleep_delays == []
     assert exc_info.value.code == error_code
+    assert exc_info.value.http_status == http_status
     assert type(exc_info.value).__name__ == error_name
 
 
@@ -74,4 +78,23 @@ async def test_connection_error_is_not_retried(
     assert route.call_count == 1
     assert sleep_delays == []
     assert exc_info.value.code == "LLM_CONNECTION_ERROR"
+    assert exc_info.value.http_status == 502
     assert type(exc_info.value).__name__ == "LLMConnectionError"
+
+
+async def test_protocol_error_is_not_retried(
+    sleep_delays: list[float],
+) -> None:
+    with respx.mock:
+        route = respx.post(f"{BASE_URL}/chat/completions").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        async with HttpLLMClient(_config(), api_key=API_KEY) as client:
+            with pytest.raises(llm_errors.LLMError) as exc_info:
+                await client.chat([Message(role="user", content="hi")])
+
+    assert route.call_count == 1
+    assert sleep_delays == []
+    assert exc_info.value.code == "LLM_PROTOCOL_ERROR"
+    assert exc_info.value.http_status == 502
+    assert type(exc_info.value).__name__ == "LLMProtocolError"

@@ -8,7 +8,7 @@ import respx
 from pydantic import ValidationError
 
 from agent_mini.llm.client import HttpLLMClient
-from agent_mini.llm.models import LLMResponse, Message, ModelConfig
+from agent_mini.llm.models import LLMResponse, Message, ModelConfig, ToolSchema
 
 pytestmark = pytest.mark.contract
 
@@ -111,3 +111,28 @@ async def test_enabled_mode_resends_reasoning_on_later_turn() -> None:
     second_body = json.loads(route.calls[1].request.content)
     assert second_body["thinking"] == {"type": "enabled"}
     assert second_body["messages"][1]["reasoning_content"] == "私有推理"
+
+
+async def test_enabled_thinking_with_tools_keeps_both() -> None:
+    tool = ToolSchema(
+        name="echo",
+        description="重复文本",
+        parameters={"type": "object", "properties": {}},
+    )
+    with respx.mock:
+        route = respx.post(f"{BASE_URL}/chat/completions").mock(
+            return_value=httpx.Response(200, json=_text_payload("ok"))
+        )
+        async with HttpLLMClient(
+            _config(),
+            api_key=API_KEY,
+            thinking=True,
+        ) as client:
+            await client.chat(
+                [Message(role="user", content="hi")],
+                tools=[tool],
+            )
+
+    body = json.loads(route.calls[0].request.content)
+    assert body["thinking"] == {"type": "enabled"}
+    assert body["tools"][0]["function"]["name"] == "echo"

@@ -1,4 +1,4 @@
-"""TC-L2-005：超时不重试。"""
+"""TC-L2-005：超时不重试与超时配置传递。"""
 
 import asyncio
 
@@ -40,4 +40,17 @@ async def test_read_timeout_raises_without_retry(monkeypatch: pytest.MonkeyPatch
     assert route.call_count == 1
     assert delays == []
     assert exc_info.value.code == "LLM_TIMEOUT"
+    assert exc_info.value.http_status == 408
     assert type(exc_info.value).__name__ == "LLMTimeoutError"
+
+
+async def test_timeout_is_passed_to_http_client() -> None:
+    client = HttpLLMClient(
+        ModelConfig(base_url=BASE_URL, model="deepseek-chat", timeout=0.2),
+        api_key=API_KEY,
+    )
+    try:
+        assert client._client.timeout.read == pytest.approx(0.2)
+        assert client._client.timeout.connect == pytest.approx(0.2)
+    finally:
+        await client.aclose()

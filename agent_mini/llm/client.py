@@ -28,21 +28,47 @@ _RETRYABLE_STATUS_CODES = frozenset({httpx.codes.TOO_MANY_REQUESTS})
 _AUTH_STATUS_CODES = frozenset({httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN})
 _SERVER_ERROR_MIN = httpx.codes.INTERNAL_SERVER_ERROR
 _SERVER_ERROR_MAX_EXCLUSIVE = 600
-DEFAULT_MAX_ATTEMPTS = 3
+_CLIENT_ERROR_MIN = 400
+_CLIENT_ERROR_MAX_EXCLUSIVE = 500
+MAX_ATTEMPTS_LIMIT = 3
+DEFAULT_MAX_ATTEMPTS = MAX_ATTEMPTS_LIMIT
 DEFAULT_BACKOFF_BASE_SECONDS = 0.5
 DEFAULT_BACKOFF_FACTOR = 2
 DEFAULT_JITTER_MAX_SECONDS = 0.1
 DEFAULT_BACKOFF_MAX_SECONDS = 8.0
 
 Sleep = Callable[[float], Awaitable[None]]
+RetryEventSink = Callable[["RetryEvent"], None]
+
+
+@dataclass(frozen=True)
+class RetryEvent:
+    """一次内部 HTTP 重试的可观察记录。"""
+
+    attempt: int
+    max_attempts: int
+    status_code: int
+    delay_seconds: float
 
 
 @dataclass(frozen=True)
 class RetryPolicy:
-    """重试次数与等待函数。"""
+    """重试次数、等待函数与重试事件出口。"""
 
     max_attempts: int = DEFAULT_MAX_ATTEMPTS
     sleep: Sleep | None = None
+    on_retry: RetryEventSink | None = None
+
+    def __post_init__(self) -> None:
+        """校验尝试次数和回调类型。"""
+        if isinstance(self.max_attempts, bool) or not isinstance(self.max_attempts, int):
+            raise ValueError("max_attempts 必须是整数")
+        if not 1 <= self.max_attempts <= MAX_ATTEMPTS_LIMIT:
+            raise ValueError(f"max_attempts 必须在 1–{MAX_ATTEMPTS_LIMIT} 之间")
+        if self.sleep is not None and not callable(self.sleep):
+            raise ValueError("sleep 必须是可调用对象")
+        if self.on_retry is not None and not callable(self.on_retry):
+            raise ValueError("on_retry 必须是可调用对象")
 
 
 class LLMClient(Protocol):
@@ -70,13 +96,14 @@ class HttpLLMClient:
         retry: RetryPolicy | None = None,
     ) -> None:
         """保存配置并创建异步 HTTP 客户端。"""
+        if retry is not None and not isinstance(retry, RetryPolicy):
+            raise TypeError("retry 必须是 RetryPolicy")
         policy = retry if retry is not None else RetryPolicy()
-        if policy.max_attempts < 1:
-            raise ValueError("max_attempts 必须至少为 1")
         self._config = config
         self._thinking = thinking
         self._max_attempts = policy.max_attempts
         self._sleep: Sleep = policy.sleep if policy.sleep is not None else _default_sleep
+        self._on_retry = policy.on_retry
         self._client = httpx.AsyncClient(
             base_url=config.base_url.rstrip("/") + "/",
             timeout=config.timeout,
@@ -104,7 +131,16 @@ class HttpLLMClient:
             if self._is_retryable(response.status_code):
                 if attempt >= self._max_attempts:
                     self._raise_retry_exhausted(response.status_code)
-                await self._sleep(self._backoff_delay(attempt))
+                delay = self._backoff_delay(attempt)
+                self._notify_retry(
+                    RetryEvent(
+                        attempt=attempt,
+                        max_attempts=self._max_attempts,
+                        status_code=response.status_code,
+                        delay_seconds=delay,
+                    )
+                )
+                await self._sleep(delay)
                 continue
             raise self._client_error(response.status_code)
         raise LLMError("模型请求未完成")
@@ -168,7 +204,7 @@ class HttpLLMClient:
         base: float = DEFAULT_BACKOFF_BASE_SECONDS * (DEFAULT_BACKOFF_FACTOR**exponent)
         bounded: float = min(base, DEFAULT_BACKOFF_MAX_SECONDS)
         jitter: float = float(random.uniform(0.0, DEFAULT_JITTER_MAX_SECONDS))
-        return float(bounded + jitter)
+        return min(bounded + jitter, DEFAULT_BACKOFF_MAX_SECONDS)
 
     @staticmethod
     def _raise_retry_exhausted(status_code: int) -> NoReturn:
@@ -176,11 +212,17 @@ class HttpLLMClient:
             raise LLMRateLimitError("模型限流，重试耗尽")
         raise LLMServerError("模型服务端错误，重试耗尽")
 
+    def _notify_retry(self, event: RetryEvent) -> None:
+        if self._on_retry is not None:
+            self._on_retry(event)
+
     @staticmethod
     def _client_error(status_code: int) -> LLMError:
         if status_code in _AUTH_STATUS_CODES:
             return LLMAuthError("模型鉴权失败")
-        return LLMBadRequestError(f"模型请求失败（HTTP {status_code}）")
+        if _CLIENT_ERROR_MIN <= status_code < _CLIENT_ERROR_MAX_EXCLUSIVE:
+            return LLMBadRequestError(f"模型请求失败（HTTP {status_code}）")
+        return LLMProtocolError(f"模型返回不支持的状态（HTTP {status_code}）")
 
 
 async def _default_sleep(delay: float) -> None:
