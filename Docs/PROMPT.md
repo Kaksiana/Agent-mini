@@ -1294,4 +1294,5 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 产出：`runtime/loop.py`、`ToolExecutor`/`ToolOutcome`、`ThoughtStep`/`ToolCallTrace`、增量 `AgentResult`；8 个 S04 单测。
 - 人工修正 / 决策：有 executor 时处理 tool_calls；无 executor 时保留 `LLMProtocolError` 请求契约语义；S05 安全阀未实现。
 - 验证：96 passed、覆盖率 95.70%；unit 32、contract 64；`mypy agent_mini tests` 48 files 0 errors。
-- 关联提交：S04 规划/代码/文档提交见最终报告。
+- 关联提交：`34c9758`（规划）、`ffd5ce6`（代码+测试）、`a69ec1f`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s04-runtime-react-loop`；`runtime` 主规格增至 8 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
