@@ -381,3 +381,11 @@
 - S04 完成 ReAct 工具循环、消息配对、ThoughtStep/ToolCallTrace、错误回灌与隐私脱敏；ISSUE-029 的 `LLMProtocolError` 语义已收敛。
 - 验收：99 passed、覆盖率 96.17%；unit 35、contract 64；`mypy agent_mini tests` 48 files 0 errors；OpenSpec 通过。
 - 无新增阻塞问题；S05 安全阀、S06 真实注册表、S18 真实 API/HTTP 未实现。
+
+### S05 阶段问题记录（2026-10-22）
+
+- 前置：`LoopPolicy` 参数化提交 `1a9bdb3`，默认不限制；S04 行为不变、99 passed。
+- PLR 规则核对：`pyproject.toml` 已启用 `too-many-statements`/`too-many-branches`，`ruff check --select PLR0915,PLR0912 agent_mini/runtime/loop.py` 无告警；S05 拆分后 `run_react_loop` 保持可读。
+- 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
+- 验收：103 passed、覆盖率 94.51%；unit 39、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
+- 无新增阻塞；S06/S13–S18 未实现。

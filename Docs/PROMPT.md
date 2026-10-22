@@ -1334,3 +1334,24 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 已知限制：P1-01/P1-02 是补既有实现回归，首次即绿；P0 有 1 failed→green 证据，已在 S04-report §10 如实记录。P2-01/02/03/04/05 保留为技术债。
 - 关联提交：`2a43440`（代码）、`698a515`（文档/change）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-22-s04-report-fixes`；runtime 主规格增至 9 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
+
+## 2026-10-22 20:36 — S05 循环安全阀
+
+### 原始 Prompt
+
+```text
+【角色】你是 S05「Runtime：循环安全阀」阶段的执行 Agent，熟悉 ReAct 循环的安全边界设计、max_steps / deadline / 重复调用检测、truncated 语义、httpx + respx、pytest、OpenSpec、SuperPower SKILL。
+【任务】执行 S05 阶段：先完成 S04 遗留 P2-05/P2-01 的开工核对与必要准备，然后用 TDD 实现 max_steps、deadline、重复调用检测与 truncated 语义，完成验收、文档收口与 Git 交付。
+【约束】不实现 S06 工具注册表、S13–S18 Memory/Context/HTTP/真实 API；安全阀触发时补齐未完成 tool_calls；TDD 红证据逐 TC 记录；M1 S00–S05 收口。
+```
+
+> 注：以上为原始 S05 执行请求的核心内容摘要；完整角色/约束/输出格式见本轮用户消息。
+
+### 执行摘要
+
+- 目标：实现 S05 循环安全阀并收口 M1。
+- 产出：`LoopPolicy`、max_steps=8、deadline=120s、repeat=3、`truncated`/`termination_reason`、三条固定文案、deadline 取消与中断 tool 消息补齐。
+- 前置：`1a9bdb3` 参数化，默认不限制；S04 行为不变。PLR0915/PLR0912 已启用且无告警。
+- 人工修正 / 决策：deadline 使用自 run 启动计时与 `asyncio.wait_for` 取消；重复签名按连续 name+规范化 args；终止原因放 AgentResult，ThoughtStep 不增字段。
+- 验证：103 passed、覆盖率 94.51%；unit 39、contract 64；`mypy agent_mini tests` 49 files 0 errors。
+- 关联提交：S05 规划/代码/文档/归档提交见最终报告。

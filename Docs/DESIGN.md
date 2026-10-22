@@ -181,8 +181,10 @@ S03 只实现无工具的单轮闭环；构造器注入 `LLMClient`，不读取�
 | `trace` | `tuple[ThoughtStep, ...]` | 每次 LLM 响应一条；S04 新增 |
 | `tool_calls` | `int` | 本轮工具调用总次数；S04 新增 |
 | `tool_traces` | `tuple[ToolCallTrace, ...]` | 展平的公开工具记录；S04 新增 |
+| `truncated` | `bool` | 安全阀触发为 true；正常收敛 false；S05 新增 |
+| `termination_reason` | `Literal["max_steps","deadline","repeat"] \| None` | 安全阀原因；正常收敛 None；S05 新增 |
 
-`AgentResult` MUST 为冻结模型，禁止下游静默修改。`truncated` 延后 S05，`session_id` 延后 S13；`reply` 语义保持不变（仅最终文本）。
+`AgentResult` MUST 为冻结模型，禁止下游静默修改。`session_id` 延后 S13；`reply` 语义保持不变（仅最终文本，安全阀时取固定提示文案）。
 
 **异常契约**：`LLMError` 及其子类必须原样向调用方传播，不吞、不包装。S04 有 `ToolExecutor` 时，tool_calls 进入工具循环；无 executor 且上游返回 tool_calls 视为请求契约违反，仍抛 `LLMProtocolError`；响应结构非法同样只由 `LLMProtocolError` 表示。content 为 `None`、空字符串或纯空白且无 tool_calls 时抛 `LLMEmptyResponseError`。
 
@@ -276,8 +278,11 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 ```
 
 - **工具结果的消息格式**：必须成对写入 `assistant(tool_calls)` 与 `tool(tool_call_id)`，否则模型会报协议错误（对应 FR-RT-04）。
-- **安全阀**：`max_steps`（默认 8）、`deadline`（默认 120s）、`repeat_threshold`（同一 `(name,args)` 连续 3 次即中断）。这些参数与 `truncated` 在 S05 接入；S04 循环只负责工具往返与正常收敛，不实现强制终止。
-- **终止语义**：正常收敛返回模型内容；触达安全阀返回明确提示并标记 `truncated=True`（对应 FR-RT-05、AC-10）。
+- **安全阀**：`max_steps`（默认 8）、`deadline`（默认 120s，自 `Agent.run` 启动计时）、`repeat_threshold`（同一 `(name,args)` 连续 3 次即中断）。这些参数与 `truncated` 在 S05 接入；S04 循环只负责工具往返与正常收敛，不实现强制终止。
+- **重复判定**：按工具执行顺序维护最近签名；`name` + 规范化 JSON arguments（键排序）相同且连续达到 `repeat_threshold` 时中断，遇到不同签名即重置计数。
+- **Deadline 与取消**：每次 LLM 请求前和每个工具执行前检查剩余时间；LLM 请求与单次工具执行使用 `asyncio.wait_for(remaining)` 取消，超时结果转为 `error_code=deadline`，不再请求模型。
+- **终止文案**：`max_steps` = “已达到最大步数限制，已停止。”；`deadline` = “已达到截止时间限制，已停止。”；`repeat` = “检测到重复工具调用，已停止。”。
+- **终止语义**：正常收敛返回模型内容且 `truncated=false`；触达安全阀返回固定提示、`truncated=true` 与 `termination_reason`（对应 FR-RT-05、AC-10）。中断发生在工具批次中间时，为本批未执行/未完成调用补齐同 `call_id` 的取消或超时 tool 结果，保持协议配对。
 
 响应判别表按自上而下优先级执行；终止错误交给统一错误处理，已发生的工具调用不会回滚或自动重放：
 
@@ -546,3 +551,4 @@ AgentResult →
 | v0.13 | 2026-10-22 | S03 复验：拒绝空白 reply、AgentResult 不变量、§5.1 final→reply、调用链分层 | §3.2、§5.1；联动 S03-report P1/P2 |
 | v0.14 | 2026-10-22 | S04 ReAct 循环：AgentResult 增量字段、ToolExecutor Protocol、LLMProtocolError 语义收敛、S05 安全阀边界 | §3.2、§3.3、§3.7；联动 ISSUE-029、TC-L1-015/024/028/030、TC-L2-009/010、TC-L3-006 |
 | v0.15 | 2026-10-22 | S04 报告修复：独立工具结果秘密脱敏、累计 runtime 规格、失败→成功链与执行异常回归 | §3.2.3、§3.3；联动 ISSUE-030、S04-report |
+| v0.16 | 2026-10-22 | S05 安全阀：max_steps/deadline/repeat、truncated/终止原因、固定文案、取消补齐、P2-05/P2-01 前置处理 | §3.2.0、§3.2.4；联动 TC-L1-016/029、TC-L4-008 |
