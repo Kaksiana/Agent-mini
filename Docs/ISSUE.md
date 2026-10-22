@@ -354,12 +354,18 @@
 - 根因：S03 没有循环和工具执行器，只能用协议异常拒绝工具调用，未区分“请求契约违反”和“响应结构非法”。
 - 解决方案：S04 增加 `ToolExecutor` 与循环；有 executor 时执行 tool_calls；无 executor 时收到 tool_calls 才视为请求契约违反；`LLMProtocolError` 继续只表示协议/结构/请求契约非法。DESIGN §3.2、§3.3 与 runtime 规格同步。
 - 验证方式：S04 契约测试覆盖有 executor 的工具循环、无 executor 的 tool_calls 拒绝、结构非法响应；`openspec validate --all --strict`。
-- 验证结果：待 S04 实现完成后回填。
-- 状态：Open
-- 关联提交：S04 规划提交（见最终报告）
+- 验证结果：S04 循环在配置 executor 时执行 tool_calls，未配置 executor 时以 `LLMProtocolError` 拒绝；结构非法仍由同一异常表示；S03 的“Agent 不支持 tools”分支已删除。96 passed、覆盖率 95.70%。
+- 状态：Resolved
+- 关联提交：`34c9758`（规划）、S04 代码/文档提交（见最终报告）
 
 ### S03 阶段问题记录（2026-10-22）
 
 - Phase 1 完成：DESIGN §3.2 字段/签名、TESTING TC-L1-015A/B/C、PLAN 测试项、mypy `agent_mini tests` 准出条款；ISSUE-028 Resolved。
 - Phase 2 完成：单轮直答与冻结 `AgentResult` 实现，16 个 S03 单元测试通过；全量 88 passed、覆盖率 96.03%。
 - 无新增阻塞问题；ISSUE-024/025 为已登记债务，不阻塞 S03。
+
+### S04 阶段问题记录（2026-10-22）
+
+- S04 完成 ReAct 工具循环、消息配对、ThoughtStep/ToolCallTrace、错误回灌与隐私脱敏；ISSUE-029 的 `LLMProtocolError` 语义已收敛。
+- 验收：96 passed、覆盖率 95.70%；unit 32、contract 64；`mypy agent_mini tests` 48 files 0 errors；OpenSpec 通过。
+- 无新增阻塞问题；S05 安全阀、S06 真实注册表、S18 真实 API/HTTP 未实现。

@@ -1,6 +1,6 @@
 # Agent-mini
 
-Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00 工程基线、S01 单轮模型接入、S02 错误分类/退避重试与 S03 单轮直答 Runtime；包含可安装包、OpenAI 兼容 LLM 客户端与 `Agent.run(user_input)`，不包含工具循环、Memory、HTTP 接口或安全阀。
+Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00 工程基线、S01 单轮模型接入、S02 错误分类/退避重试、S03 单轮直答与 S04 ReAct 工具循环；包含可安装包、OpenAI 兼容 LLM 客户端、`Agent.run(user_input)` 与 `ToolExecutor` 协议，不包含真实工具注册表、Memory、HTTP 接口或 S05 安全阀。
 
 ## 环境要求
 

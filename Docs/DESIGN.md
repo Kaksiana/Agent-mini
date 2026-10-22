@@ -242,7 +242,7 @@ HTTP handler
 | `thought` | 如“调用 calculator 获取结果”“返回最终答案” | 仅描述可观察行为，不复制完整模型推理或最终文本 |
 | `thought_source` | 固定为 `runtime_summary` | 明确摘要来源，禁止标记为模型原始思考 |
 | `reasoning_present` | 是否解析到非空 `reasoning_content` | 无推理字段不算错误，也不伪造内容 |
-| `tool_calls` | `[{call_id, tool, args, ok, error_code, observation}]` | 调用参数按白名单脱敏；结果摘要先脱敏再截断至 200 字符 |
+| `tool_calls` | `tuple[ToolCallTrace, ...]` | 元素为 `{call_id, tool, args, ok, error_code, observation}`；参数按白名单脱敏，结果摘要先脱敏再截断至 200 字符 |
 | `error_code` | 可选的步骤错误码 | final 步骤的 tool_calls 为空列表 |
 
 - HTTP `trace` 与 `event=react.step` 日志仅使用上述公开字段，`AgentResult.tool_calls` 仅表示调用总次数；`tool_traces` 是所有步骤的工具调用记录展平结果。
@@ -276,7 +276,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 ```
 
 - **工具结果的消息格式**：必须成对写入 `assistant(tool_calls)` 与 `tool(tool_call_id)`，否则模型会报协议错误（对应 FR-RT-04）。
-- **安全阀**：`max_steps`（默认 8）、`deadline`（默认 120s）、`repeat_threshold`（同一 `(name,args)` 连续 3 次即中断）。
+- **安全阀**：`max_steps`（默认 8）、`deadline`（默认 120s）、`repeat_threshold`（同一 `(name,args)` 连续 3 次即中断）。这些参数与 `truncated` 在 S05 接入；S04 循环只负责工具往返与正常收敛，不实现强制终止。
 - **终止语义**：正常收敛返回模型内容；触达安全阀返回明确提示并标记 `truncated=True`（对应 FR-RT-05、AC-10）。
 
 响应判别表按自上而下优先级执行；终止错误交给统一错误处理，已发生的工具调用不会回滚或自动重放：

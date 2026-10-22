@@ -1185,3 +1185,113 @@ Phase 2（TDD 实现）：按原 S03 Prompt 约束执行，不含 session_id、�
 - 人工修正 / 决策：接受 S03-report 的 5 个 P1；同时处理 AgentResult 不变量、混合响应、runtime 规格与调用链 P2，不扩大到 S04。
 - 验证：新增空白/不变量/混合响应测试；全量 88 passed、覆盖率 96.03%；`mypy agent_mini tests` 47 files 0 errors。
 - 关联提交：本轮修复提交见最终报告。
+
+## 2026-10-22 18:32 — S04 ReAct 工具循环
+
+### 原始 Prompt
+
+```text
+【角色】
+你是 S04「Runtime：工具调用循环（ReAct 核心）」阶段的执行 Agent，熟悉 ReAct 循环、OpenAI Chat Completions 的 assistant/tool 消息配对协议、ThoughtStep 决策轨迹建模、接口 Protocol 设计、pytest + respx、OpenSpec、SuperPower SKILL，并严格遵循项目 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+项目：Agent-mini。
+S04 阶段定义、对应需求、目标、输入、输出、验收标准、测试项、前置阶段均在 `Docs/PLAN.md` 的 S04 条目中，本 Prompt 不重复其内容。
+Agent Runtime 的调用链、主循环伪代码、ThoughtStep 字段、响应判别表、安全阀语义、Memory 写回时机等契约见 `Docs/DESIGN.md` §3.2，重点为 §3.2.1、§3.2.2、§3.2.3、§3.2.4。
+S04 相关测试用例定义见 `Docs/TESTING.md` 中 TC-L1-015、TC-L1-024、TC-L1-028、TC-L1-030、TC-L2-009、TC-L2-010、TC-L3-006 的完整定义与分层标准。
+S04 对应功能需求见 `Docs/REQUIREMENT.md` 中 FR-RT-02、FR-RT-03、FR-RT-04、FR-RT-06、FR-RT-08。
+S04 是 Runtime 层最复杂的阶段，其 `ThoughtStep`、`ToolCallTrace`、循环收敛语义会被 S05（安全阀）、S15/S16（Context 与裁剪）、S18（HTTP 响应）直接依赖；接口稳定性与隐私边界优先级高于实现速度。
+S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"响应结构非法"和"Runtime 不支持 tool_calls"两种语义；S04 引入工具处理后，后一种语义过期，需在本轮显式清理并登记。
+用户在上一轮已决策：采纳 `*Error` 命名；TDD 红证据以本地验证加 `Docs/PROMPT.md` 记录为准；`AgentResult` 字段在 S03 为 `reply/steps/usage`，S04 可增量扩展但不得回退既有字段语义。
+【任务】
+执行 S04 阶段：先按上述文档自行提取阶段范围、测试用例定义、验收标准与实现边界，完成 S03 遗留债务与开工前核对，然后用 TDD 实现 ReAct 工具调用循环、assistant/tool 消息配对、ThoughtStep 决策轨迹，完成验收、文档收口与 Git 交付。
+【约束】
+一、开工前核对（必须在 S04 代码提交之前处理，可合并为一个前置 commit）
+1. 核对 S03 是否真正完成：S03 状态、验收结果、是否有遗留 ISSUE（含 ISSUE-024、ISSUE-025）是否有变化。若 S03 有未闭环项，先登记 ISSUE 并在 `Docs/PROMPT.md` 记录，再判断是否阻塞 S04。
+2. 处理 S03 遗留的 `LLMProtocolError` 语义债务：
+   - 若 `Docs/DESIGN.md` 已登记该异常在 S03 用于"不支持 tool_calls"并声明 S04 移除，则按登记实施；
+   - 若未登记，在 `Docs/DESIGN.md` §3.7 与 §3.2 的异常契约中补登，并在 `Docs/ISSUE.md` 记录该决策；S04 之后的 `LLMProtocolError` 只保留"响应结构非法"语义。
+3. 核对 S04 依赖的 `Agent` 与 `AgentResult` 现状：S03 的 `reply/steps/usage` 字段与构造方式是否足以支撑 S04 增量扩展；若需要变更已冻结字段（如 `reply` 语义需从"最终文本"扩展为"可含工具调用伴随文本"），必须先在 `Docs/DESIGN.md` §3.2 修订并在 `Docs/PROMPT.md` 记录，不得在代码中静默改变字段语义。
+4. 核对 S04 与 S05 的边界：`Docs/PLAN.md` 明确 S05 才引入 `max_steps`、`deadline`、重复调用检测、`truncated`。S04 的循环必须为 S05 预留接入点（如循环参数化），但不得实现安全阀行为。
+5. 上述任一项无法完成时，登记 ISSUE 后继续 S04，不得中断。
+二、S04 范围与边界
+6. 开工前必须完整阅读：`AGENT.md`、OpenSpec 全局规范、`Docs/PLAN.md` S03、S04、S05、S06、S18、`Docs/DESIGN.md` §3.1、§3.2（全部子节）、§3.3、§3.7、§4、§6、§7、§8、`Docs/TESTING.md` 中 S04 涉及的全部 TC 定义与分层标准、`Docs/REQUIREMENT.md` 中 FR-RT-02/03/04/06/08、`Docs/ISSUE.md`、`MEMORY.md`、`Docs/PROMPT.md`，以及 `agent_mini/runtime/` 与 `agent_mini/llm/` 现状。
+7. 阶段范围、验收标准、测试项一律以 `Docs/PLAN.md`、`Docs/DESIGN.md`、`Docs/TESTING.md` 为准；本 Prompt 不重复其内容。若三份文档之间对 S04 存在不一致或缺口，停止并在 `Docs/ISSUE.md` 登记，不得自行补写需求或补写测试用例定义。
+8. 严格按 `Docs/PLAN.md` S04 声明的「前置阶段」「输入」「输出」范围实施；凡未列在 S04 输出的功能一律视为越界，不得实现，也不得为跑通测试在其他子包加入实现。
+9. 明确不做（越界即视为违规）：
+   - 不实现 S05 的 `max_steps`、`deadline`、重复调用检测、`truncated` 语义；允许为 S05 预留可参数化接口，但不得在 S04 令循环具备强制终止行为；
+   - 不实现 S06 的工具注册表、`@tool` 装饰器、Schema 生成；S04 只依赖测试替身实现"工具调用协议"，不导入 `agent_mini/tools/`；
+   - 不实现 S13/S14 的 Memory 读写；
+   - 不实现 S15/S16 的 Context 管线与裁剪；S04 的 messages 拼接不引入 token 预算或轮次窗口；
+   - 不实现 S18 的 HTTP 入口；
+   - 不实现 S21 的配置加载与 DI 容器；
+   - 不调用真实 DeepSeek API，不读取 `DEEPSEEK_API_KEY`；真实 API 与 HTTP 验收留 S18（TC-L4-010/011 在 S18 回填）。
+10. `runtime/loop.py` 从占位转为实现，但必须遵守 `Docs/DESIGN.md` §3.2.4 的伪代码结构；若实现需要偏离伪代码，须在 OpenSpec S04 change 的 design.md 中说明偏离理由，并同步更新 `Docs/DESIGN.md`。
+11. 工具调用协议（Protocol）：S04 允许定义最小 Protocol（如 `ToolExecutor` 或 `ToolProtocol`）以支撑循环；Protocol 的位置、签名、异常契约须在 `Docs/DESIGN.md` §3.3 或 §3.2 中明确并同步；不得把 Protocol 实现放进入 `agent_mini/tools/`。
+12. 依赖管理遵循「先声明 → 再安装 → 再 import → 再测试」；若 S04 无需新增依赖，明确说明；如需新增，核对 `Docs/DESIGN.md` §1.3 与 §6.1 并在 `Docs/PROMPT.md` 记录。严禁引入 `langgraph`、`openhands`、`openclaw`、`PI` 及 `Docs/DESIGN.md` §6.1 禁止清单内的框架。
+三、接口与隐私边界（S04 重点）
+13. `ThoughtStep` 字段必须与 `Docs/DESIGN.md` §3.2.3 完全一致；字段缺失、命名偏差或额外字段均视为违反契约。实现后必须逐字段核对。
+14. 隐私边界必须用测试固化：
+    - `reasoning_content` 不得出现在 `AgentResult`、`ThoughtStep`、公开 trace 或日志中；
+    - 思考模式启用且带 tools 时，`reasoning_content` 只允许作为同一 session 的私有协议字段随原 assistant 消息保存在内存与后续 messages 中，用于回传模型；
+    - 公开 `thought` 字段必须标记为 `runtime_summary` 来源，不得伪装为模型原始推理；
+    - 工具调用参数和结果在 `ToolCallTrace` 中必须脱敏并截断（按 `Docs/DESIGN.md` §3.2.3 的规定长度）。
+15. assistant/tool 消息配对必须满足协议要求：
+    - 每个 `tool_calls` 中返回的 `call_id` 必须对应后续一条 `tool` 消息；
+    - 多工具调用必须按响应中声明的顺序回灌；
+    - 循环被中断时，未完成的 tool_calls 必须补齐同 `call_id` 的结构化取消/超时结果，不得出现孤立 `tool` 消息。
+16. `AgentResult` 增量扩展必须显式登记：
+    - S04 允许新增 `trace`、`tool_calls` 等字段，但不得改变 `reply`、`steps`、`usage` 的既有语义；
+    - 新增字段必须在 `Docs/DESIGN.md` §3.2 字段表登记并在 OpenSpec S04 change 的 spec.md 中显式声明；
+    - 若 `reply` 语义需扩展（例如"当循环触发工具调用时，`reply` 为最终文本而非中间伴随文本"），必须在 DESIGN 中明确并补对应用例。
+四、TDD 与实现规范
+17. 必须使用 OpenSpec 先编写 S04 的 change（建议命名 `s04-runtime-react-loop`），含 proposal、spec、design、tasks，覆盖上述交付点、Protocol 设计、`AgentResult` 增量字段、异常契约变更、隐私边界；`openspec validate s04-runtime-react-loop --strict` 通过后再开始 TDD。
+18. 必须使用 SuperPower SKILL；不可用时登记 ISSUE，不得伪造。
+19. 必须 TDD：对 `Docs/TESTING.md` 中 S04 每条 TC 先写失败测试、确认红因与该 TC 目标相关，再实现到绿、再重构；红因与绿因按已决策规则记录到 `Docs/PROMPT.md`，不得只给总数，不得以收集错误冒充 TC 级红。
+20. 代码质量遵循 OpenSpec 全局规范与 `AGENT.md`：单行单语句、行宽、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无注释掉的代码、无魔法数字；默认值、截断长度、循环上限预留参数一律提取为具名常量。
+21. 不得修改 `agent_mini/` 下非 `runtime/` 子包的实现；不得为跑通测试在 `llm/`、`tools/`、`memory/`、`context/` 等子包加入实现。
+五、验收与收口
+22. 验收命令按 `AGENT.md` 与 `Docs/TESTING.md` 执行，至少包含：可编辑安装、`pytest -m unit`、`pytest -m contract`、全量 `pytest`（含 S00–S03 用例无回归）、覆盖率（含新增代码）、`ruff check .`、`ruff format --check .`、`mypy agent_mini tests`、`openspec validate --all --strict`、wheel 构建 + wheel 内容完整性校验、仓库外导入验证；每项需复跑并留证，不得编造输出。
+23. 逐条给出 S04 验收标准的验证证据：
+    - 至少 3 步可收敛：给出多步 trace 长度与最终 `reply` 的断言证据，对应 TC 编号；
+    - 混合正文与多工具按调用优先处理：给出响应同时含 `content` 与 `tool_calls` 时优先执行工具的断言证据；
+    - 参数错误可回灌修正：给出错误 `tool` 消息回灌、模型修正后成功的断言证据；
+    - 公开 trace 不暴露原始 reasoning：给出 `reasoning_content` 不出现在 `AgentResult` 与 trace、日志中的断言证据；
+    - 启用思考模式保留必要私有字段：给出 `reasoning_content` 随 assistant 消息保留并参与后续请求的断言证据；
+    - assistant/tool 配对：给出每个 `call_id` 都有对应 `tool` 消息、顺序正确的断言证据；
+    - 明确标注留待后续阶段的部分（`max_steps`/`deadline`/重复检测在 S05、真实注册表在 S06、Memory/Context 在 S13–S16、真实 API 与 HTTP 在 S18）。
+24. 文档收口必须完成：
+    - `Docs/PLAN.md`：S04 状态置为「进行中 → 已完成」，填写完成日期，注明与 S03 遗留债务的衔接及 S05、S06、S18 的回填点；
+    - `Docs/DESIGN.md`：§3.2 字段表补 `AgentResult` 增量、§3.2.3 `ThoughtStep` 与隐私边界若被澄清则同步、§3.3 或 §3.2 登记 Protocol、§3.7 登记异常契约变更（尤其 `LLMProtocolError` 语义收敛）；变更记录中登记；
+    - `Docs/TESTING.md`：同步 S04 marker、覆盖率、准出标准相关条款；防御性测试与验收 TC 的归属需明确；
+    - `Docs/ISSUE.md`：登记 S04 发现的问题（若无写「无」），关闭 `LLMProtocolError` 语义债务相关 Issue（如适用），并按第 1–4 条处理开工前核对项；
+    - `MEMORY.md`、`Docs/PROMPT.md`、`README.md`：按项目规范同步；
+    - OpenSpec：归档 S04 change，主规格按需更新；不改已归档 change。
+25. 按 `AGENT.md` Commit 规范提交并主动推送；提交拆分建议：开工前核对、OpenSpec 规划、代码+测试、文档收口、归档；若某拆分因技术原因不可行，在 commit body 或 `Docs/PROMPT.md` 说明。冲突或推送失败时停止并报告，不得强推。
+【输出格式】
+仅返回 Markdown 执行结果，包含：
+1. 阶段目标重申：一句话说明 S04 目标与边界，须与 `Docs/PLAN.md` 一致。
+2. 开工前核对结果：S03 完成状态、`LLMProtocolError` 语义债务处理结果、`AgentResult` 增量决策、S04 与 S05 边界预留方式、遗留项处理情况与对应 commit。
+3. 测试用例映射表：`Docs/TESTING.md` 中 S04 每条 TC，逐条列出「定义摘要 / 本阶段覆盖部分 / 留待后续部分 / 对应用例文件」；明确 S18 回填的 TC-L4-010/011 不在本轮覆盖。
+4. 接口设计决策：Protocol 位置与签名、`AgentResult` 增量字段与语义、`ThoughtStep` 字段核对结果、异常契约变更、隐私边界落地方式；若偏离 `Docs/DESIGN.md` §3.2.4 伪代码，说明偏离点与 DESIGN 修订位置。
+5. 变更文件：区分「运行依赖」「dev 依赖」「实现」「测试」「文档」「OpenSpec」。
+6. OpenSpec 与 SKILL：change 名称、spec/tasks 路径、validate 结果、归档结果；SuperPower SKILL 使用情况。
+7. TDD 记录：每条 TC 先红后绿的证据摘要（红因、绿因），按已决策规则记录，不得只给总数。
+8. 验收结果：第 22 条每项命令、结果、是否通过；覆盖率数值与新增代码覆盖率。
+9. 验收标准逐条证据：第 23 条各子项分别给出证据，隐私边界与消息配对必须给出显式断言摘要。
+10. 依赖审计：新增依赖清单（包名、版本约束、用途、禁止清单核对、声明位置）；若无新增依赖，说明理由。
+11. 可读性与注释检查：核对方式与结果。
+12. 文档收口：各文档是否已更新及更新要点。
+13. Git 状态：各 commit hash、分支名、推送结果、工作区是否干净。
+14. 副作用与待清理：本轮产生的 `*.egg-info`、缓存目录、临时文件清单及建议清理方式。
+15. 异常与待确认：无异常写「无」；有异常给出错误摘要、影响范围、建议下一步。
+不要输出任何代码正文或文档正文。
+```
+
+### 执行摘要
+
+- 目标：实现 S04 ReAct 工具循环、消息配对、ThoughtStep/ToolCallTrace 与 AgentResult 增量。
+- 关键约束：不实现 S05 安全阀、S06 注册表、S13–S16 Memory/Context、S18 HTTP/真实 API；只用测试替身。
+- 产出：`runtime/loop.py`、`ToolExecutor`/`ToolOutcome`、`ThoughtStep`/`ToolCallTrace`、增量 `AgentResult`；8 个 S04 单测。
+- 人工修正 / 决策：有 executor 时处理 tool_calls；无 executor 时保留 `LLMProtocolError` 请求契约语义；S05 安全阀未实现。
+- 验证：96 passed、覆盖率 95.70%；unit 32、contract 64；`mypy agent_mini tests` 48 files 0 errors。
+- 关联提交：S04 规划/代码/文档提交见最终报告。

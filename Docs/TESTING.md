@@ -6,12 +6,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.7（S03 直答与执行状态同步） |
+| 版本 | v0.8（S04 ReAct 循环与轨迹） |
 | 日期 | 2026-10-22 |
-| 状态 | 执行中（S00–S03 已实现） |
-| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 88（unit 24、contract 64） |
+| 状态 | 执行中（S00–S04 已实现） |
+| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 96（unit 32、contract 64） |
 
-> 本文件同时记录测试设计与执行状态。截至 S03，S00–S03 已实现 88 个 pytest 用例（最近全量 88 passed、覆盖率 96.03%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S04，S00–S04 已实现 96 个 pytest 用例（最近全量 96 passed、覆盖率 95.70%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -167,6 +167,19 @@
 | TC-L1-015A | 单条 user 消息、一步直答、reply/steps/usage、无工具路径 | 会话、Memory、Context 由 S07/S13 覆盖 |
 | TC-L1-015B | `LLMEmptyResponseError` 原样传播；None/空字符串/纯空白统一拒绝 | HTTP 错误映射由 S18 覆盖 |
 | TC-L1-015C | `LLMTimeoutError` 原样传播、不重试/不包装 | Runtime 安全阀由 S05 覆盖；真实超时由 S18 覆盖 |
+
+#### 4.2.4 S04 覆盖边界
+
+| TC | S04 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L1-015 | 两步循环、assistant/tool 配对、最终 reply | S05 安全阀、S13 会话 |
+| TC-L1-024 | ThoughtStep 字段、runtime_summary、reasoning_present、tool 列表 | `react.step` 日志由 S19 覆盖 |
+| TC-L1-028 | 测试替身 unknown_tool/invalid_arguments 回灌、修正收敛 | 真实注册表/Schema 由 S06 覆盖 |
+| TC-L1-030 | reasoning 仅随 assistant 消息回传、公开 trace 脱敏 | MySQL/日志由 S17/S19 覆盖 |
+| TC-L2-009 | invalid_arguments 保留 call_id、不执行 handler、可修正 | 真实工具由 S06 覆盖 |
+| TC-L2-010 | content+多 tool_calls 调用优先、顺序配对、总次数 | 真实 provider 由 S18 覆盖 |
+| TC-L3-006 | 测试替身执行与 tool_traces | 真实 calculator/注册表由 S06/S18 覆盖 |
+| TC-L4-010/011 | 不覆盖 | S18 真实 API/HTTP 回填 |
 
 ### 4.3 L3 集成测试
 
