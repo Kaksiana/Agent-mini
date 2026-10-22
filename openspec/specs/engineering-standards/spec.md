@@ -163,7 +163,7 @@ Agent-mini 的 Python 代码 MUST 遵守 Python 3.11 基线、类型注解、异
 
 **验证方式**：
 
-- `ruff format --check .`、`ruff check .`、`mypy agent_mini` 全部通过（S00 配置后）。
+- `ruff format --check .`、`ruff check .`、`mypy agent_mini tests` 全部通过（S00 配置后；S02 复验起 tests 纳入门禁）。
 - 用 `grep`/评审检查禁用项：`eval(`、`exec(`、`shell=True`、`print(`、`except:`、`# type: ignore`（无错误码）。
 - 评审确认无模块级 I/O、无未关闭客户端、无被禁框架依赖。
 - `pytest` 全绿且资源泄漏用例（TC-L5-006）通过。
@@ -257,7 +257,7 @@ disallow_incomplete_defs = false
 ```text
 ruff format --check .
 ruff check .
-mypy agent_mini
+mypy agent_mini tests
 pytest
 pytest --cov=agent_mini --cov-report=term-missing --cov-fail-under=80
 ```
@@ -1012,7 +1012,7 @@ agent-mini/
 ```text
 ruff format --check .
 ruff check .
-mypy agent_mini
+mypy agent_mini tests
 pytest
 pytest --cov=agent_mini --cov-report=term-missing --cov-fail-under=80
 openspec validate --specs --strict

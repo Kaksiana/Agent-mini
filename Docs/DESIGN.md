@@ -153,7 +153,7 @@ agent_mini/
 - **错误解析边界**：无 choices、空 choices、message 类型不合法、tool_calls 结构不合法或调用 ID 重复，抛 `LLMProtocolError`（`LLM_PROTOCOL_ERROR/502`），本响应的任何工具均不执行。原始响应仅用于内存解析，默认不落盘、不记日志；诊断只输出脱敏的错误类型与 trace_id。
 - **S01 实现边界**：客户端只负责请求、归一与判别；非法工具参数以 `ToolCall.error_code="invalid_arguments"` 保留 call_id，Runtime/ToolResult 映射在 S04/S06；HTTP 状态分类与重试在 S02。S01 临时 `ModelConfig`（base_url/model/timeout）位于 `llm/models.py`，S21 配置层迁移或复用。
 - **协议硬化（S01 评估修复）**：响应顶层必须是 JSON object，否则统一抛 `LLMProtocolError`；`model/thinking` 等受控字段不得由 `**params` 覆盖；`reasoning_content` 仅允许 assistant 消息携带。异常类统一使用 `*Error` 后缀。
-- **错误与重试（S02）**：`400 → LLMBadRequestError`、`401/403 → LLMAuthError`、`429 → LLMRateLimitError`、`5xx → LLMServerError`、超时 `→ LLMTimeoutError`、其他传输异常 `→ LLMConnectionError`。仅 429/5xx 重试，最多 3 次总请求；退避 `0.5 * 2^(attempt-1)` 秒并叠加 `[0, 0.1]` 秒抖动；4xx、超时、协议错误不重试。
+- **错误与重试（S02）**：`400 → LLMBadRequestError`、`401/403 → LLMAuthError`、`429 → LLMRateLimitError`、`5xx → LLMServerError`、超时 `→ LLMTimeoutError`、其他传输异常 `→ LLMConnectionError`。仅 429/5xx 重试，最多 3 次总请求；退避 `0.5 * 2^(attempt-1)` 秒并叠加 `[0, 0.1]` 秒抖动；4xx、超时、协议错误不重试。客户端默认把每次重试写入 `retry_events` 快照，`on_retry` 仅用于外部订阅。
 - **错误处理**：`401/403` → `LLMAuthError`；`429` 与 `5xx` → 指数退避重试（默认 3 次，底数 0.5s，带抖动）；`400` → `LLMBadRequestError`（不重试）；超时 → `LLMTimeoutError`（不重试，交由 Runtime 收敛）。
 - **无状态**：不持有会话；调用方传入完整 `messages`。
 

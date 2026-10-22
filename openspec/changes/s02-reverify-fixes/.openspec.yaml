@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-22
+goal: S02 复验修复：默认重试事件、具体异常断言、TC-L2-007 组合与 tests mypy 门禁

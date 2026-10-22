@@ -30,7 +30,7 @@
 
 #### Scenario: 静态检查与测试命令可用
 
-- **WHEN** 开发者按 `README.md` 执行 `pytest`、`ruff check` 与 `mypy agent_mini`
+- **WHEN** 开发者按 `README.md` 执行 `pytest`、`ruff check` 与 `mypy agent_mini tests`
 - **THEN** 命令可运行，ruff 零告警，mypy 无错误
 
 ### Requirement: TC-SMOKE-001 工程 smoke

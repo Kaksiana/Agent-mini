@@ -308,5 +308,16 @@
 - 验证方式：新增测试先红后绿；全量 pytest、覆盖率、ruff/format/mypy、openspec、wheel/仓库外导入通过；S02-report 追加修复记录。
 - 验证结果：RetryPolicy 限制 1–3 并做运行时校验；重试事件记录 attempt/max/status/delay；退避 cap 后非递减；3xx/未知状态归 `LLMProtocolError`；补 http_status、协议错误不重试、timeout 配置传递与 S01 TC-L2-007 thinking+tools 回归。全量 72 passed、覆盖率 94.38%；contract 64 passed、31.5s（TESTING 目标调整为 <60s）；ruff/format/mypy/openspec 通过。
 - 剩余限制：P1-03 以“底层 httpx timeout 配置断言 + ReadTimeout 分类”验证，本地慢服务器测试因 handler 调度不稳定未保留；P1-04 通过全局规范阶段例外解决，S20 仍需迁移 AgentError。
+- 复验追加（2026-10-22）：默认 `on_retry=None` 丢事件、具体异常仍以类名字符串断言、TC-L2-007 未回传 assistant reasoning、`mypy agent_mini tests` 15 errors；见 ISSUE-027。
 - 状态：Resolved
 - 关联提交：S02 report-fix 提交（见最终报告）
+
+### ISSUE-027 — S02 复验遗留：默认事件、具体异常、组合与 tests 门禁
+
+- 日期：2026-10-22
+- 现象：默认 `RetryPolicy.on_retry` 为 None，`RetryEvent` 被丢弃；异常测试比较 `type(...).__name__`；thinking+tools 用例未回传 assistant `reasoning_content`；`mypy agent_mini tests` 有 15 条错误，README 仅检查 `agent_mini`。
+- 根因：事件记录依赖可选回调；测试为绕过类型检查使用字符串断言；组合用例只覆盖首轮请求；tests 未纳入 mypy 门禁。
+- 解决方案：客户端始终追加 `RetryEvent` 并提供 `retry_events` 快照，`on_retry` 仅作外部订阅；异常测试改用具体异常类；组合用例改为两轮并回传 reasoning/tool_calls；修复 tests 类型错误，README/规范门禁改为 `mypy agent_mini tests`。
+- 验证结果：`mypy agent_mini tests` 0 errors（46 files）；默认事件 2 条、具体异常类型、thinking+tools+reasoning 同请求通过；全量 72 passed、覆盖率 95.69%。
+- 状态：Resolved
+- 关联提交：S02 reverify-fix 提交（见最终报告）

@@ -38,5 +38,5 @@ pytest --cov=agent_mini --cov-report=term-missing
 ```bash
 ruff check .
 ruff format --check .
-mypy agent_mini
+mypy agent_mini tests
 ```

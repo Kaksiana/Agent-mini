@@ -4,6 +4,9 @@
 > 基准提交：`eda077a`（`main`，与 `origin/main` 一致）  
 > 评估性质：独立只读代码评估；除本报告与 Prompt 记录外，不修改实现、测试、Issue、PLAN 或 OpenSpec  
 > 总体结论：**有条件通过；处理 P1 后方可进入 S03**
+> 修复复验日期：2026-10-22
+> 修复复验基准：`d95d02d`（`main`，与 `origin/main` 一致）
+> 修复复验结论：**不通过；原 P1-02 未闭环，暂不建议进入 S03**
 
 ## 1. 评估范围与基准
 
@@ -242,4 +245,143 @@ P2 可登记后进入后续阶段，但建议同步修复过时子包说明和�
 **红证据**：仓库外以基线 `22eba3a` 叠加当前新增测试，得到 **10 failed、21 passed**；失败均为业务行为（非法尝试次数、缺失 on_retry、cap 失效、非 callable、302 误分类），不是收集或夹具错误。
 
 **复验**：全量 72 passed；覆盖率 94.38%；contract 64 passed、31.5s；ruff/format/mypy/openspec 通过。P1-03 采用“配置传递断言 + ReadTimeout 分类”而非不稳定的本地慢服务器测试；P1-04 为阶段例外，S20 仍需迁移。S02 可进入 S03。
+
+## 11. 修复独立复验（2026-10-22）
+
+> 本节保留 §1–§10 的历史判断，并以当前基准 `d95d02d` 独立复核 §10 的修复声明。评估仅更新本报告与 Prompt 记录，未修改实现、测试、Issue、PLAN、OpenSpec 或远程状态。
+
+### 11.1 复核范围与提交
+
+- 修复提交链：`b4fa76a`（规划）→ `41a4c20`（实现与测试）→ `a238523`（文档收口）→ `d95d02d`（OpenSpec 归档）；规划先于实现，测试与实现同提交，归档位于最后。
+- 读取并核对：`agent_mini/llm/client.py`、四个 L2 契约测试、`Docs/PLAN.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`、`Docs/ISSUE.md`、`MEMORY.md`、`Docs/PROMPT.md`、OpenSpec 主规格及归档 change `2026-10-22-s02-report-fixes`。
+- 使用 `code-review-and-quality` 评审规则，从正确性、测试有效性、异常边界、架构耦合与流程证据五个维度交叉核对。
+
+### 11.2 复核命令与结果
+
+| 命令/检查 | 结果 | 结论 |
+| --- | --- | --- |
+| `python -m pytest -q -p no:cacheprovider` | 72 passed，43.45s | 通过 |
+| 覆盖率门禁（覆盖文件写入仓库外 TEMP） | 72 passed，94.38%，43.77s | 通过 |
+| `python -m pytest -q -p no:cacheprovider -m contract` | 64 passed、8 deselected，43.60s | 通过，低于修订后的 60s 目标 |
+| `python -m pytest -q -p no:cacheprovider -m unit` | 8 passed，0.17s | 通过 |
+| `ruff check .` / `ruff format --check .` | 零告警；49 files already formatted | 通过 |
+| `mypy agent_mini` | 34 个源文件无错误 | 通过，符合 README 门禁 |
+| `mypy agent_mini tests` | 15 errors，其中修复新增的 retry 测试占 10 条 | 扩展检查不通过；当前 README 未把 tests 纳入门禁 |
+| `openspec validate --all --strict` | 3 passed、0 failed | 结构校验通过 |
+| `python -m pip check` | No broken requirements found | 通过 |
+| 仓库外 wheel 构建、临时 target 安装与导入 | 构建/安装成功；`RetryEvent` 等可导入；`schema.sql=True` | 通过 |
+| 基线 `22eba3a` 叠加当前四个修复测试 | 10 failed、21 passed | 红灯声明可复现，均进入执行阶段 |
+| 定向默认重试记录探针 | `HttpLLMClient._on_retry is None` | 原 P1-02 未闭环 |
+| 定向回调失败探针 | 首次 429 后回调抛出的原始 `RuntimeError` 中断流程，请求数为 1 | 已知设计风险，见 11.5 |
+
+未调用真实 API；真实限流和网络超时仍按计划留 S18。未重跑全新 venv 的 dev extras 安装，因为修复未改依赖声明；以 pip check、仓库外 wheel 和隔离导入复核打包边界。
+
+### 11.3 原问题修复进度
+
+| 报告项 | 状态 | 独立证据与判断 |
+| --- | --- | --- |
+| S02-P1-01 尝试次数与退避 cap | 已修复 | `RetryPolicy.__post_init__` 拒绝非整数及 1–3 外取值；定向探针中 4 被拒绝；cap 测试通过 |
+| S02-P1-02 重试记录 attempt | **未修复** | `on_retry` 默认为 `None`，默认生产路径构造事件后直接丢弃；不满足“每次重试必须记录”的无条件 MUST |
+| S02-P1-03 timeout 测试自证 | 已修复 | 测试直接断言底层 read/connect timeout 等于配置；删除配置传递会失败，符合初评给出的可接受修复方向 |
+| S02-P1-04 异常根规格冲突 | 已修复 | 全局规格新增 S02–S19 显式阶段例外和 S20 到期条件；PLAN/DESIGN/llm-client 同步 |
+| S02-P2-01 3xx 误分类 | 已修复 | 302 映射 `LLMProtocolError`，请求次数 1；仅明确 4xx 进入 BadRequest/Auth |
+| S02-P2-02 RetryPolicy 校验 | 已修复 | 整数范围、bool、float、sleep/on_retry callable 均有构造期校验和红绿证据 |
+| S02-P2-03 子包说明过时 | 已修复 | `agent_mini/llm/__init__.py` 已描述 S01/S02 当前职责 |
+| S02-P2-04 L2 耗时目标 | 规格调整后闭环 | TESTING 将目标改为 `<60s`；本次 43.60s 通过。该修复是目标重定标，不是性能优化 |
+| S02-P2-05 具体异常/http_status 断言 | 部分修复 | `code`、`http_status` 和协议错误不重试已补；仍捕获宽泛 `LLMError` 并比较类名字符串，未按建议直接使用具体异常类 |
+| S01 TC-L2-007 thinking+tools 组合 | 部分修复 | 新用例同时断言 thinking 与 tools，但请求只有 user 消息，没有在同一后续请求中携带 assistant `reasoning_content`，未覆盖完整组合语义 |
+
+### 11.4 复验问题清单
+
+#### P0
+
+无。
+
+#### P1
+
+##### S02-RV-P1-01：默认重试路径仍不记录 attempt
+
+- **位置**：`agent_mini/llm/client.py` 的 `RetryPolicy.on_retry`、`HttpLLMClient.__init__`、`_notify_retry`。
+- **问题描述**：事件出口为可选回调，默认值为 `None`；默认客户端发生 429/5xx 重试时，没有日志、内部记录或外部事件收到 `RetryEvent`。当前测试仅证明调用方主动注入 `events.append` 时可观察，不证明每次重试都会被记录。
+- **判定依据**：`openspec/specs/llm-client/spec.md`“重试策略有界且可观察”要求每次重试 MUST 通过结构化事件出口记录；`openspec/specs/engineering-standards/spec.md`“重试与副作用”第 3 条要求重试必须记录 attempt；原 S02-P1-02 同样要求可审计记录。
+- **建议方向**：提供默认不泄密的结构化记录器，或把事件接收器改为必填并在构造时拒绝缺失；若产品只要求“可选订阅”，应先把两处无条件 MUST 改为带条件的明确契约并重新评审。
+
+##### S02-RV-P1-02：收口文档把未完成项声明为全部解决
+
+- **位置**：`Docs/S02-report.md` §10；`Docs/ISSUE.md` ISSUE-026；`Docs/PLAN.md` S02 进度；`MEMORY.md` S02；`Docs/PROMPT.md` Prompt 28。
+- **问题描述**：上述记录声明 RetryEvent 已“记录”、P2-05 已断言具体类型、TC-L2-007 组合已回归，并据此关闭 ISSUE-026、判定可进入 S03；实际分别存在默认无记录、仅比较类名字符串、组合请求不含历史 reasoning 的缺口。ISSUE-026 的“补真实本地超时测试”表述也与其后“未保留本地慢服务器测试”矛盾。
+- **判定依据**：`AGENT.md` 文档优先、测试不得弱化、阶段收口五件套；文档与实现必须同步，Resolved 必须有可复现验证步骤。
+- **建议方向**：重新打开或补记 ISSUE-026；先处理 S02-RV-P1-01，再统一修订 PLAN/MEMORY/PROMPT/报告结论。P2 与 S01 组合项应标为“部分修复”或补足测试后再关闭。
+
+#### P2
+
+##### S02-RV-P2-01：异常类型仍通过字符串间接断言
+
+- **位置**：`tests/contract/test_llm_retry.py` 的两个耗尽测试；`test_llm_timeout.py::test_read_timeout_raises_without_retry`；`test_llm_http_errors.py` 三个错误测试。
+- **问题描述**：测试捕获 `LLMError` 基类后比较 `type(...).__name__`，未按原建议把具体异常类作为 `pytest.raises` 目标。虽然能捕获名称变化，但弱于直接验证继承和公开类型契约。
+- **判定依据**：原 S02-P2-05 的问题描述与建议；OpenSpec 要求稳定异常类型、code 与 http_status。
+- **建议方向**：以具体异常类参数化 `pytest.raises`，继续保留 code/http_status 和请求次数断言。
+
+##### S02-RV-P2-02：thinking+tools 新用例未覆盖 reasoning 同请求回传
+
+- **位置**：`tests/contract/test_llm_thinking.py::test_enabled_thinking_with_tools_keeps_both`。
+- **问题描述**：用例只发送 user 消息并检查 `thinking.enabled` 与工具 schema；没有 assistant 历史消息，因此即使 tools 非空时错误丢弃 `reasoning_content`，该用例仍会通过。
+- **判定依据**：`Docs/TESTING.md` TC-L2-007；`Docs/DESIGN.md` §3.1 规定思考模式携带 tools 的后续请求必须回传所保留的历史 assistant reasoning。
+- **建议方向**：在同一次后续请求中同时放入带 `reasoning_content` 的 assistant 历史、新 user 消息和非空 tools，并同时断言三个字段。
+
+##### S02-RV-P2-03：新增修复测试未通过扩大范围的严格 mypy
+
+- **位置**：`tests/contract/test_llm_retry.py` 的非法值参数化、事件列表与 kwargs 参数化；另有既存测试类型错误。
+- **问题描述**：`mypy agent_mini tests` 共 15 条错误，其中 retry 修复测试产生 10 条。README 当前门禁仅为 `mypy agent_mini`，故不构成当前准出失败，但未来把测试纳入类型检查时会集中暴露。
+- **判定依据**：`pyproject.toml` 启用 strict mypy；TESTING 准出要求 mypy 无新增错误，但 README 当前命令范围仅覆盖 `agent_mini`。
+- **建议方向**：为非法输入使用受控 cast/helper，为事件列表标注 `RetryEvent`，避免 `dict[str, object]` 直接展开到强类型构造器；随后决定是否把 tests 纳入正式门禁。
+
+#### Info
+
+- `on_retry` 回调异常会原样中断核心重试：定向探针在首个 429 后得到 `RuntimeError`、请求数 1。归档 design 已把责任交给调用方，因此本次不升级为缺陷；S19 接日志前应决定观察链路是否允许改变业务语义。
+- L2 目标从 `<3s` 调整为 `<60s` 后本次通过，但耗时仍从修复记录的 31.5s 波动到 43.60s；建议在 CI 累积数据后再决定是否优化客户端/传输夹具。
+- TDD 红灯证据可靠：仓库外重建精确复现 10 failed、21 passed；失败原因与 Prompt 28 声明一致。
+
+### 11.5 后续阶段影响与结论
+
+| 阶段 | 剩余风险 | 触发条件 | 建议处理时机 |
+| --- | --- | --- | --- |
+| S03/S04 | 默认 attempt 无记录，Runtime 无法审计一个 LLM step 内的 HTTP 重试 | Runtime 开始汇总错误、usage 或 trace | 进入 S03 前处理 S02-RV-P1-01 |
+| S04/S13/S16 | thinking+tools+reasoning 组合未由单一契约测试锁定 | 后续保存、恢复或裁剪 assistant 私有 reasoning | S04 前补组合用例；S13/S16 再补存储/裁剪部分 |
+| S19 | 观察回调异常可中断业务重试 | 将 `on_retry` 接入结构化日志或事件总线 | S19 接线前确定隔离策略 |
+| S20 | 临时 `LLMError` 根仍需迁移 | 统一 `AgentError` 与 HTTP 映射 | 按 ISSUE-024 执行，不提前越界 |
+| S18/S21 | 运行依赖仅下界、真实网络 timeout 未验收 | live API 与配置层落地 | 按 ISSUE-025 和既有计划处理 |
+
+**总体结论（截至 `d95d02d`）：修复复验不通过，暂不建议进入 S03。** 后续修复见 §12。
+
+进入 S03 前必须处理：
+
+1. S02-RV-P1-01：保证默认路径实际记录每次重试的 attempt，或先通过规格变更明确改为条件性订阅。
+2. S02-RV-P1-02：修正“全部关闭/可进入 S03”的文档与 Issue 状态，使其与真实修复进度一致。
+
+可选但建议同步处理：直接断言具体异常类；补足 thinking+tools+assistant reasoning 同请求组合；清理新增测试的 mypy 错误。
+
+### 11.6 工作区状态与副作用
+
+- 复验开始前与测试结束后，`git status --short` 均无输出；`git status -sb` 为 `main...origin/main`，无 ahead/behind。
+- 归档本节后，预期仅 `Docs/S02-report.md` 与 `Docs/PROMPT.md` 为已跟踪修改；实现、测试、Issue、PLAN、OpenSpec 未改。
+- 仓库内未产生可见未跟踪文件；pytest 禁用了 cache provider，coverage 数据写入仓库外 TEMP。
+- 仓库外红灯重建：`C:\Users\Ryan\AppData\Local\Temp\agent-mini-s02-reverify-21cfcadc5c384b848ab28f6d3952792c` 及同名 `.zip`。
+- 仓库外 wheel/安装验证：`C:\Users\Ryan\AppData\Local\Temp\agent-mini-s02-wheel-reverify-a89c135a35ab4d6f8488f943272b9eea`。
+- 仓库外 coverage 文件：`C:\Users\Ryan\AppData\Local\Temp\agent-mini-s02-coverage`。
+- 上述 TEMP 产物未自动删除；如需清理，请人工确认路径后删除。
+
+## 12. 第二次复验修复记录（2026-10-22）
+
+| 复验项 | 修复 | 证据 |
+| --- | --- | --- |
+| S02-RV-P1-01 默认路径丢事件 | 客户端始终追加 `RetryEvent`；`retry_events` 返回快照；`on_retry` 仅外部订阅 | 默认客户端 429/500 重试后 `retry_events` 为 2 条 |
+| S02-RV-P1-02 文档过度声明 | 重开 ISSUE-027，修正 PLAN/MEMORY/PROMPT/报告结论 | ISSUE-027 Resolved；§11 保留历史，§12 记录复验 |
+| S02-RV-P2-01 类名字符串断言 | 改为 `pytest.raises(具体异常类)` | 400/401/403/302/超时/限流/服务端测试 |
+| S02-RV-P2-02 组合测试不完整 | 两轮请求：第二请求同时带 assistant reasoning、tool_calls、tools、thinking.enabled | `test_enabled_thinking_with_tools_keeps_both` |
+| S02-RV-P2-03 tests mypy 15 errors | 修复 cast/类型标注；README 与规范门禁改为 `mypy agent_mini tests` | 46 files 0 errors |
+
+**复验**：全量 72 passed；覆盖率 95.69%；contract 64 passed、31.0s；`mypy agent_mini tests` 0 errors；ruff/format/openspec/pip check/wheel/仓库外导入通过。
+
+**结论：S02 复验遗留已闭环，可进入 S03。** 仍保留：ISSUE-024（S20 迁移临时 `LLMError` 根）、ISSUE-025（运行依赖仅下界）、真实 API 验收 S18。
 

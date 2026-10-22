@@ -980,3 +980,41 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - 绿/验收：全量 72 passed；覆盖率 94.38%；contract 64 passed、31.5s；ruff/format/mypy/openspec 通过；wheel/仓库外导入见最终报告。
 - 剩余：P1-03 为配置传递断言 + `ReadTimeout` 分类，未保留不稳定的本地慢服务器测试；临时 `LLMError` 根仍待 S20 迁移（ISSUE-024）。
 - OpenSpec 归档：change 归档为 `2026-10-22-s02-report-fixes`；`llm-client` 主规格增至 14 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
+
+---
+
+### Prompt 29 — 2026-10-22 — 验证 S02 报告修复
+
+#### 原始 Prompt
+
+```text
+【验证】验证S02-report修复
+```
+
+#### 执行摘要
+
+- 基准：`d95d02d`；按 `AGENT.md` 同阶段复验规则更新 `Docs/S02-report.md`，未修改实现、测试、Issue、PLAN 或 OpenSpec。
+- 技能：使用 `code-review-and-quality`，从正确性、测试有效性、异常边界、架构耦合与流程证据维度复核。
+- 验收：全量 72 passed；覆盖率 94.38%；contract 64 passed、43.60s；unit 8 passed；ruff/format、`mypy agent_mini`、OpenSpec strict、pip check、wheel 与仓库外导入通过。
+- TDD：仓库外以基线 `22eba3a` 叠加当前四个修复测试，精确复现 10 failed、21 passed，红因有效。
+- 未闭环：默认 `on_retry=None` 导致重试事件被丢弃，原 S02-P1-02 仍未修复；收口文档据此宣称全部关闭和可进入 S03，与实现不一致。
+- 部分修复：错误测试仍捕获宽泛 `LLMError` 并比较类名；thinking+tools 新用例没有在同一请求携带 assistant `reasoning_content`；扩大 mypy 到 tests 得到 15 errors。
+- 结论：修复复验不通过，暂不建议进入 S03；需先保证默认重试记录并同步修正阶段收口文档。
+
+### Prompt 30 — 2026-10-22 — 修复 S02 第二次复验遗留
+
+#### 原始 Prompt
+
+```text
+【调整】1.原 P1-02 未闭环：on_retry 默认为 None，默认重试事件仍被丢弃2.P2-05 部分修复：仍通过类名字符串间接断言异常类型3.TC-L2-007 组合测试不完整：未在 thinking+tools 请求中同时回传 assistant reasoning4.扩大执行 mypy agent_mini tests 得到 15 errors，但当前 README 门禁仅检查 agent_mini
+```
+
+#### 执行摘要
+
+- 默认事件：`HttpLLMClient` 始终把 `RetryEvent` 写入 `retry_events`，`on_retry` 仅作为可选外部订阅；默认客户端 429/500 重试后可见 2 条事件。
+- 异常断言：测试改为 `pytest.raises(具体异常类)`，覆盖 400/401/403/302/超时/限流/服务端/连接/协议错误，保留 code 与 http_status。
+- 组合回归：TC-L2-007 改为两轮；第二请求同时携带 assistant `reasoning_content`、`tool_calls`、非空 tools 与 `thinking.enabled`。
+- 类型门禁：修复 tests 的 15 个 mypy 错误（cast、`RetryEvent` 列表、`Mapping`、`Literal`、typed kwargs 等）；README 与规范改为 `mypy agent_mini tests`，46 files 0 errors。
+- 验收：全量 72 passed、覆盖率 95.69%、contract 64 passed、`mypy agent_mini tests` 0 errors；ruff/format/openspec/pip check/wheel/仓库外导入通过。
+- 文档：新增 ISSUE-027 并 Resolved；S02-report §12 记录第二次复验；PLAN/MEMORY/DESIGN 同步；OpenSpec 新增 `s02-reverify-fixes` 并归档。
+- 结论：S02 复验遗留闭环，可进入 S03。
