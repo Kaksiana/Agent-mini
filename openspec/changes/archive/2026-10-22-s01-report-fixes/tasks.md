@@ -24,5 +24,5 @@
 - [x] 4.2 `pip install -e ".[dev]"`、`pytest`、`pytest --cov`、ruff/format/mypy
 - [x] 4.3 `openspec validate --all --strict`
 - [x] 4.4 wheel 构建与仓库外导入
-- [ ] 4.5 归档 change 并校验主规格
-- [ ] 4.6 按 Conventional Commits 提交并推送
+- [x] 4.5 归档 change 并校验主规格
+- [x] 4.6 按 Conventional Commits 提交并推送

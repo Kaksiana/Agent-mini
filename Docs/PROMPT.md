@@ -812,4 +812,5 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - TDD 红：新增的 4 类测试共 12 个用例先失败——非 object 顶层抛 `AttributeError`、保留字段未拒绝、非 assistant 可带 reasoning、dev 依赖缺少 minor 上界/pytest-cov。
 - TDD 绿：修复后 `pytest` 为 50 passed；覆盖率 93%；`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 均通过。
 - 异常/边界：P1-05 的历史红证据为收集级，无法追溯补造，已补规则并如实记录；P1-08 通过新 change 承接，未重写历史；P2-01/04/06 保留为可选改进。
-- 提交：`411bb39` 归档评估报告；`b4bb98b` 记录报告修复计划；修复代码与归档提交见最终报告。
+- 提交：`411bb39` 归档评估报告；`b4bb98b` 记录报告修复计划；`b2cdb10` 完成协议硬化与依赖 pin；`bfb8d53` 完成文档闭环。
+- OpenSpec 归档：change 归档为 `2026-10-22-s01-report-fixes`；`llm-client` 主规格增至 8 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
