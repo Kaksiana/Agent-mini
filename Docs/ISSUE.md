@@ -196,6 +196,7 @@
 - 根因：S00 验收只覆盖 `pip install -e .`、smoke 测试与 ruff/mypy，未把 `DESIGN.md` §2.2 的目录结构列为验收项；测试也只验证顶层包导入。
 - 解决方案：创建 `s00-baseline-skeleton-fix` OpenSpec change；补齐 10 个子包 `__init__.py` 与 23 个占位模块（仅中文模块 docstring，空实现），`schema.sql` 仅写“待 S17 落地”注释；新增子包可导入测试；重新执行全部验收后再恢复 S00 状态。
 - 验证方式：逐项核对 `DESIGN.md` §2.2 文件存在；执行子包导入命令；`pytest`、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 全部通过。
+- 验证结果：10 个子包与 23 个占位模块/文件全部存在；子包导入输出 `all imports ok`；`pytest` 2 passed；`ruff check .` 零告警；`ruff format --check .` 36 files already formatted；`mypy agent_mini` 34 source files 无错误；`openspec validate --all --strict` 3 passed、0 failed。
 - 预防：S00 DoD 增加 `DESIGN.md` §2.2 目录对照；保留子包导入测试作为回归；后续新增子包必须同步更新 DESIGN 与测试。
-- 状态：Open
-- 关联提交：无（修正开始前登记）
+- 状态：Resolved
+- 关联提交：`c642b2f`（修正启动）、`4e7e900`（骨架补全）

@@ -3,7 +3,8 @@
 ## 2026-10-22 — S00 工程基线
 
 - S00 完成：`pyproject.toml`、`agent_mini/__init__.py` + `agent_mini/version.py`（0.1.0）、`tests/unit/test_smoke.py`、README 安装/测试命令。
-- 验收：`pip install -e .` 成功；`pytest` 1 passed；`ruff check .` 零告警；`ruff format --check .` 通过；`mypy agent_mini` 无错误。
+- 2026-10-22 修正：按 `DESIGN.md` §2.2 补齐 10 个子包与 23 个占位模块/文件，新增 `tests/unit/test_package_skeleton.py`；详见 ISSUE-017。
+- 验收：`pip install -e .` 成功；`pytest` 2 passed；`ruff check .` 零告警；`ruff format --check .` 通过；`mypy agent_mini` 34 source files 无错误；`openspec validate --all --strict` 3 passed。
 - 环境修复：Python 3.13 Scripts 下 `pytest.exe` 曾静默退出 1，已用同版本 force-reinstall 重建；`python -m pytest` 一直可用。详见 ISSUE-016。
 - 未实现任何 Agent 业务模块；S01–S21 仍未开始。
 

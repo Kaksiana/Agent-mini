@@ -619,3 +619,81 @@ S00 阶段定义（来自 `Docs/PLAN.md`）：
 - 文档：更新 README 安装/测试/静态检查命令；更新 PLAN S00 进度、MEMORY 当前状态、ISSUE-016 与本 Prompt。
 - OpenSpec 归档：change 归档为 `2026-10-22-s00-engineering-baseline`；主规格 `openspec/specs/engineering-baseline/spec.md`（4 项 Requirement）；`openspec validate --all` 为 2 passed、0 failed。
 - 关联提交：S00 阶段提交（见最终报告）。
+
+### Prompt 19 — 2026-10-22（时分未采样）— 修正 S00 包骨架
+
+#### 原始 Prompt
+
+```text
+【角色】
+你是 S00 工程基线阶段的修正执行 Agent，熟悉 Python 包结构设计、OpenSpec、SuperPower SKILL 与项目 `AGENT.md` 全局规范。
+【背景】
+项目：Agent-mini。
+S00 已标记为“已完成”，但实际只创建了 `agent_mini/__init__.py` 与 `agent_mini/version.py`，未按 `Docs/DESIGN.md` §2.2 规定的包目录结构落地，包骨架不完整，S00 状态判定有误。
+`Docs/DESIGN.md` §2.2 规定的包结构为：
+- `agent_mini/__init__.py`
+- `agent_mini/config/`（models.py、loader.py、container.py）
+- `agent_mini/llm/`（client.py、models.py、errors.py）
+- `agent_mini/runtime/`（agent.py、loop.py、result.py）
+- `agent_mini/tools/`（registry.py、sandbox.py、builtin/）
+- `agent_mini/memory/`（short_term.py、mid_term.py、base.py）
+- `agent_mini/context/`（builder.py、token_counter.py、window.py）
+- `agent_mini/systemdb/`（schema.sql、repository.py、models.py）
+- `agent_mini/interface/`（http.py）
+- `agent_mini/observability/`（logging.py、errors.py）
+本阶段只补全骨架（目录与占位文件），不实现任何后续阶段功能。
+【任务】
+修正 S00：按 `Docs/DESIGN.md` §2.2 补全 `agent_mini/` 包骨架目录与占位 `__init__.py`，将 S00 状态回退为“进行中”，完成补全并重新通过 S00 验收后再标记为“已完成”。
+【约束】
+1. 开始前必须阅读 `AGENT.md`、`Docs/DESIGN.md` §2.2、`Docs/REQUIREMENT.md`、`Docs/PLAN.md`、`Docs/TESTING.md`、OpenSpec 全局规范，以及现有 `agent_mini/` 现状，确认差异清单。
+2. 必须先探测 `agent_mini/` 现状，列出“DESIGN.md §2.2 规定项 / 仓库现状 / 差异项”，作为本次修正的依据；差异清单需写入 `Docs/ISSUE.md`（新增 ISSUE）。
+3. 必须用 OpenSpec 创建修正 change（如 `s00-baseline-skeleton-fix`），在 spec/tasks 中写明本次补齐项，再开始修改；完成后按项目约定归档。
+4. 必须使用 SuperPower SKILL；不可用时记录到 `Docs/ISSUE.md`，不得伪造。
+5. 本次只允许做骨架层面的改动：
+   - 为 `DESIGN.md` §2.2 中列出的每个子包创建目录与 `__init__.py`；
+   - 子包下 `DESIGN.md` 列出的模块文件，若仅用于骨架占位，允许创建**空的模块文件**，但文件内**不得**写任何实现、业务逻辑、函数或类；
+   - `schema.sql` 允许为空文件或仅含注释说明“待 S17 落地”；
+   - 已有的 `agent_mini/__init__.py`、`agent_mini/version.py` 内容不得删改，仅允许在 `__init__.py` 中保持现状（版本相关重导出）。
+6. 严禁在本次修改中实现任何模型接入、Runtime、Tool、Memory、Context、SystemDB、Interface、Observability、Config 的业务逻辑；严禁引入任何新依赖；严禁引入 `langgraph`、`openhands`、`openclaw`、`PI`。
+7. 代码可读性必须满足 OpenSpec 全局规范：单行单语句、行宽 ≤ 100、中文简洁注释、公共接口中文 docstring；本阶段占位 `__init__.py` 仅允许必要的模块级 docstring，不得塞入说明性长注释。
+8. 不得覆盖或删除 S00 已有的 `tests/unit/test_smoke.py`；如需为骨架补充最小测试，只允许新增“子包可导入”的测试，并遵循 TDD：先红后绿。
+9. 验收标准必须逐条复跑并如实记录：
+   - `pip install -e .` 成功
+   - `python -c "import agent_mini; import agent_mini.config; import agent_mini.llm; import agent_mini.runtime; import agent_mini.tools; import agent_mini.memory; import agent_mini.context; import agent_mini.systemdb; import agent_mini.interface; import agent_mini.observability"` 全部成功
+   - `pytest` 全绿（原 TC-SMOKE-001 + 本次新增骨架测试）
+   - `ruff check .` 零告警
+   - `ruff format --check .` 无差异
+   - `mypy agent_mini` 无新增错误
+   - `openspec validate --all --strict` 通过
+10. 不得编造任何命令输出；环境问题需登记到 `Docs/ISSUE.md` 并停止相关验收。
+11. 文档收口：
+   - `Docs/PLAN.md`：S00 状态回退为“进行中”，本次修正完成并重新通过验收后，再更新为“已完成”，并注明修正原因与日期；
+   - `MEMORY.md`：记录本次 S00 修正、骨架清单和验收结果；
+   - `Docs/PROMPT.md`：追加本轮完整 Prompt 原文与执行摘要；
+   - `Docs/ISSUE.md`：新增“S00 骨架不完整”Issue，含现象、根因、解决方案、验证与预防；
+   - `README.md`：如包结构影响使用说明，同步更新。
+12. 按 `AGENT.md` 的 Commit 规范提交，并主动推送；一个逻辑一个提交（骨架补全、文档收口、归档可分提交）。冲突或失败时停止并报告，不得强推。
+【输出格式】
+仅返回 Markdown 执行结果，包含：
+1. 差异清单：`DESIGN.md §2.2` 规定项与仓库现状对照表，列出本次需补齐项。
+2. 变更文件：列出本次新增或修改的文件路径。
+3. OpenSpec 与 SKILL：修正 change 名称、spec/tasks 路径、归档结果；SuperPower SKILL 使用情况。
+4. TDD 记录：新增骨架测试的失败证据与通过证据摘要；如未新增测试，说明理由。
+5. 验收结果逐条：对 `pip install -e .`、子包导入、`pytest`、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 分别给出命令、结果和是否通过。
+6. 文档收口：`Docs/PLAN.md`（S00 状态变更说明）、`MEMORY.md`、`Docs/PROMPT.md`、`Docs/ISSUE.md`、`README.md` 是否已更新。
+7. Git 状态：本次各 Commit Hash、分支名、推送结果。
+8. 异常与待确认：无异常写“无”；有异常给出错误摘要和建议下一步。
+不要输出任何代码正文或文档正文。
+```
+
+#### 执行摘要
+
+- 目标：修正 S00 包骨架，使 `agent_mini/` 与 `Docs/DESIGN.md` §2.2 一致，再重新验收。
+- 差异：原包只有 `__init__.py` 与 `version.py`；缺少 10 个子包（含 `tools/builtin/`）、10 个 `__init__.py`、23 个设计模块/文件；差异已登记 ISSUE-017。
+- OpenSpec：新增 `s00-baseline-skeleton-fix` change，修改 `engineering-baseline` 能力；spec/tasks 明确骨架补齐与验收；编码前 `openspec validate --strict` 通过。
+- SKILL：使用 `using-superpowers`、`test-driven-development`、`executing-plans`、`verification-before-completion` 与 `openspec-propose` 规划流程；用户明确要求同轮修正，规划后继续 TDD。
+- TDD 红：新增 `tests/unit/test_package_skeleton.py` 后运行，因 `ModuleNotFoundError: No module named 'agent_mini.config'` 失败（1 failed）。
+- TDD 绿：补齐 10 个子包与 23 个占位模块/文件后，骨架测试 `1 passed`，全量 `pytest` 为 `2 passed`；原 TC-SMOKE-001 未改动。
+- 验收：`pip install -e .` 成功；10 个子包导入输出 `all imports ok`；`pytest` 2 passed；`ruff check .` All checks passed；`ruff format --check .` 36 files already formatted；`mypy agent_mini` 34 source files 无错误；`openspec validate --all --strict` 3 passed、0 failed。
+- 文档：PLAN 先回退“进行中”并在验收后恢复“已完成”；MEMORY 记录骨架修正；ISSUE-017 记录差异、根因、解决方案、验证与预防；README 命令未受包结构影响，无需修改。
+- 提交：`c642b2f` 记录 ISSUE-017/PLAN 回退与 OpenSpec change；`4e7e900` 补齐骨架与测试；文档收口与归档提交见最终报告。
