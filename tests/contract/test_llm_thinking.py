@@ -1,6 +1,7 @@
 """TC-L2-007：reasoning 解析与 thinking 请求模式。"""
 
 import json
+from typing import Literal
 
 import httpx
 import pytest
@@ -26,6 +27,29 @@ def _text_payload(content: str) -> dict[str, object]:
             {
                 "message": {"role": "assistant", "content": content},
                 "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+    }
+
+
+def _tool_payload(reasoning: str) -> dict[str, object]:
+    return {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "reasoning_content": reasoning,
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "echo", "arguments": "{}"},
+                        }
+                    ],
+                },
+                "finish_reason": "tool_calls",
             }
         ],
         "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
@@ -59,7 +83,9 @@ def test_reasoning_is_parsed_independently() -> None:
 
 
 @pytest.mark.parametrize("role", ["user", "system", "tool"])
-def test_reasoning_is_rejected_for_non_assistant(role: str) -> None:
+def test_reasoning_is_rejected_for_non_assistant(
+    role: Literal["user", "system", "tool"],
+) -> None:
     with pytest.raises(ValidationError):
         Message(role=role, content="内容", reasoning_content="私有推理")
 
@@ -121,18 +147,33 @@ async def test_enabled_thinking_with_tools_keeps_both() -> None:
     )
     with respx.mock:
         route = respx.post(f"{BASE_URL}/chat/completions").mock(
-            return_value=httpx.Response(200, json=_text_payload("ok"))
+            side_effect=[
+                httpx.Response(200, json=_tool_payload("工具推理")),
+                httpx.Response(200, json=_text_payload("完成")),
+            ]
         )
         async with HttpLLMClient(
             _config(),
             api_key=API_KEY,
             thinking=True,
         ) as client:
-            await client.chat(
+            first = await client.chat(
                 [Message(role="user", content="hi")],
                 tools=[tool],
             )
+            assistant = Message(
+                role="assistant",
+                content=first.content,
+                reasoning_content=first.reasoning_content,
+                tool_calls=first.tool_calls,
+            )
+            await client.chat(
+                [Message(role="user", content="hi"), assistant],
+                tools=[tool],
+            )
 
-    body = json.loads(route.calls[0].request.content)
+    body = json.loads(route.calls[1].request.content)
     assert body["thinking"] == {"type": "enabled"}
     assert body["tools"][0]["function"]["name"] == "echo"
+    assert body["messages"][1]["reasoning_content"] == "工具推理"
+    assert body["messages"][1]["tool_calls"][0]["id"] == "call_1"

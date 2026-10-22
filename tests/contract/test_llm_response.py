@@ -1,5 +1,7 @@
 """TC-L2-002/003/010：响应归一与多工具调用解析。"""
 
+from collections.abc import Mapping
+
 import httpx
 import pytest
 import respx
@@ -25,7 +27,7 @@ def _tool_call(call_id: str, name: str, arguments: str) -> dict[str, object]:
     }
 
 
-async def _chat(payload: dict[str, object]) -> LLMResponse:
+async def _chat(payload: Mapping[str, object]) -> LLMResponse:
     with respx.mock:
         respx.post(f"{BASE_URL}/chat/completions").mock(
             return_value=httpx.Response(200, json=payload)

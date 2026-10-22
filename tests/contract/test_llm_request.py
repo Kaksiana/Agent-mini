@@ -1,6 +1,7 @@
 """TC-L2-001：Chat Completions 请求契约。"""
 
 import json
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -69,6 +70,7 @@ async def test_reserved_params_are_rejected(reserved: str) -> None:
         route = respx.post(f"{BASE_URL}/chat/completions").mock(
             return_value=httpx.Response(200, json=_text_payload("ok"))
         )
+        params = cast(dict[str, Any], {reserved: "override"})
         async with HttpLLMClient(
             ModelConfig(base_url=BASE_URL, model="deepseek-chat", timeout=5.0),
             api_key=API_KEY,
@@ -76,7 +78,7 @@ async def test_reserved_params_are_rejected(reserved: str) -> None:
             with pytest.raises((ValueError, TypeError)):
                 await client.chat(
                     [Message(role="user", content="hi")],
-                    **{reserved: "override"},
+                    **params,
                 )
 
     assert not route.called

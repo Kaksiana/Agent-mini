@@ -6,8 +6,8 @@ import httpx
 import pytest
 import respx
 
-from agent_mini.llm import errors as llm_errors
 from agent_mini.llm.client import HttpLLMClient
+from agent_mini.llm.errors import LLMTimeoutError
 from agent_mini.llm.models import Message, ModelConfig
 
 pytestmark = pytest.mark.contract
@@ -34,14 +34,13 @@ async def test_read_timeout_raises_without_retry(monkeypatch: pytest.MonkeyPatch
             ModelConfig(base_url=BASE_URL, model="deepseek-chat", timeout=5.0),
             api_key=API_KEY,
         ) as client:
-            with pytest.raises(llm_errors.LLMError, match=r"5\.0") as exc_info:
+            with pytest.raises(LLMTimeoutError, match=r"5\.0") as exc_info:
                 await client.chat([Message(role="user", content="hi")])
 
     assert route.call_count == 1
     assert delays == []
     assert exc_info.value.code == "LLM_TIMEOUT"
     assert exc_info.value.http_status == 408
-    assert type(exc_info.value).__name__ == "LLMTimeoutError"
 
 
 async def test_timeout_is_passed_to_http_client() -> None:

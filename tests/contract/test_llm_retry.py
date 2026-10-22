@@ -1,17 +1,21 @@
 """TC-L2-004：429/5xx 退避重试。"""
 
 import asyncio
+from typing import cast
 
 import httpx
 import pytest
 import respx
 
-from agent_mini.llm import errors as llm_errors
 from agent_mini.llm.client import (
     DEFAULT_BACKOFF_MAX_SECONDS,
     HttpLLMClient,
+    RetryEvent,
+    RetryEventSink,
     RetryPolicy,
+    Sleep,
 )
+from agent_mini.llm.errors import LLMRateLimitError, LLMServerError
 from agent_mini.llm.models import Message, ModelConfig
 
 pytestmark = pytest.mark.contract
@@ -68,6 +72,7 @@ async def test_retries_429_and_500_then_succeeds(sleep_delays: list[float]) -> N
     assert 0.5 <= sleep_delays[0] <= 0.6
     assert 1.0 <= sleep_delays[1] <= 1.1
     assert sleep_delays[0] < sleep_delays[1]
+    assert tuple(event.attempt for event in client.retry_events) == (1, 2)
 
 
 async def test_retry_exhaustion_returns_server_error(sleep_delays: list[float]) -> None:
@@ -76,14 +81,13 @@ async def test_retry_exhaustion_returns_server_error(sleep_delays: list[float]) 
             side_effect=[httpx.Response(500) for _ in range(3)]
         )
         async with HttpLLMClient(_config(), api_key=API_KEY) as client:
-            with pytest.raises(llm_errors.LLMError) as exc_info:
+            with pytest.raises(LLMServerError) as exc_info:
                 await client.chat([Message(role="user", content="hi")])
 
     assert route.call_count == 3
     assert len(sleep_delays) == 2
     assert exc_info.value.code == "LLM_SERVER_ERROR"
     assert exc_info.value.http_status == 502
-    assert type(exc_info.value).__name__ == "LLMServerError"
 
 
 async def test_retry_exhaustion_returns_rate_limit_error(sleep_delays: list[float]) -> None:
@@ -92,24 +96,23 @@ async def test_retry_exhaustion_returns_rate_limit_error(sleep_delays: list[floa
             side_effect=[httpx.Response(429) for _ in range(3)]
         )
         async with HttpLLMClient(_config(), api_key=API_KEY) as client:
-            with pytest.raises(llm_errors.LLMError) as exc_info:
+            with pytest.raises(LLMRateLimitError) as exc_info:
                 await client.chat([Message(role="user", content="hi")])
 
     assert route.call_count == 3
     assert len(sleep_delays) == 2
     assert exc_info.value.code == "LLM_RATE_LIMITED"
     assert exc_info.value.http_status == 429
-    assert type(exc_info.value).__name__ == "LLMRateLimitError"
 
 
 @pytest.mark.parametrize("max_attempts", [0, -1, 4, True, 3.0])
 def test_retry_policy_rejects_invalid_attempts(max_attempts: object) -> None:
     with pytest.raises(ValueError):
-        RetryPolicy(max_attempts=max_attempts)
+        RetryPolicy(max_attempts=cast(int, max_attempts))
 
 
 async def test_retry_emits_attempt_events() -> None:
-    events: list[object] = []
+    events: list[RetryEvent] = []
     policy = RetryPolicy(max_attempts=3, on_retry=events.append)
     with respx.mock:
         respx.post(f"{BASE_URL}/chat/completions").mock(
@@ -138,13 +141,11 @@ def test_backoff_is_capped_and_non_decreasing() -> None:
     assert delays == sorted(delays)
 
 
-@pytest.mark.parametrize(
-    ("kwargs",),
-    [
-        ({"sleep": object()},),
-        ({"on_retry": object()},),
-    ],
-)
-def test_retry_policy_rejects_non_callable_callbacks(kwargs: dict[str, object]) -> None:
+def test_retry_policy_rejects_non_callable_sleep() -> None:
     with pytest.raises(ValueError):
-        RetryPolicy(**kwargs)
+        RetryPolicy(sleep=cast(Sleep, object()))
+
+
+def test_retry_policy_rejects_non_callable_on_retry() -> None:
+    with pytest.raises(ValueError):
+        RetryPolicy(on_retry=cast(RetryEventSink, object()))

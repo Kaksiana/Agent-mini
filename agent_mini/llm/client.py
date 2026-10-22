@@ -104,6 +104,7 @@ class HttpLLMClient:
         self._max_attempts = policy.max_attempts
         self._sleep: Sleep = policy.sleep if policy.sleep is not None else _default_sleep
         self._on_retry = policy.on_retry
+        self._retry_events: list[RetryEvent] = []
         self._client = httpx.AsyncClient(
             base_url=config.base_url.rstrip("/") + "/",
             timeout=config.timeout,
@@ -144,6 +145,11 @@ class HttpLLMClient:
                 continue
             raise self._client_error(response.status_code)
         raise LLMError("模型请求未完成")
+
+    @property
+    def retry_events(self) -> tuple[RetryEvent, ...]:
+        """返回客户端已记录的重试事件快照。"""
+        return tuple(self._retry_events)
 
     async def aclose(self) -> None:
         """关闭底层 HTTP 连接。"""
@@ -213,6 +219,7 @@ class HttpLLMClient:
         raise LLMServerError("模型服务端错误，重试耗尽")
 
     def _notify_retry(self, event: RetryEvent) -> None:
+        self._retry_events.append(event)
         if self._on_retry is not None:
             self._on_retry(event)
 
