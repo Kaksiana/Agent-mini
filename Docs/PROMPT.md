@@ -546,3 +546,75 @@
 - 人工修正 / 决策：环境变量统一为 `DEEPSEEK_API_KEY`，禁止 `LLM_API_KEY` 别名；保留历史 Prompt 中出现的旧名，不改写历史记录。
 - 验证：全仓搜索旧名，仅允许历史 PROMPT/ISSUE 与 DESIGN/规范/config 的“禁止别名”说明命中；`openspec validate --specs --strict` 重新通过；`git diff --check` 通过；未执行 `git add`/`commit`/`push`。
 - 关联提交：无。
+
+### Prompt 18 — 2026-10-22（时分未采样）— 执行 S00 工程基线
+
+#### 原始 Prompt
+
+```text
+【角色】
+你是 S00 工程基线阶段的执行 Agent，熟悉 Python 包工程化、pytest、ruff、mypy、OpenSpec 和 SuperPower SKILL，严格遵循项目 `AGENT.md` 全局规范。
+【背景】
+项目：Agent-mini，最小可用 Agent。
+仓库已完成初始化与文档体系：`AGENT.md`、`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`、`Docs/PLAN.md`，以及 OpenSpec 全局规范。
+当前准备开始 `Docs/PLAN.md` 中的 S00 阶段，本阶段是后续所有阶段（S01–S21）的工程前置，不实现任何 Agent 业务功能。
+S00 阶段定义（来自 `Docs/PLAN.md`）：
+- 模块：工程基线
+- 对应需求：NFR-TEST-01（支撑所有 FR 的工程前置）
+- 目标：建立可安装、可测试、可静态检查的包骨架，后续所有阶段都在此之上增量开发
+- 输入：现有仓库（文档已就绪）
+- 输出：`pyproject.toml`、`agent_mini/` 包结构、`tests/` 目录、pytest/ruff 配置、`README.md` 中的测试命令
+- 验收标准：`pip install -e .` 成功；`pytest` 运行通过 1 个 smoke 用例；`ruff check` 零告警
+- 测试项：TC-SMOKE-001（新增：导入包并运行版本查询）
+- 前置阶段：无
+【任务】
+执行 S00 工程基线阶段：按 `AGENT.md` 与 OpenSpec 规范，用 TDD 方式建立可安装、可测试、可静态检查的 Python 包骨架，完成验收并收口文档与 Git。
+【约束】
+1. 开始前必须阅读 `AGENT.md`、`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`、`Docs/PLAN.md`、OpenSpec 全局规范及现有 `README.md`、`MEMORY.md`、`Docs/PROMPT.md`、`Docs/ISSUE.md`，确认技术栈、目录约定、命名规范和已确定决策。
+2. 必须先用 OpenSpec 编写或更新 S00 阶段的规格与任务，再开始编码；规格需覆盖包骨架、配置工具、版本查询和 TC-SMOKE-001。
+3. 必须使用 SuperPower SKILL 的开发流程；若不可用，停止并记录到 `Docs/ISSUE.md`，不得伪造使用结果。
+4. 必须采用 TDD：先写 TC-SMOKE-001 的失败测试（导入 `agent_mini` 并查询版本），确认红，再实现到绿，最后重构。
+5. 本阶段只允许创建或修改以下内容：
+   - `pyproject.toml`
+   - `agent_mini/__init__.py`（含 `__version__` 与版本查询入口）
+   - `agent_mini/` 包内必要的骨架文件（仅限支撑安装、导入和版本查询）
+   - `tests/` 目录与 TC-SMOKE-001 测试文件
+   - pytest、ruff、mypy 配置文件或 `pyproject.toml` 中的对应配置段
+   - `README.md` 中的安装与测试命令
+   - `Docs/PLAN.md` 的进度记录、`MEMORY.md`、`Docs/PROMPT.md`、`Docs/ISSUE.md` 及本阶段 OpenSpec 文件
+6. 不得实现任何模型接入、Runtime、Tool、Memory、Context、接口、可观测、配置注入等后续阶段功能。
+7. 不得引入 `langgraph`、`openhands`、`openclaw`、`PI` 等被禁 Agent 框架；不得引入本阶段不需要的依赖。
+8. 代码必须便于逐行阅读：遵守 OpenSpec 全局规范中的行宽、单行单语句、嵌套深度、函数长度等可读性约束；注释默认中文、简洁、必要，不复述代码；公共接口必须有中文 docstring。
+9. 验收标准必须逐条达成并可复现：
+   - `pip install -e .` 成功
+   - `pytest` 通过 TC-SMOKE-001
+   - `ruff check` 零告警
+   - `mypy` 无新增错误（若本阶段已配置）
+10. 必须实际执行验收命令并如实记录输出；不得编造结果。若环境缺少 Python、pip、ruff、pytest 等，停止并记录到 `Docs/ISSUE.md`。
+11. 阶段收口必须完成：更新 `Docs/PLAN.md` 进度记录、更新 `MEMORY.md` 当前状态、在 `Docs/PROMPT.md` 追加本轮完整 Prompt 与结果摘要、在 `Docs/ISSUE.md` 记录问题（如无写“无”）、更新 `README.md`。
+12. 按 `AGENT.md` 的 Commit 规范提交，并主动推送；推送前检查分支与状态，冲突或失败时停止并报告，不得强推。若用户明确要求本次不推送，则只提交不推送，并在结果中标注。
+【输出格式】
+仅返回 Markdown 执行结果，包含：
+1. 阶段目标重申：一句话说明 S00 目标。
+2. 变更文件：列出实际创建或修改的文件路径。
+3. OpenSpec 与 SKILL：本阶段 OpenSpec 规格路径、任务项；SuperPower SKILL 使用情况。
+4. TDD 记录：先失败测试的证据摘要、实现后通过证据摘要。
+5. 验收标准逐条结果：对 `pip install -e .`、`pytest`、`ruff check`、`mypy` 四项分别给出命令、结果和是否通过。
+6. 可读性与注释检查：说明已满足的可读性条款和中文简洁注释要求，以及对应验证方式。
+7. 文档收口：`Docs/PLAN.md`、`MEMORY.md`、`Docs/PROMPT.md`、`Docs/ISSUE.md`、`README.md` 是否已更新。
+8. Git 状态：Commit Hash、分支名、推送结果。
+9. 异常与待确认：无异常写“无”；有异常给出错误摘要和建议下一步。
+不要输出任何代码正文或文档正文。
+```
+
+#### 执行摘要
+
+- 目标：按 OpenSpec + TDD 建立 S00 可安装、可测试、可静态检查的 Python 包骨架。
+- 关键约束：只改 S00 允许的文件；不实现任何后续业务模块；不引入运行时依赖或被禁框架；实际执行验收命令。
+- OpenSpec：新增 `s00-engineering-baseline` change（proposal / specs / design / tasks），编码前校验通过；规格覆盖包安装、版本查询、pytest/ruff/mypy 配置与 TC-SMOKE-001。
+- SKILL：使用 `using-superpowers`、`test-driven-development`、`executing-plans`、`verification-before-completion` 与 `openspec-propose` 流程；`openspec-propose` 的 planning-only 边界被用户“同轮执行 S00”的明确指令覆盖，规划完成后继续 TDD 实现。
+- TDD 红：`python -m pytest tests/unit/test_smoke.py -q` 在实现前因 `ModuleNotFoundError: No module named 'agent_mini'` 失败，退出码 2；失败原因与预期一致。
+- TDD 绿：实现 `agent_mini/version.py`、`agent_mini/__init__.py` 与 `pyproject.toml` 后，`pytest` 输出 `1 passed`；随后因 `RUF067` 将版本函数下沉到 `version.py`，`__init__.py` 只做重导出，重构后仍全绿。
+- 验收：`pip install -e .` 成功；`pytest` 1 passed；`ruff check .` All checks passed；`ruff format --check .` 3 files already formatted；`mypy agent_mini` Success。裸 `pytest` 曾因 Scripts 下 console script 损坏静默退出 1，已用同版本 force-reinstall 修复，详见 ISSUE-016。
+- 文档：更新 README 安装/测试/静态检查命令；更新 PLAN S00 进度、MEMORY 当前状态、ISSUE-016 与本 Prompt。
+- 关联提交：S00 阶段提交（见最终报告）。

@@ -160,3 +160,16 @@
 - 验证结果：Prompt 16/17 与 ISSUE-013/014/015 均已落盘；编号连续、状态均为 Resolved；历史 Prompt 01–15 未改写。
 - 状态：Resolved
 - 关联提交：无（本轮未执行 Git 操作）
+
+### ISSUE-016 — `pytest` console script 损坏，裸命令静默退出 1
+
+- 日期：2026-10-22
+- 现象：`python -m pytest` 正常运行（1 passed），但裸 `pytest --version` 与 `pytest` 均退出码 1 且无输出；`E:\Components\Python\Python3.13\Scripts\pytest.exe` 存在，模块版本为 9.0.2。
+- 根因：Python 3.13 Scripts 目录下的 pytest console script 与当前解释器不匹配或已损坏；静默退出未提供更具体的启动错误。
+- 解决方案：执行 `python -m pip install --force-reinstall --no-deps pytest==9.0.2` 重建 console script，未修改项目依赖。
+- 验证方式：`pytest --version` 输出 `pytest 9.0.2`；`pytest` 运行 TC-SMOKE-001 输出 `1 passed`。
+- 验证结果：`pytest` 裸命令已恢复，符合 S00 验收与 README 命令。
+- 状态：Resolved
+- 关联提交：无（环境修复，不在仓库内）
+
+> S00 阶段除 ISSUE-016 外无其他阻塞问题。
