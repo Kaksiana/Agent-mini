@@ -979,3 +979,4 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - 红因（基线 `22eba3a` + 新测试，仓库外重建）：**10 failed、21 passed**——非法 max_attempts 未拒绝（5）、`on_retry` 参数不存在（1）、cap 后超过 8s（1）、非 callable 未拒绝（2）、302 误归 BadRequest（1）；不是收集/夹具错误。
 - 绿/验收：全量 72 passed；覆盖率 94.38%；contract 64 passed、31.5s；ruff/format/mypy/openspec 通过；wheel/仓库外导入见最终报告。
 - 剩余：P1-03 为配置传递断言 + `ReadTimeout` 分类，未保留不稳定的本地慢服务器测试；临时 `LLMError` 根仍待 S20 迁移（ISSUE-024）。
+- OpenSpec 归档：change 归档为 `2026-10-22-s02-report-fixes`；`llm-client` 主规格增至 14 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
