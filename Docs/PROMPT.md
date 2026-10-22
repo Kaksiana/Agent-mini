@@ -776,4 +776,5 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - TDD 绿：实现后 `tests/contract` 为 29 passed；全量 `pytest` 为 36 passed；`ruff check .`、`ruff format --check .`、`mypy agent_mini` 均通过。
 - 实现：`llm/models.py` 负责消息/工具/Usage/响应归一；`llm/errors.py` 提供 S01 判别错误；`llm/client.py` 提供 `LLMClient` Protocol 与 `HttpLLMClient`。
 - 文档：PLAN S01 标记完成；MEMORY 记录 S01；DESIGN v0.8 澄清 S01 边界；TESTING 说明 L2 已实现；README 增加 `pytest -m unit`/`pytest -m contract`。
-- 提交：`4fef560` 完成代码+测试；文档收口、归档与推送见最终报告。
+- 提交：`4fef560` 完成代码+测试；`4f6ad29` 完成文档收口。
+- OpenSpec 归档：change 归档为 `2026-10-22-s01-llm-single-turn`；主规格 `llm-client` 含 5 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
