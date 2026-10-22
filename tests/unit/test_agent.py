@@ -26,7 +26,7 @@ class StubLLM:
         tools: list[llm_models.ToolSchema] | None = None,
         **params: object,
     ) -> llm_models.LLMResponse:
-        self.calls.append((messages, tools))
+        self.calls.append((list(messages), tools))
         return self.response
 
 
@@ -68,13 +68,21 @@ async def test_direct_reply_returns_one_step_result() -> None:
     assert result.reply == "答案"
     assert result.steps == 1
     assert result.usage == usage
-    assert set(type(result).model_fields) == {"reply", "steps", "usage"}
+    assert set(type(result).model_fields) == {
+        "reply",
+        "steps",
+        "usage",
+        "trace",
+        "tool_calls",
+        "tool_traces",
+    }
     assert len(stub.calls) == 1
     messages, tools = stub.calls[0]
     assert len(messages) == 1
     assert messages[0].role == "user"
     assert messages[0].content == "你好"
     assert tools is None
+    assert result.trace[0].decision == "final"
     assert "reasoning" not in result.reply
 
 
@@ -169,7 +177,7 @@ def test_agent_result_rejects_invalid_fields(kwargs: dict[str, object]) -> None:
 
 def test_agent_result_rejects_extra_fields() -> None:
     with pytest.raises(ValidationError):
-        AgentResult.model_validate({"reply": "答案", "steps": 1, "usage": _usage(), "trace": []})
+        AgentResult.model_validate({"reply": "答案", "steps": 1, "usage": _usage(), "unknown": []})
 
 
 def _response(content: str) -> llm_models.LLMResponse:
