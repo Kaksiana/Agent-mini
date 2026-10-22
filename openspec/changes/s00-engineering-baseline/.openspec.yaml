@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-22
+goal: S00 工程基线：可安装、可测试、可静态检查的 Python 包骨架
