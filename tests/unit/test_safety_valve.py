@@ -225,6 +225,42 @@ async def test_invalid_arguments_do_not_collide_with_valid_empty_object() -> Non
     ]
 
 
+async def test_repeat_signature_normalizes_key_order() -> None:
+    calls = [
+        llm_models.ToolCall(id=f"call_{index}", name="echo", arguments=args)
+        for index, args in enumerate(
+            [{"a": 1, "b": 2}, {"b": 2, "a": 1}, {"a": 1, "b": 2}]
+        )
+    ]
+    llm = ScriptedLLM([_response(calls=[call]) for call in calls])
+    policy = LoopPolicy(max_steps=8, repeat_threshold=3)
+
+    result = await Agent(llm, Executor(), policy).run("hi")
+
+    assert result.truncated is True
+    assert result.termination_reason == "repeat"
+
+
+async def test_repeat_resets_on_different_signature() -> None:
+    first = llm_models.ToolCall(id="call_1", name="echo", arguments={"a": 1})
+    different = llm_models.ToolCall(id="call_2", name="echo", arguments={"b": 2})
+    third = llm_models.ToolCall(id="call_3", name="echo", arguments={"a": 1})
+    llm = ScriptedLLM(
+        [
+            _response(calls=[first]),
+            _response(calls=[different]),
+            _response(calls=[third]),
+            _response(content="正常完成"),
+        ]
+    )
+    policy = LoopPolicy(max_steps=8, repeat_threshold=3)
+
+    result = await Agent(llm, Executor(), policy).run("hi")
+
+    assert result.truncated is False
+    assert result.reply == "正常完成"
+
+
 async def test_normal_convergence_has_no_truncation() -> None:
     llm = ScriptedLLM(
         [

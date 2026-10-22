@@ -1,4 +1,4 @@
-# PROMPT <!-- omit in toc -->
+﻿# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1330,7 +1330,7 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 目标：修复 S05 报告 P1 与相关 P2，恢复 S05/M1 准入。
 - 产出：工具本地 TimeoutError 分类、非法参数签名隔离、finite deadline、start-before-schemas、LLM steps 保留、TC-L1-029 矩阵、累计 runtime 规格、M1 演示命令。
 - 关键约束：不改归档 change；历史 Prompt/红灯缺证如实保留；不伪造测试时序。
-- 验证：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec/wheel 通过。
+- 验证：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec/wheel 通过。
 - 已知限制：工具本地 TimeoutError 测试先红；P1-06 的 5 个新增子场景均已转绿；S05 历史 Prompt 摘要缺失仍记录为历史债。
 - 关联提交：`82d48d7`（代码）、`c6e5e24`（文档/change）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-22-s05-report-fixes`；runtime 主规格增至 12 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
@@ -1371,7 +1371,7 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 产出：`LoopPolicy`、max_steps=8、deadline=120s、repeat=3、`truncated`/`termination_reason`、三条固定文案、deadline 取消与中断 tool 消息补齐。
 - 前置：`1a9bdb3` 参数化，默认不限制；S04 行为不变。PLR0915/PLR0912 已启用且无告警。
 - 人工修正 / 决策：deadline 使用自 run 启动计时与 `asyncio.wait_for` 取消；重复签名按连续 name+规范化 args；终止原因放 AgentResult，ThoughtStep 不增字段。
-- 验证：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors。
+- 验证：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors。
 - 关联提交：`1a9bdb3`（参数化）、S05 代码/文档提交、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-22-s05-runtime-safety-valve`；runtime 主规格增至 11 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
 
@@ -1392,3 +1392,4 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 验证：全量 103 passed、覆盖率 94.51%；unit 39、contract 64；ruff/format/mypy/OpenSpec/pip check/wheel/仓库外导入通过；4 个定向探针暴露上述行为缺陷。
 - 人工修正 / 决策：未实施修复；P0=0，P1=10，P2=4，Info=2；需先修复 P1 并补 M1 可复现演示。
 - 关联提交：无（评估工作区未提交）。
+

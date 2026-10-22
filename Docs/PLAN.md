@@ -1,4 +1,4 @@
-# PLAN <!-- omit in toc -->
+﻿# PLAN <!-- omit in toc -->
 
 > **Agent-mini 执行计划**。规则见 `AGENT.md` §8（阶段执行粒度）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`。
@@ -341,7 +341,8 @@
 | S02 | 已完成 | 2026-10-22 | 错误分类、429/5xx 退避重试、超时不重试；复验修复完成：默认 `retry_events`、具体异常断言、thinking+tools+reasoning 组合、`mypy agent_mini tests` 门禁；72 passed、覆盖率 95.69%；临时 LLMError 根 S20 迁移（ISSUE-024/026/027） |
 | S03 | 已完成 | 2026-10-22 | 单轮直答：`Agent(llm_client).run(user_input)` 返回冻结 `AgentResult(reply/steps/usage)`；TC-L1-015A/B/C 通过；88 passed、覆盖率 96.03%；session_id 延后 S13（ISSUE-028） |
 | S04 | 已完成 | 2026-10-22 | ReAct 工具循环：ToolExecutor Protocol、assistant/tool 配对、ThoughtStep/ToolCallTrace、错误回灌与独立结果脱敏；99 passed、覆盖率 96.17%；S05 安全阀未实现 |
-| S05 | 已完成 | 2026-10-22 | 循环安全阀：max_steps/deadline/repeat、truncated/终止原因、固定文案、中断补齐；110 passed、覆盖率 95.72%；M1 S00–S05 收口 |
+| S05 | 已完成 | 2026-10-22 | 循环安全阀：max_steps/deadline/repeat、truncated/终止原因、固定文案、中断补齐；112 passed、覆盖率 95.72%；M1 S00–S05 收口 |
 | S06–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+

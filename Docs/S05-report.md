@@ -1,4 +1,4 @@
-# S05 与 M1 独立评估报告
+﻿# S05 与 M1 独立评估报告
 
 > 评估日期：2026-10-22  
 > 基准提交：`69ae57e`（`main` 与 `origin/main` 一致）  
@@ -328,4 +328,5 @@ M1 恢复验收前必须：
 | S05-P2-01 死分支 | 删除 deadline None 分支 | loop.py |
 | S05-P2-02 docstring | 更新 S05 职责与 policy/终止语义 | agent/loop 模块说明 |
 
-**复验**：110 passed；覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec/wheel 通过。S05 可进入 S06；历史 Prompt 红灯证据缺失仍如实保留，不伪造。
+**复验**：112 passed；覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec/wheel 通过。S05 可进入 S06；历史 Prompt 红灯证据缺失仍如实保留，不伪造。
+

@@ -1,4 +1,4 @@
-# ISSUE <!-- omit in toc -->
+﻿# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -389,7 +389,7 @@
 - 根因：wait_for 无法区分内外 TimeoutError；signature 用 `arguments or {}`；deadline 校验只检查 <=0；deadline 在 schema 后建立；超时分支回退 step；测试矩阵只覆盖工具 deadline；流程记录在实现后补。
 - 解决方案：新 change `s05-report-fixes`；工具本地 TimeoutError 归 tool_execution_error；非法调用不计重复；finite 校验；入口先建立 deadline；保留尝试步数；补 LLM deadline/签名/有限值/纠正测试；修累计规格；M1 状态与演示命令。
 - 验证方式：新增测试先红后绿；全量 pytest、覆盖率、ruff/format、mypy tests、OpenSpec、wheel。
-- 验证结果：工具本地 TimeoutError、非法→合法空对象、非有限 deadline、LLM 挂起 steps 等 5 个用例先红后绿；S05 测试增至 11 个；全量 110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec/wheel 通过。M1 恢复并补离线演示命令。
+- 验证结果：工具本地 TimeoutError、非法→合法空对象、非有限 deadline、LLM 挂起 steps 等 5 个用例先红后绿；S05 测试增至 13 个；全量 112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec/wheel 通过。M1 恢复并补离线演示命令。
 - 历史限制：S05 原 Prompt 仍只有摘要、原始红灯命令不可完整复核，不伪造；新 change 记录偏差。
 - 状态：Resolved
 - 关联提交：`s05-report-fixes` change、代码/文档提交（见最终报告）
@@ -399,5 +399,6 @@
 - 前置：`LoopPolicy` 参数化提交 `1a9bdb3`，默认不限制；S04 行为不变、99 passed。
 - PLR 规则核对：`pyproject.toml` 已启用 `too-many-statements`/`too-many-branches`，`ruff check --select PLR0915,PLR0912 agent_mini/runtime/loop.py` 无告警；S05 拆分后 `run_react_loop` 保持可读。
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
-- 验收：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
+- 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
