@@ -778,3 +778,20 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - 文档：PLAN S01 标记完成；MEMORY 记录 S01；DESIGN v0.8 澄清 S01 边界；TESTING 说明 L2 已实现；README 增加 `pytest -m unit`/`pytest -m contract`。
 - 提交：`4fef560` 完成代码+测试；`4f6ad29` 完成文档收口。
 - OpenSpec 归档：change 归档为 `2026-10-22-s01-llm-single-turn`；主规格 `llm-client` 含 5 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
+
+---
+
+### Prompt 22 — 2026-10-22 — 归档 S01 评估报告与保存规则
+
+#### 原始 Prompt
+
+```text
+报告保存为Docs/S01-report，并将报告保存规则写入全局规范AGENT.md
+```
+
+#### 执行摘要
+
+- 目标：将 S01 只读评估报告纳入仓库，并建立后续阶段评估报告的统一归档规则。
+- 产出：新增 `Docs/S01-report.md`，完整保存评估基准、复核证据、维度结论、分级问题、追溯表、边界结论、技术债、总体结论及副作用记录。
+- 规范：在 `AGENT.md` §1 新增阶段评估报告归档规则，统一使用 `Docs/S<两位阶段号>-report.md`，并在 §11 记录变更。
+- 边界：本轮仅修改文档，不修复 S01 代码、不修改 OpenSpec、不提交或推送。
