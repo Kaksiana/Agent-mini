@@ -696,4 +696,5 @@ S00 已标记为“已完成”，但实际只创建了 `agent_mini/__init__.py`
 - TDD 绿：补齐 10 个子包与 23 个占位模块/文件后，骨架测试 `1 passed`，全量 `pytest` 为 `2 passed`；原 TC-SMOKE-001 未改动。
 - 验收：`pip install -e .` 成功；10 个子包导入输出 `all imports ok`；`pytest` 2 passed；`ruff check .` All checks passed；`ruff format --check .` 36 files already formatted；`mypy agent_mini` 34 source files 无错误；`openspec validate --all --strict` 3 passed、0 failed。
 - 文档：PLAN 先回退“进行中”并在验收后恢复“已完成”；MEMORY 记录骨架修正；ISSUE-017 记录差异、根因、解决方案、验证与预防；README 命令未受包结构影响，无需修改。
-- 提交：`c642b2f` 记录 ISSUE-017/PLAN 回退与 OpenSpec change；`4e7e900` 补齐骨架与测试；文档收口与归档提交见最终报告。
+- 提交：`c642b2f` 记录 ISSUE-017/PLAN 回退与 OpenSpec change；`4e7e900` 补齐骨架与测试；`ee5e96d` 记录文档收口。
+- OpenSpec 归档：change 归档为 `2026-10-22-s00-baseline-skeleton-fix`；主规格 `engineering-baseline` 增至 5 项 Requirement；`openspec validate --all --strict` 为 2 passed、0 failed。
