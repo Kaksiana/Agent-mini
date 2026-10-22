@@ -200,3 +200,15 @@
 - 预防：S00 DoD 增加 `DESIGN.md` §2.2 目录对照；保留子包导入测试作为回归；后续新增子包必须同步更新 DESIGN 与测试。
 - 状态：Resolved
 - 关联提交：`c642b2f`（修正启动）、`4e7e900`（骨架补全）
+
+### ISSUE-018 — S00 wheel 未包含 `systemdb/schema.sql`，打包验收缺失
+
+- 日期：2026-10-22
+- 现象：上一轮报告称“pyproject.toml 与依赖清单未改动”。实际构建 `agent_mini-0.1.0-py3-none-any.whl` 后，10 个子包的 `.py` 文件均已进入 wheel，但 `agent_mini/systemdb/schema.sql` 缺失；此前的验收只验证 editable install 与源码目录，未验证 wheel 内容。
+- 根因：`[tool.setuptools.packages.find]` 只负责发现 Python 包，非 Python 文件必须通过 `package-data` 显式声明；S00 验收和测试未覆盖构建产物内容，也未约束占位模块只能含 docstring。
+- 解决方案：在 `pyproject.toml` 增加 `agent_mini.systemdb` 的 `package-data` 声明；新增打包配置测试、DESIGN §2.2 结构完整性测试、占位模块 AST 检查；重建 wheel 并逐项核对 35 个 `agent_mini/` 文件（含 2 个既有文件）。
+- 验证方式：`python -m pip wheel . --no-deps` 构建 wheel；用 `zipfile` 对比 `DESIGN.md` §2.2 文件清单；`pytest`、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 全部通过。
+- 验证结果：待修正完成后回填。
+- 预防：S00/S01 DoD 增加“wheel 内容与设计目录一致”的检查；保留打包配置测试与结构测试作为回归。
+- 状态：Open
+- 关联提交：无（问题登记）

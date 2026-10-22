@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-22
+goal: S00 打包完整性修正：wheel 包含全部骨架文件，占位模块仅含 docstring
