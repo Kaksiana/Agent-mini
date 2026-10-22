@@ -942,3 +942,22 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - 验收：pytest/ruff/format/mypy/openspec 通过；wheel 与仓库外导入见最终报告。
 - 提交：`dce5d24` 开工前检查；`6ebbe24` OpenSpec 规划；`efa14a4` 代码+测试；`4407e7a` 文档收口。
 - OpenSpec 归档：change 归档为 `2026-10-22-s02-llm-error-retry`；`llm-client` 主规格增至 11 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
+
+---
+
+### Prompt 27 — 2026-10-22 — S02 阶段产出验证
+
+#### 原始 Prompt
+
+```text
+【评估】进行S02阶段产出验证
+```
+
+#### 执行摘要
+
+- 评估基准：`eda077a`；使用 `code-review-and-quality` 从正确性、测试、架构、安全与性能维度复核，并归档为 `Docs/S02-report.md`。
+- 复验：S02 契约测试 8 passed；全量 58 passed；覆盖率 93.84%；ruff/format/mypy、OpenSpec strict、pip check、wheel 与仓库外导入通过。
+- TDD：在仓库外以 `efa14a4^` 实现叠加 `efa14a4` 新测试，8 个用例均进入执行阶段失败，红因与 Prompt 26 记录一致。
+- P1：`RetryPolicy` 可突破 3 次硬上限；重试未记录 attempt；TC-L2-005 未验证真实 timeout 上限；OpenSpec 全局 `AgentError` 与临时 `LLMError` 两项 MUST 冲突。
+- P2：3xx 状态误归为 BadRequest、策略运行时类型校验不足、llm 子包说明过时、L2 测试耗时超目标、异常测试未完整断言具体类型/http_status。
+- 结论：S02 有条件通过，处理报告所列 P1 后再进入 S03；本轮不修改实现、测试、Issue、PLAN 或 OpenSpec，不提交、不推送。
