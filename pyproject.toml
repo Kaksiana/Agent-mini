@@ -24,6 +24,9 @@ include = ["agent_mini*"]
 [tool.setuptools.dynamic]
 version = { attr = "agent_mini.version.__version__" }
 
+[tool.setuptools.package-data]
+"agent_mini.systemdb" = ["schema.sql"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
