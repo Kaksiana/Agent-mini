@@ -1332,7 +1332,8 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 关键约束：不改归档 change；历史 Prompt/红灯缺证如实保留；不伪造测试时序。
 - 验证：110 passed、覆盖率 95.72%；unit 46、contract 64；`mypy agent_mini tests` 49 files 0 errors；ruff/format/openspec/wheel 通过。
 - 已知限制：工具本地 TimeoutError 测试先红；P1-06 的 5 个新增子场景均已转绿；S05 历史 Prompt 摘要缺失仍记录为历史债。
-- 关联提交：本轮修复提交见最终报告。
+- 关联提交：`82d48d7`（代码）、`c6e5e24`（文档/change）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s05-report-fixes`；runtime 主规格增至 12 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
 
 ## 2026-10-22 20:07 — 修复 S04 评估报告
 
