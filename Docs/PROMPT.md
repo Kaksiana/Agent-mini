@@ -1019,3 +1019,17 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - 文档：新增 ISSUE-027 并 Resolved；S02-report §12 记录第二次复验；PLAN/MEMORY/DESIGN 同步；OpenSpec 新增 `s02-reverify-fixes` 并归档。
 - OpenSpec 归档：change 归档为 `2026-10-22-s02-reverify-fixes`；`llm-client` 主规格增至 15 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
 - 结论：S02 复验遗留闭环，可进入 S03。
+
+### Prompt 31 — 2026-10-22 — 执行 S03 单轮直答（开工阻塞）
+
+#### 原始 Prompt
+
+本轮用户以角色、背景、任务、约束、输出格式给出 S03 执行请求：“执行 S03 阶段：先按上述文档自行提取阶段范围、测试用例定义、验收标准与实现边界，完成 S02 结论的开工前核对，然后用 TDD 实现最小单轮直答闭环与 `AgentResult` 数据模型，完成验收、文档收口与 Git 交付。”
+
+#### 执行摘要
+
+- S02 核对：PLAN 状态已完成；最近验收 72 passed、覆盖率 95.69%；`LLMError` 临时根沿用至 S19，S20 迁移（ISSUE-024），S03 未引入第二套根；运行依赖下界债务 ISSUE-025 保持 Open，不阻塞。
+- `LLMClient` 接口核对：`chat(messages, tools=None, **params) -> LLMResponse` 足够支撑单轮直答；无需改动 `llm/`。
+- 阻塞：PLAN S03 的“TC-L1-015（直答分支）”在 TESTING 中不存在；TESTING TC-L1-015 是 S04 的两步工具循环。DESIGN §3.2 未定义 `AgentResult` 字段表与 `Agent.run` 正式签名，且伪代码 `final/steps/trace` 与 PLAN 的 `reply/steps/usage` 冲突。
+- 决策：按“三份文档不一致时停止、不得自行补写需求/测试定义”约束，登记 ISSUE-028，停止 S03 代码与 OpenSpec change；未修改 `runtime/`、`llm/`。
+- 待用户选择：A 增加 S03 直答 TC 与 DESIGN 字段/签名（推荐）；B 合并入 S04；C 明确批准 PLAN 字段并以 TC-L4-003 映射。

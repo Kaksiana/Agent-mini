@@ -1,5 +1,11 @@
 # MEMORY <!-- omit in toc -->
 
+## 2026-10-22 — S03 单轮直答（开工阻塞）
+
+- S02 已完成：72 passed、覆盖率 95.69%；`LLMError` 临时根沿用至 S19，S20 迁移（ISSUE-024）；运行依赖下界债务 ISSUE-025。
+- S03 开工核对发现文档契约冲突：PLAN 的 TC-L1-015 直答分支在 TESTING 中不存在（TESTING TC-L1-015 是 S04 工具循环）；DESIGN §3.2 无 `AgentResult` 字段表与 `Agent.run` 正式签名，伪代码 `final/steps/trace` 与 PLAN 的 `reply/steps/usage` 冲突。
+- 决策：按约束停止，不写 S03 代码/测试/OpenSpec change；登记 ISSUE-028，待文档澄清后启动。
+
 ## 2026-10-22 — S02 错误处理与重试
 
 - S02 完成：`llm/errors.py` 扩展鉴权/请求/超时/限流/服务端/连接错误；`llm/client.py` 支持 429/5xx 最多 3 次总请求、`0.5 * 2^(attempt-1)` 秒退避 + 0..0.1s 抖动；4xx、超时、协议错误不重试。

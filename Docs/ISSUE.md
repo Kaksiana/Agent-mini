@@ -321,3 +321,18 @@
 - 验证结果：`mypy agent_mini tests` 0 errors（46 files）；默认事件 2 条、具体异常类型、thinking+tools+reasoning 同请求通过；全量 72 passed、覆盖率 95.69%。
 - 状态：Resolved
 - 关联提交：S02 reverify-fix 提交（见最终报告）
+
+### ISSUE-028 — S03 开工阻塞：TC-L1-015 与 `AgentResult`/签名定义冲突
+
+- 日期：2026-10-22
+- 现象：
+  1. `Docs/PLAN.md` S03 将测试项写为“TC-L1-015（直答分支）”，但 `Docs/TESTING.md` 的 TC-L1-015 明确是 S04 的两步工具循环（第 1 次 tool_calls、第 2 次文本），没有 S03 直答分支的步骤/断言定义；`Docs/REQUIREMENT.md` FR-RT-01 只映射 TC-L1-015 与 TC-L4-003，未提供 S03 可执行用例。
+  2. `Docs/DESIGN.md` §3.2 的调用链给出 `Agent.run(session_id, user_input)`，但未给出 S03 的正式签名；同节没有 `AgentResult` 字段表，伪代码使用 `AgentResult(final, steps, trace)`，而 `Docs/PLAN.md` S03 要求 `AgentResult` 含 `reply/steps/usage`，字段名与来源冲突。
+- 影响：若继续实现，只能自行补写 TC 或字段契约，违反“三份文档不一致时停止、不得自行补写需求/测试定义”的约束；同时会导致 S04 返工。
+- 决策：**S03 代码与 OpenSpec change 暂不开始**；不修改 `runtime/` 实现。先解决文档契约。
+- 可选解决方向：
+  - A（推荐）：在 TESTING 增加 S03 直答 TC（如 TC-L1-015A），并在 DESIGN §3.2 增加 `AgentResult` 字段表与 `Agent.run` 签名。
+  - B：将 S03 并入 S04，取消独立 S03。
+  - C：明确批准以 PLAN 的 `reply/steps/usage` 为 S03 契约，并以 TC-L4-003 作为直答验收映射，同时登记字段延后。
+- 状态：Open
+- 关联提交：S03 开工阻塞记录（见最终报告）
