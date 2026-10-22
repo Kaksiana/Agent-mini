@@ -1,4 +1,4 @@
-﻿# TESTING <!-- omit in toc -->
+# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -188,6 +188,15 @@
 | TC-L1-016 | max_steps=3 精确三步停止、truncated/termination_reason/固定文案 | HTTP 200 映射由 S18 覆盖 |
 | TC-L1-029 | deadline 取消挂起工具、补齐同 call_id tool 消息、重复 3 次停止、可控时钟/短等待 | 真实网络取消与 S18 集成由 S18 覆盖 |
 | TC-L4-008 | 不覆盖 | S18 HTTP 回填 |
+
+#### 4.2.6 S06 覆盖边界
+
+| 范围 | S06 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L1-007/008/009 | 注册/查找、pydantic Schema、重复注册拒绝 | 内置工具 S07–S12 |
+| FR-TOOL-01 启停 | enabled_key 过滤 schemas/execute、禁用错误 | 配置加载/DI S21 |
+| 执行边界 | 额外参数、unknown_tool、非 ToolResult、handler 异常、同步 to_thread | 具体工具错误语义 S07–S12 |
+| 集成回填 | RegistryExecutor 驱动 Agent，call_id 配对保持 | 真实工具闭环 S07–S12 |
 
 ### 4.3 L3 集成测试
 
