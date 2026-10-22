@@ -173,3 +173,29 @@
 - 关联提交：无（环境修复，不在仓库内）
 
 > S00 阶段除 ISSUE-016 外无其他阻塞问题。
+
+### ISSUE-017 — S00 包骨架与 `Docs/DESIGN.md` §2.2 不一致
+
+- 日期：2026-10-22
+- 现象：S00 曾标记为已完成，但 `agent_mini/` 实际只有 `__init__.py` 与 `version.py`；`Docs/DESIGN.md` §2.2 规定的子包与占位模块未落地，包骨架不完整。
+- 差异清单：
+
+| `DESIGN.md` §2.2 规定项 | 仓库现状 | 差异 |
+| --- | --- | --- |
+| `config/`：`models.py`、`loader.py`、`container.py` | 无 | 缺目录、`__init__.py`、3 个模块 |
+| `llm/`：`client.py`、`models.py`、`errors.py` | 无 | 缺目录、`__init__.py`、3 个模块 |
+| `runtime/`：`agent.py`、`loop.py`、`result.py` | 无 | 缺目录、`__init__.py`、3 个模块 |
+| `tools/`：`registry.py`、`sandbox.py`、`builtin/` | 无 | 缺目录、`__init__.py`、2 个模块、`builtin/` |
+| `memory/`：`short_term.py`、`mid_term.py`、`base.py` | 无 | 缺目录、`__init__.py`、3 个模块 |
+| `context/`：`builder.py`、`token_counter.py`、`window.py` | 无 | 缺目录、`__init__.py`、3 个模块 |
+| `systemdb/`：`schema.sql`、`repository.py`、`models.py` | 无 | 缺目录、`__init__.py`、3 个文件 |
+| `interface/`：`http.py` | 无 | 缺目录、`__init__.py`、1 个模块 |
+| `observability/`：`logging.py`、`errors.py` | 无 | 缺目录、`__init__.py`、2 个模块 |
+| 合计：9 个业务子包 + `tools/builtin/`，23 个设计模块/文件 | 0 个子包、0 个占位模块 | 10 个 `__init__.py`、23 个占位文件 |
+
+- 根因：S00 验收只覆盖 `pip install -e .`、smoke 测试与 ruff/mypy，未把 `DESIGN.md` §2.2 的目录结构列为验收项；测试也只验证顶层包导入。
+- 解决方案：创建 `s00-baseline-skeleton-fix` OpenSpec change；补齐 10 个子包 `__init__.py` 与 23 个占位模块（仅中文模块 docstring，空实现），`schema.sql` 仅写“待 S17 落地”注释；新增子包可导入测试；重新执行全部验收后再恢复 S00 状态。
+- 验证方式：逐项核对 `DESIGN.md` §2.2 文件存在；执行子包导入命令；`pytest`、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 全部通过。
+- 预防：S00 DoD 增加 `DESIGN.md` §2.2 目录对照；保留子包导入测试作为回归；后续新增子包必须同步更新 DESIGN 与测试。
+- 状态：Open
+- 关联提交：无（修正开始前登记）
