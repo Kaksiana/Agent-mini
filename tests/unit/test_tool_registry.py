@@ -1,5 +1,7 @@
 """TC-L1-007/008/009：工具注册、Schema 与执行。"""
 
+import asyncio
+import time
 from typing import cast
 
 import pytest
@@ -13,6 +15,7 @@ from agent_mini.tools.registry import (
     ToolContext,
     ToolRegistry,
     ToolResult,
+    ToolSpec,
     tool,
 )
 
@@ -27,9 +30,9 @@ def echo(text: str) -> ToolResult:
     return ToolResult(True, f"echo:{text}")
 
 
-def _registry() -> ToolRegistry:
-    registry = ToolRegistry()
-    tool("echo", "回显", EchoArgs, registry=registry)(echo)
+def _registry(enabled: dict[str, bool] | None = None) -> ToolRegistry:
+    registry = ToolRegistry(enabled=enabled)
+    tool("echo", "回显", EchoArgs, enabled_key="ECHO_ENABLED", registry=registry)(echo)
     return registry
 
 
@@ -70,6 +73,73 @@ async def test_invalid_arguments_do_not_execute_handler() -> None:
 
     assert result.ok is False
     assert result.error_code == "invalid_arguments"
+
+
+async def test_disabled_tool_is_hidden_and_rejected() -> None:
+    registry = _registry({"ECHO_ENABLED": False})
+
+    assert registry.schemas() == []
+    result = await registry.execute("echo", {"text": "x"})
+    assert result.ok is False
+    assert result.error_code == "tool_disabled"
+
+
+def test_enabled_tool_is_visible() -> None:
+    registry = _registry({"ECHO_ENABLED": True})
+
+    assert [schema["name"] for schema in registry.schemas()] == ["echo"]
+
+
+async def test_sync_handler_does_not_block_event_loop() -> None:
+    registry = ToolRegistry()
+
+    def slow(text: str) -> ToolResult:
+        time.sleep(0.05)
+        return ToolResult(True, text)
+
+    tool("slow", "慢工具", EchoArgs, registry=registry)(slow)
+    started = time.perf_counter()
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(registry.execute("slow", {"text": "x"}), 0.01)
+
+    assert time.perf_counter() - started < 0.04
+
+
+async def test_extra_arguments_are_rejected() -> None:
+    result = await _registry().execute("echo", {"text": "x", "session_id": "forged"})
+
+    assert result.ok is False
+    assert result.error_code == "invalid_arguments"
+
+
+async def test_non_toolresult_return_is_rejected() -> None:
+    registry = ToolRegistry()
+
+    def wrong(text: str) -> None:
+        return None
+
+    tool("wrong", "错误返回", EchoArgs, registry=registry)(wrong)
+    result = await registry.execute("wrong", {"text": "x"})
+
+    assert result.ok is False
+    assert result.error_code == "invalid_tool_result"
+
+
+async def test_unknown_tool_returns_structured_error() -> None:
+    result = await _registry().execute("missing", {})
+
+    assert result.ok is False
+    assert result.error_code == "unknown_tool"
+
+
+def test_tool_spec_requires_valid_metadata() -> None:
+    with pytest.raises(ValueError):
+        ToolSpec(name="", description="x", params_model=EchoArgs, handler=echo)
+
+
+def test_failed_result_requires_readable_content() -> None:
+    with pytest.raises(ValueError):
+        ToolResult(False, "   ", "error")
 
 
 async def test_handler_exception_becomes_tool_error() -> None:

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import (
     BaseModel,
@@ -20,6 +21,22 @@ MAX_OBSERVATION_CHARS = 200
 ThoughtSource = Literal["runtime_summary"]
 
 
+def _freeze(value: object) -> object:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
+def _to_plain(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {key: _to_plain(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_to_plain(item) for item in value]
+    return value
+
+
 class ToolCallTrace(BaseModel):
     """公开的工具调用轨迹；不包含原始 reasoning。"""
 
@@ -33,13 +50,13 @@ class ToolCallTrace(BaseModel):
     observation: str
 
     def model_post_init(self, __context: object) -> None:
-        """把可写字典替换为只读映射。"""
-        object.__setattr__(self, "args", MappingProxyType(dict(self.args)))
+        """把参数递归替换为只读映射/元组。"""
+        object.__setattr__(self, "args", _freeze(self.args))
 
     @field_serializer("args")
-    def _serialize_args(self, value: dict[str, object]) -> dict[str, object]:
-        """序列化时恢复普通 dict，实例本身保持只读。"""
-        return dict(value)
+    def _serialize_args(self, value: Mapping[str, object]) -> dict[str, object]:
+        """序列化时恢复普通 JSON 结构，实例本身保持只读。"""
+        return cast(dict[str, object], _to_plain(value))
 
     @field_validator("observation")
     @classmethod

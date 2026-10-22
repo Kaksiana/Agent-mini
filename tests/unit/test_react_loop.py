@@ -1,7 +1,7 @@
 """S04 TC：ReAct 工具循环、轨迹与配对。"""
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -9,6 +9,7 @@ from agent_mini.llm import models as llm_models
 from agent_mini.llm.errors import LLMProtocolError
 from agent_mini.runtime.agent import Agent
 from agent_mini.runtime.loop import ToolOutcome
+from agent_mini.runtime.result import ToolCallTrace
 
 pytestmark = pytest.mark.unit
 
@@ -335,6 +336,20 @@ async def test_independent_result_secret_is_redacted() -> None:
     assert "INDEPENDENT_SECRET" not in serialized
     assert "sk-live-ABCDEFG" not in serialized
     assert "***" in result.tool_traces[0].observation
+
+
+def test_tool_trace_args_are_deeply_readonly() -> None:
+    trace = ToolCallTrace(
+        call_id="call_1",
+        tool="echo",
+        args={"outer": {"inner": "old"}},
+        ok=True,
+        observation="ok",
+    )
+
+    nested = cast(dict[str, str], trace.args["outer"])
+    with pytest.raises(TypeError):
+        nested["inner"] = "new"
 
 
 async def test_no_executor_rejects_tool_calls() -> None:
