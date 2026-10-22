@@ -940,4 +940,5 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - TDD 绿：S02 相关 8 passed；全量 58 passed；覆盖率 93.68%。
 - 实现：`errors.py` 扩展 `LLMAuthError`、`LLMBadRequestError`、`LLMTimeoutError`、`LLMRateLimitError`、`LLMServerError`、`LLMConnectionError`；`client.py` 使用 `RetryPolicy`、`DEFAULT_MAX_ATTEMPTS=3`、`0.5s` 底数、`0.1s` 抖动上界。
 - 验收：pytest/ruff/format/mypy/openspec 通过；wheel 与仓库外导入见最终报告。
-- 提交：`dce5d24` 开工前检查；`6ebbe24` OpenSpec 规划；`efa14a4` 代码+测试；文档/归档提交见最终报告。
+- 提交：`dce5d24` 开工前检查；`6ebbe24` OpenSpec 规划；`efa14a4` 代码+测试；`4407e7a` 文档收口。
+- OpenSpec 归档：change 归档为 `2026-10-22-s02-llm-error-retry`；`llm-client` 主规格增至 11 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
