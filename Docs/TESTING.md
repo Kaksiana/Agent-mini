@@ -83,7 +83,7 @@
 | L5 非功能 | 性能、并发、安全、脱敏 | 视用例 | 10–120s | 否（`@slow`） | `pytest -m slow` |
 | LIVE 真实验收 | DeepSeek 直答、工具闭环、可选思考模式 | 真实 API + 密钥，有限调用次数 | 视模型时延 | 否，显式 opt-in；发布前必验 001/002 | 待实现后写入 README |
 
-> 测试命令以 `README.md` 记录的真实脚本为准（`AGENT.md` §2）。S01 已实现 L2 契约测试（`pytest -m contract`）；L3–L5 与 LIVE 仍待后续阶段。
+> 测试命令以 `README.md` 记录的真实脚本为准（`AGENT.md` §2）。S01/S02 已实现 L2 契约测试（`pytest -m contract`）；L3–L5 与 LIVE 仍待后续阶段。
 
 ## 4. 每层测试用例清单
 
@@ -148,6 +148,14 @@
 | TC-L2-008 | 结构错误、空答案、length/content_filter、非 object 顶层 | HTTP 502 映射、handler 次数与重试由 S02/S04 覆盖 |
 | TC-L2-009 | 严格 JSON、非法参数 `invalid_arguments`、call_id 保留 | Runtime 回灌、ToolResult、trace 由 S04/S06 覆盖 |
 | TC-L2-010 | content + 多 tool_calls 解析与顺序 | 两步循环、消息配对、trace 由 S04 覆盖 |
+
+#### 4.2.2 S02 覆盖边界
+
+| TC | S02 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L2-004 | 429/500/200 三次请求、两次退避、间隔单调递增、重试耗尽映射 | 真实限流行为由 S18 LIVE 覆盖 |
+| TC-L2-005 | `httpx.ReadTimeout` → `LLMTimeoutError`、单次请求、消息含超时秒数 | 真实网络超时由 S18 覆盖 |
+| TC-L2-006 | 400/401/403 分类且仅 1 次请求；连接错误分类且不重试 | 对外 HTTP 状态映射由 S18 覆盖 |
 
 ### 4.3 L3 集成测试
 

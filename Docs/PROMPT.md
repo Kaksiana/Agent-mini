@@ -846,3 +846,98 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - 结果：返回 `OK`，`finish_reason=stop`，usage 8/1/9，`reasoning_present=false`，耗时约 1519ms。
 - 边界：这是真实 API 烟雾测试，不替代 TC-LIVE-001 正式验收；S01 尚无 trace_id，正式记录待 S18/S19。
 - 文档：ISSUE-023 更新为 Resolved；S01-report §10 与 MEMORY 同步结果。
+
+### Prompt 26 — 2026-10-22（时分未采样）— 执行 S02 错误处理与重试
+
+#### 原始 Prompt
+
+```text
+【角色】
+你是 S02「模型接入：错误处理与重试」阶段的执行 Agent，熟悉 OpenAI Chat Completions 协议的 HTTP 错误语义、httpx 异常、指数退避与抖动、pytest + respx 契约测试、OpenSpec、SuperPower SKILL，并严格遵循项目 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+项目：Agent-mini。
+S01 已完成并通过 postreview 修复，评估报告、遗留 Issue 与 S01 状态见 `Docs/S01-report.md`、`Docs/ISSUE.md`、`Docs/PLAN.md`。
+S02 阶段定义、对应需求、目标、输入、输出、验收标准、测试项、前置阶段均在 `Docs/PLAN.md` 的 S02 条目中。
+错误分类、异常体系、重试策略的契约见 `Docs/DESIGN.md` §3.1、§3.7、§7 与 §8。
+S02 相关测试用例定义见 `Docs/TESTING.md` 中 TC-L2-004、TC-L2-005、TC-L2-006。
+S02 对应功能需求见 `Docs/REQUIREMENT.md` 中 FR-LLM-03。
+S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extras、`test_packaging_config.py` 的 marker 归属核对、临时 `LLMError` 根是否在 S02 迁移到 `AgentError`、运行依赖版本策略的 Issue 登记。
+用户在上一轮已决策：采纳 `*Error` 命名、TDD 红证据以本地验证加 `Docs/PROMPT.md` 记录为准。
+【任务】
+执行 S02 阶段：先按上述文档自行提取阶段范围、测试用例定义、验收标准与实现边界，完成 S01 评估报告遗留的开工前检查项，然后用 TDD 实现超时、限流、鉴权、服务端错误的分类与退避重试，完成验收、文档收口与 Git 交付。
+【约束】
+一、开工前检查（必须在 S02 代码提交之前处理，可合并为一个前置 commit）
+1. 在全新 venv 中执行 `pip install -e ".[dev]"` 后复跑 `pytest --cov=agent_mini --cov-fail-under=80`、`ruff check .`、`mypy agent_mini`，确认 dev extras 完整；未通过则修复并登记 ISSUE。
+2. 核对 `test_packaging_config.py` 中新增的 dev pin 与 pytest-cov 断言是否被正确标记为 `unit`；若被误标为 `contract` 或反之，修正 marker 归属并在 `Docs/PROMPT.md` 记录。
+3. 依据 `Docs/DESIGN.md` §3.7、`Docs/PLAN.md` S20，自主判断临时 `LLMError` 根是否在 S02 直接迁移到 `AgentError`：
+   - 若判断 S02 迁移代价可控且符合设计，实施迁移并在 `Docs/ISSUE.md` 记录决策与影响范围；
+   - 若判断必须延后，在 `Docs/PLAN.md` 显式列出 S02–S19 使用临时根、S20 迁移的说明，并在 `Docs/ISSUE.md` 新增 Open Issue 记录债务、迁移工作量与引用点；
+   - 不得既不迁移也不登记。
+4. 在 `Docs/ISSUE.md` 登记 S01 评估报告 P2-05 中未完成的部分（运行依赖 httpx / pydantic / pytest 仍仅下界），标注目标阶段与决策时机；若认为无必要，说明理由并关闭。
+5. 上述任一项无法完成时，登记 ISSUE 后继续 S02，不得中断。
+二、S02 范围与边界
+6. 开工前必须完整阅读：`AGENT.md`、OpenSpec 全局规范、`Docs/PLAN.md` S01 与 S02、`Docs/DESIGN.md` §1.1、§1.3、§3.1、§3.7、§4、§6、§7、§8、`Docs/TESTING.md` 中 TC-L2-004/005/006 完整定义与准出标准、`Docs/REQUIREMENT.md` 中 FR-LLM-03、`Docs/ISSUE.md`、`MEMORY.md`、`Docs/PROMPT.md`、`Docs/S01-report.md`，以及 `agent_mini/llm/` 现状。
+7. 阶段范围、验收标准、测试项一律以 `Docs/PLAN.md`、`Docs/DESIGN.md`、`Docs/TESTING.md` 为准；本 Prompt 不重复其内容。若三份文档之间对 S02 存在不一致或缺口，停止并在 `Docs/ISSUE.md` 登记，不得自行补写需求或补写测试用例定义。
+8. 严格按 `Docs/PLAN.md` S02 声明的「前置阶段」与「输出」范围实施；凡未列在 S02 输出的功能一律视为越界，不得实现，也不得为跑通测试在其他子包加入实现。
+9. 明确不做（越界即视为违规）：
+   - 不实现 S03 的 `Agent`、`AgentResult`；
+   - 不实现 S04 的 ReAct 循环、工具执行、trace；
+   - 不实现 S06 的工具注册表；
+   - 不实现 S13/S14 的 Memory 读写；
+   - 不实现 S18 的 HTTP 入口；
+   - 不实现 S21 的配置加载与 DI 容器；
+   - 不调用真实 DeepSeek API，不读取 `DEEPSEEK_API_KEY`；真实 API 验收留 S18。
+10. 依赖管理遵循「先声明 → 再安装 → 再 import → 再测试」；如 S02 无需新增依赖，明确说明并复核现有 `httpx`、`respx` 是否足以支撑重试与超时测试；如需新增，核对 `Docs/DESIGN.md` §1.3 与 §6.1 并在 `Docs/PROMPT.md` 记录包名、版本约束、用途、禁止清单核对结论。严禁引入 `langgraph`、`openhands`、`openclaw`、`PI` 及 `Docs/DESIGN.md` §6.1 禁止清单内的框架。
+三、TDD 与实现规范
+11. 必须使用 OpenSpec 先编写 S02 的 change（建议命名 `s02-llm-error-retry`），含 proposal、spec、design、tasks，覆盖上述第 8 条每个交付点；`openspec validate s02-llm-error-retry --strict` 通过后再开始 TDD。
+12. 必须使用 SuperPower SKILL；不可用时登记 ISSUE，不得伪造。
+13. 必须 TDD：对 `Docs/TESTING.md` 中 S02 每条 TC 先写失败测试、确认红因与该 TC 目标相关，再实现到绿、再重构；红因与绿因按用户已决策的 TDD 证据规则记录到 `Docs/PROMPT.md`，不得只给总数，不得以收集错误冒充 TC 级红。
+14. `agent_mini/llm/errors.py` 在 S02 为「扩展」而非重写：保留 S01 已有异常类型与 `*Error` 命名；新增异常类型需与 `Docs/DESIGN.md` §3.7 一致，并在 `Docs/DESIGN.md`、`openspec/specs/llm-client/spec.md`、`openspec/specs/engineering-standards/spec.md` 同步。
+15. 代码质量遵循 OpenSpec 全局规范与 `AGENT.md`：单行单语句、行宽、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无注释掉的代码、无魔法数字；重试次数、退避底数、抖动上界、超时秒数等一律提取为具名常量。
+16. 不得修改 `agent_mini/` 下非 `llm/` 子包的占位内容；不得为跑通测试在其他子包加入实现。
+四、验收与收口
+17. 验收命令按 `AGENT.md` 与 `Docs/TESTING.md` 执行，至少包含：可编辑安装、`pytest -m unit`、`pytest -m contract`、全量 `pytest`（含 S00/S01 用例无回归）、覆盖率（含新增代码）、`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict`、wheel 构建 + wheel 内容完整性校验、仓库外导入验证；每项需复跑并留证，不得编造输出。
+18. 逐条给出 S02 验收标准的验证证据：
+    - 错误分类：列出各 HTTP 状态与 httpx 异常映射到的异常类型、对应 TC 编号与断言摘要；
+    - 重试：给出重试次数、退避曲线、抖动上界的实现位置与断言证据；
+    - 不重试边界：给出 4xx 不重试的断言证据；
+    - 超时：给出 `LLMTimeout` 在不挂起情况下的断言证据（含超时上限与请求次数）；
+    - 明确标注留待后续阶段的部分（如真实 API 验收在 S18）。
+19. 文档收口必须完成：
+    - `Docs/PLAN.md`：S02 状态置为「进行中 → 已完成」，填写完成日期，注明与 S01 评估遗留项的衔接；
+    - `Docs/DESIGN.md`：若 S02 澄清了错误边界、重试策略或异常体系，同步修订并在变更记录中登记；若涉及异常根迁移，更新 §3.7；
+    - `Docs/TESTING.md`：同步 S02 marker、覆盖率、准出标准相关条款；
+    - `Docs/ISSUE.md`：登记 S02 发现的问题（若无写「无」），并按第 1–4 条处理开工前检查项；
+    - `MEMORY.md`、`Docs/PROMPT.md`、`README.md`：按项目规范同步；
+    - OpenSpec：归档 S02 change，主规格按需更新；不改已归档 change。
+20. 按 `AGENT.md` Commit 规范提交并主动推送；提交拆分建议：开工前检查、OpenSpec 规划、代码+测试、文档收口、归档；若某拆分因技术原因不可行，在 commit body 或 `Docs/PROMPT.md` 说明。冲突或推送失败时停止并报告，不得强推。
+【输出格式】
+仅返回 Markdown 执行结果，包含：
+1. 阶段目标重申：一句话说明 S02 目标与边界，须与 `Docs/PLAN.md` 一致。
+2. 开工前检查结果：S01 评估遗留四项的完成情况、决策与对应 commit；特别是 `LLMError` 根迁移的判定与记录位置。
+3. 测试用例映射表：`Docs/TESTING.md` 中 S02 每条 TC，逐条列出「定义摘要 / 本阶段覆盖部分 / 留待后续部分 / 对应用例文件」。
+4. 变更文件：区分「运行依赖」「dev 依赖」「实现」「测试」「文档」「OpenSpec」。
+5. OpenSpec 与 SKILL：change 名称、spec/tasks 路径、validate 结果、归档结果；SuperPower SKILL 使用情况。
+6. TDD 记录：每条 TC 先红后绿的证据摘要（红因、绿因），按已决策规则记录，不得只给总数。
+7. 验收结果：第 17 条每项命令、结果、是否通过；覆盖率数值与新增代码覆盖率。
+8. 验收标准逐条证据：第 18 条五个子项分别给出证据。
+9. 依赖审计：新增依赖清单（包名、版本约束、用途、禁止清单核对、声明位置）；若无新增依赖，说明理由。
+10. 可读性与注释检查：核对方式与结果。
+11. 文档收口：各文档是否已更新及更新要点。
+12. Git 状态：各 commit hash、分支名、推送结果、工作区是否干净。
+13. 副作用与待清理：本轮产生的 `*.egg-info`、缓存目录、临时文件清单及建议清理方式。
+14. 异常与待确认：无异常写「无」；有异常给出错误摘要、影响范围、建议下一步。
+不要输出任何代码正文或文档正文。
+```
+
+#### 执行摘要
+
+- 开工前检查：全新 venv 安装 dev extras 后 50 passed、覆盖率 92.52%、ruff/mypy 通过；`test_packaging_config.py` 确认为 `unit` marker；干净环境无缺失依赖。
+- 异常根决策：S02–S19 继续使用临时 `LLMError` 根，S20 迁移 `AgentError`；ISSUE-024 记录影响范围、引用点与约 0.5–1 人日工作量。
+- 运行依赖债务：ISSUE-025 记录 `httpx`/`pydantic`/`pytest` 仅下界，目标 S18/S21 处理。
+- OpenSpec：新增 `s02-llm-error-retry` change（修改 `llm-client`），编码前 `openspec validate --strict` 通过。
+- TDD 红：TC-L2-004 三个测试、TC-L2-005 一个测试、TC-L2-006 四个测试共 8 个失败；红因是 429/5xx 直接抛 `HTTPStatusError`、超时未被分类、4xx/连接错误未映射。
+- TDD 绿：S02 相关 8 passed；全量 58 passed；覆盖率 93.68%。
+- 实现：`errors.py` 扩展 `LLMAuthError`、`LLMBadRequestError`、`LLMTimeoutError`、`LLMRateLimitError`、`LLMServerError`、`LLMConnectionError`；`client.py` 使用 `RetryPolicy`、`DEFAULT_MAX_ATTEMPTS=3`、`0.5s` 底数、`0.1s` 抖动上界。
+- 验收：pytest/ruff/format/mypy/openspec 通过；wheel 与仓库外导入见最终报告。
+- 提交：`dce5d24` 开工前检查；`6ebbe24` OpenSpec 规划；`efa14a4` 代码+测试；文档/归档提交见最终报告。

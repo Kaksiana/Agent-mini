@@ -1,5 +1,11 @@
 # MEMORY <!-- omit in toc -->
 
+## 2026-10-22 — S02 错误处理与重试
+
+- S02 完成：`llm/errors.py` 扩展鉴权/请求/超时/限流/服务端/连接错误；`llm/client.py` 支持 429/5xx 最多 3 次总请求、`0.5 * 2^(attempt-1)` 秒退避 + 0..0.1s 抖动；4xx、超时、协议错误不重试。
+- 验收：L2 测试 8 个、全量 58 passed、覆盖率约 94%；ruff/format/mypy/openspec 通过。
+- 边界：临时 `LLMError` 根继续使用，S20 迁移 `AgentError`（ISSUE-024）；真实 API 留 S18。
+
 ## 2026-10-22 — S01 模型接入
 
 - S01 完成：`agent_mini/llm/{models,errors,client}.py`，支持 OpenAI Chat Completions 单轮请求、响应归一、工具参数严格解析与 thinking/reasoning 回传。

@@ -5,7 +5,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.9（S01 评估修复：协议硬化与依赖边界） |
+| 版本 | v0.10（S02 错误分类与退避重试） |
 | 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
@@ -153,6 +153,7 @@ agent_mini/
 - **错误解析边界**：无 choices、空 choices、message 类型不合法、tool_calls 结构不合法或调用 ID 重复，抛 `LLMProtocolError`（`LLM_PROTOCOL_ERROR/502`），本响应的任何工具均不执行。原始响应仅用于内存解析，默认不落盘、不记日志；诊断只输出脱敏的错误类型与 trace_id。
 - **S01 实现边界**：客户端只负责请求、归一与判别；非法工具参数以 `ToolCall.error_code="invalid_arguments"` 保留 call_id，Runtime/ToolResult 映射在 S04/S06；HTTP 状态分类与重试在 S02。S01 临时 `ModelConfig`（base_url/model/timeout）位于 `llm/models.py`，S21 配置层迁移或复用。
 - **协议硬化（S01 评估修复）**：响应顶层必须是 JSON object，否则统一抛 `LLMProtocolError`；`model/thinking` 等受控字段不得由 `**params` 覆盖；`reasoning_content` 仅允许 assistant 消息携带。异常类统一使用 `*Error` 后缀。
+- **错误与重试（S02）**：`400 → LLMBadRequestError`、`401/403 → LLMAuthError`、`429 → LLMRateLimitError`、`5xx → LLMServerError`、超时 `→ LLMTimeoutError`、其他传输异常 `→ LLMConnectionError`。仅 429/5xx 重试，最多 3 次总请求；退避 `0.5 * 2^(attempt-1)` 秒并叠加 `[0, 0.1]` 秒抖动；4xx、超时、协议错误不重试。
 - **错误处理**：`401/403` → `LLMAuthError`；`429` 与 `5xx` → 指数退避重试（默认 3 次，底数 0.5s，带抖动）；`400` → `LLMBadRequestError`（不重试）；超时 → `LLMTimeoutError`（不重试，交由 Runtime 收敛）。
 - **无状态**：不持有会话；调用方传入完整 `messages`。
 
@@ -502,3 +503,4 @@ AgentResult →
 | v0.7 | 2026-10-22 | 环境变量统一为 `DEEPSEEK_API_KEY`，移除 `LLM_API_KEY` 别名 | §3.8；联动 `Docs/ISSUE.md` ISSUE-013、`openspec/specs/engineering-standards/spec.md` C-02 |
 | v0.8 | 2026-10-22 | 澄清 S01 客户端/错误/临时 ModelConfig/非法工具参数边界 | §3.1；联动 ISSUE-020 |
 | v0.9 | 2026-10-22 | 协议硬化：非 object 顶层、保留字段、reasoning 角色；异常临时根说明 | §3.1、§3.7；联动 S01-report、ISSUE-022 |
+| v0.10 | 2026-10-22 | S02 错误分类与退避重试：状态码/httpx 异常映射、3 次尝试、抖动与不重试边界 | §3.1；联动 TC-L2-004/005/006 |
