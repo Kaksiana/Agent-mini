@@ -347,6 +347,17 @@
 - 状态：Resolved
 - 关联提交：`dda1a10`（Phase 1）、`111439b`（Phase 2）、`13fa639`（文档）、`31f2221`（归档）
 
+### ISSUE-029 — `LLMProtocolError` 的 S03 “不支持 tool_calls”语义清理
+
+- 日期：2026-10-22
+- 现象：S03 `Agent` 在收到 tool_calls 时抛 `LLMProtocolError("S03 不支持工具调用")`，与“响应结构非法”共用同一类型；S04 引入工具处理后该语义过期。
+- 根因：S03 没有循环和工具执行器，只能用协议异常拒绝工具调用，未区分“请求契约违反”和“响应结构非法”。
+- 解决方案：S04 增加 `ToolExecutor` 与循环；有 executor 时执行 tool_calls；无 executor 时收到 tool_calls 才视为请求契约违反；`LLMProtocolError` 继续只表示协议/结构/请求契约非法。DESIGN §3.2、§3.3 与 runtime 规格同步。
+- 验证方式：S04 契约测试覆盖有 executor 的工具循环、无 executor 的 tool_calls 拒绝、结构非法响应；`openspec validate --all --strict`。
+- 验证结果：待 S04 实现完成后回填。
+- 状态：Open
+- 关联提交：S04 规划提交（见最终报告）
+
 ### S03 阶段问题记录（2026-10-22）
 
 - Phase 1 完成：DESIGN §3.2 字段/签名、TESTING TC-L1-015A/B/C、PLAN 测试项、mypy `agent_mini tests` 准出条款；ISSUE-028 Resolved。

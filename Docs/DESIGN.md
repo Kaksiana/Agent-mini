@@ -176,12 +176,15 @@ S03 只实现无工具的单轮闭环；构造器注入 `LLMClient`，不读取�
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `reply` | `str` | 仅最终回复文本，不混入 reasoning/trace |
-| `steps` | `int` | S03 固定为 1 |
-| `usage` | `Usage` | 直接使用 `LLMResponse.usage`，不二次归一化 |
+| `steps` | `int` | LLM 调用步数；S03 直答为 1 |
+| `usage` | `Usage` | 本轮所有 LLM 调用 usage 之和，不二次归一化 |
+| `trace` | `tuple[ThoughtStep, ...]` | 每次 LLM 响应一条；S04 新增 |
+| `tool_calls` | `int` | 本轮工具调用总次数；S04 新增 |
+| `tool_traces` | `tuple[ToolCallTrace, ...]` | 展平的公开工具记录；S04 新增 |
 
-`AgentResult` MUST 为冻结模型，禁止下游静默修改。`trace`、`truncated`、`tool_calls`、`tool_traces`、`session_id` 延后到 S04/S05/S13 引入。
+`AgentResult` MUST 为冻结模型，禁止下游静默修改。`truncated` 延后 S05，`session_id` 延后 S13；`reply` 语义保持不变（仅最终文本）。
 
-**异常契约**：`LLMError` 及其子类必须原样向调用方传播，不吞、不包装；S03 不传 tools，若上游意外返回 tool_calls，抛 `LLMProtocolError` 并拒绝静默丢弃；content 为 `None`、空字符串或纯空白且无 tool_calls 时抛 `LLMEmptyResponseError`。
+**异常契约**：`LLMError` 及其子类必须原样向调用方传播，不吞、不包装。S04 有 `ToolExecutor` 时，tool_calls 进入工具循环；无 executor 且上游返回 tool_calls 视为请求契约违反，仍抛 `LLMProtocolError`；响应结构非法同样只由 `LLMProtocolError` 表示。content 为 `None`、空字符串或纯空白且无 tool_calls 时抛 `LLMEmptyResponseError`。
 
 #### 3.2.1 调用链
 
@@ -289,6 +292,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 
 ### 3.3 Tool 能力层
 
+- **S04 最小 Protocol**：`runtime/loop.py` 定义 `ToolExecutor`（`schemas() -> list[ToolSchema]`、`async execute(ToolCall) -> ToolOutcome`）与 `ToolOutcome(ok, content, error_code)`。S04 只接受测试替身；S06 的注册表实现该协议，不把注册实现放入 runtime。
 - **注册机制**：`@tool(name, description, params_model, enabled_key)` 装饰器写入全局 `ToolRegistry`；启动时由配置决定启停；`ToolSpec.to_json_schema()` 由 pydantic 模型生成，保证模型侧与服务侧 Schema 同源（FR-TOOL-01）。
 - **执行契约**：`handler(**validated_args) -> ToolResult`；**所有异常必须被捕获并转为** `ToolResult(ok=False, error_code=..., content=可读说明)`，不得向上抛出（FR-RT-06）。
 - **可信会话上下文**：注册表以 `ToolContext(session_id, trace_id)` 向 todo 等状态工具注入会话信息；session_id 不放入模型可写参数 Schema，若模型伪造该参数则按额外字段拒绝。模型不能自行指定另一个会话的待办分区。
@@ -540,3 +544,4 @@ AgentResult →
 | v0.11 | 2026-10-22 | 重试策略硬上限 1–3、RetryEvent、cap 后非递减、3xx 归协议错误；临时异常根 S20 到期 | §3.1、§3.7；联动 S02-report、ISSUE-026 |
 | v0.12 | 2026-10-22 | S03 单轮直答：`AgentResult.reply/steps/usage`、`Agent.run(user_input)`、构造器注入；session_id 延后 S13 | §3.2；联动 ISSUE-028、TC-L1-015A/B/C |
 | v0.13 | 2026-10-22 | S03 复验：拒绝空白 reply、AgentResult 不变量、§5.1 final→reply、调用链分层 | §3.2、§5.1；联动 S03-report P1/P2 |
+| v0.14 | 2026-10-22 | S04 ReAct 循环：AgentResult 增量字段、ToolExecutor Protocol、LLMProtocolError 语义收敛、S05 安全阀边界 | §3.2、§3.3、§3.7；联动 ISSUE-029、TC-L1-015/024/028/030、TC-L2-009/010、TC-L3-006 |
