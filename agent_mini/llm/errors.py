@@ -35,3 +35,41 @@ class LLMOutputRejectedError(LLMError):
     """上游输出被拒绝。"""
 
     code = "LLM_OUTPUT_REJECTED"
+
+
+class LLMAuthError(LLMError):
+    """上游鉴权失败。"""
+
+    code = "LLM_AUTH"
+
+
+class LLMBadRequestError(LLMError):
+    """上游请求参数不合法。"""
+
+    code = "LLM_BAD_REQUEST"
+
+
+class LLMTimeoutError(LLMError):
+    """上游调用超时。"""
+
+    code = "LLM_TIMEOUT"
+    http_status = 408
+
+
+class LLMRateLimitError(LLMError):
+    """上游限流且重试耗尽。"""
+
+    code = "LLM_RATE_LIMITED"
+    http_status = 429
+
+
+class LLMServerError(LLMError):
+    """上游服务端错误且重试耗尽。"""
+
+    code = "LLM_SERVER_ERROR"
+
+
+class LLMConnectionError(LLMError):
+    """上游连接失败。"""
+
+    code = "LLM_CONNECTION_ERROR"

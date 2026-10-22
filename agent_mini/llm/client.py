@@ -2,15 +2,47 @@
 
 from __future__ import annotations
 
+import asyncio
+import random
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Protocol
+from typing import Any, NoReturn, Protocol
 
 import httpx
 
-from agent_mini.llm.errors import LLMProtocolError
+from agent_mini.llm.errors import (
+    LLMAuthError,
+    LLMBadRequestError,
+    LLMConnectionError,
+    LLMError,
+    LLMProtocolError,
+    LLMRateLimitError,
+    LLMServerError,
+    LLMTimeoutError,
+)
 from agent_mini.llm.models import LLMResponse, Message, ModelConfig, ToolSchema
 
 _RESERVED_PARAMS = frozenset({"model", "thinking"})
+_RETRYABLE_STATUS_CODES = frozenset({httpx.codes.TOO_MANY_REQUESTS})
+_AUTH_STATUS_CODES = frozenset({httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN})
+_SERVER_ERROR_MIN = httpx.codes.INTERNAL_SERVER_ERROR
+_SERVER_ERROR_MAX_EXCLUSIVE = 600
+DEFAULT_MAX_ATTEMPTS = 3
+DEFAULT_BACKOFF_BASE_SECONDS = 0.5
+DEFAULT_BACKOFF_FACTOR = 2
+DEFAULT_JITTER_MAX_SECONDS = 0.1
+DEFAULT_BACKOFF_MAX_SECONDS = 8.0
+
+Sleep = Callable[[float], Awaitable[None]]
+
+
+@dataclass(frozen=True)
+class RetryPolicy:
+    """重试次数与等待函数。"""
+
+    max_attempts: int = DEFAULT_MAX_ATTEMPTS
+    sleep: Sleep | None = None
 
 
 class LLMClient(Protocol):
@@ -35,10 +67,16 @@ class HttpLLMClient:
         api_key: str,
         thinking: bool = False,
         transport: httpx.AsyncBaseTransport | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """保存配置并创建异步 HTTP 客户端。"""
+        policy = retry if retry is not None else RetryPolicy()
+        if policy.max_attempts < 1:
+            raise ValueError("max_attempts 必须至少为 1")
         self._config = config
         self._thinking = thinking
+        self._max_attempts = policy.max_attempts
+        self._sleep: Sleep = policy.sleep if policy.sleep is not None else _default_sleep
         self._client = httpx.AsyncClient(
             base_url=config.base_url.rstrip("/") + "/",
             timeout=config.timeout,
@@ -53,29 +91,23 @@ class HttpLLMClient:
         **params: object,
     ) -> LLMResponse:
         """发送单轮请求；model/thinking 不可被额外参数覆盖。"""
-        reserved = _RESERVED_PARAMS.intersection(params)
-        if reserved:
-            names = ", ".join(sorted(reserved))
-            raise ValueError(f"不允许覆盖保留参数: {names}")
-        if tools is not None and (
-            not isinstance(tools, list) or not all(isinstance(tool, ToolSchema) for tool in tools)
-        ):
-            raise ValueError("tools 必须是 ToolSchema 列表")
-        payload: dict[str, Any] = {
-            "model": self._config.model,
-            "messages": [message.to_provider(self._thinking) for message in messages],
-            "thinking": {"type": "enabled" if self._thinking else "disabled"},
-        }
-        if tools:
-            payload["tools"] = [tool.to_provider() for tool in tools]
-        payload.update(params)
-        response = await self._client.post("chat/completions", json=payload)
-        response.raise_for_status()
-        try:
-            body = response.json()
-        except ValueError as exc:
-            raise LLMProtocolError("响应不是合法 JSON") from exc
-        return LLMResponse.from_openai(body)
+        payload = self._build_payload(messages, tools, params)
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                response = await self._client.post("chat/completions", json=payload)
+            except httpx.TimeoutException as exc:
+                raise LLMTimeoutError(f"模型调用超时（{self._config.timeout} 秒）") from exc
+            except httpx.RequestError as exc:
+                raise LLMConnectionError("模型连接失败") from exc
+            if response.is_success:
+                return self._parse_response(response)
+            if self._is_retryable(response.status_code):
+                if attempt >= self._max_attempts:
+                    self._raise_retry_exhausted(response.status_code)
+                await self._sleep(self._backoff_delay(attempt))
+                continue
+            raise self._client_error(response.status_code)
+        raise LLMError("模型请求未完成")
 
     async def aclose(self) -> None:
         """关闭底层 HTTP 连接。"""
@@ -93,3 +125,63 @@ class HttpLLMClient:
     ) -> None:
         """退出异步上下文并释放连接。"""
         await self.aclose()
+
+    def _build_payload(
+        self,
+        messages: list[Message],
+        tools: list[ToolSchema] | None,
+        params: dict[str, object],
+    ) -> dict[str, Any]:
+        reserved = _RESERVED_PARAMS.intersection(params)
+        if reserved:
+            names = ", ".join(sorted(reserved))
+            raise ValueError(f"不允许覆盖保留参数: {names}")
+        if tools is not None and (
+            not isinstance(tools, list) or not all(isinstance(tool, ToolSchema) for tool in tools)
+        ):
+            raise ValueError("tools 必须是 ToolSchema 列表")
+        payload: dict[str, Any] = {
+            "model": self._config.model,
+            "messages": [message.to_provider(self._thinking) for message in messages],
+            "thinking": {"type": "enabled" if self._thinking else "disabled"},
+        }
+        if tools:
+            payload["tools"] = [tool.to_provider() for tool in tools]
+        payload.update(params)
+        return payload
+
+    def _parse_response(self, response: httpx.Response) -> LLMResponse:
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise LLMProtocolError("响应不是合法 JSON") from exc
+        return LLMResponse.from_openai(body)
+
+    @staticmethod
+    def _is_retryable(status_code: int) -> bool:
+        is_server_error = _SERVER_ERROR_MIN <= status_code < _SERVER_ERROR_MAX_EXCLUSIVE
+        return status_code in _RETRYABLE_STATUS_CODES or is_server_error
+
+    @staticmethod
+    def _backoff_delay(attempt: int) -> float:
+        exponent = attempt - 1
+        base: float = DEFAULT_BACKOFF_BASE_SECONDS * (DEFAULT_BACKOFF_FACTOR**exponent)
+        bounded: float = min(base, DEFAULT_BACKOFF_MAX_SECONDS)
+        jitter: float = float(random.uniform(0.0, DEFAULT_JITTER_MAX_SECONDS))
+        return float(bounded + jitter)
+
+    @staticmethod
+    def _raise_retry_exhausted(status_code: int) -> NoReturn:
+        if status_code == httpx.codes.TOO_MANY_REQUESTS:
+            raise LLMRateLimitError("模型限流，重试耗尽")
+        raise LLMServerError("模型服务端错误，重试耗尽")
+
+    @staticmethod
+    def _client_error(status_code: int) -> LLMError:
+        if status_code in _AUTH_STATUS_CODES:
+            return LLMAuthError("模型鉴权失败")
+        return LLMBadRequestError(f"模型请求失败（HTTP {status_code}）")
+
+
+async def _default_sleep(delay: float) -> None:
+    await asyncio.sleep(delay)
