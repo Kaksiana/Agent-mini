@@ -7,6 +7,7 @@ import pytest
 import respx
 
 from agent_mini.llm.client import HttpLLMClient
+from agent_mini.llm.errors import LLMProtocolError
 from agent_mini.llm.models import Message, ModelConfig, ToolSchema
 
 pytestmark = pytest.mark.contract
@@ -60,3 +61,33 @@ async def test_chat_sends_openai_request_and_auth_header() -> None:
     assert body["tools"][0]["function"]["parameters"] == tool.parameters
     assert body["thinking"] == {"type": "disabled"}
     assert response.content == "ok"
+
+
+@pytest.mark.parametrize("reserved", ["model", "messages", "thinking", "tools"])
+async def test_reserved_params_are_rejected(reserved: str) -> None:
+    with respx.mock:
+        route = respx.post(f"{BASE_URL}/chat/completions").mock(
+            return_value=httpx.Response(200, json=_text_payload("ok"))
+        )
+        async with HttpLLMClient(
+            ModelConfig(base_url=BASE_URL, model="deepseek-chat", timeout=5.0),
+            api_key=API_KEY,
+        ) as client:
+            with pytest.raises((ValueError, TypeError)):
+                await client.chat(
+                    [Message(role="user", content="hi")],
+                    **{reserved: "override"},
+                )
+
+    assert not route.called
+
+
+async def test_non_object_http_response_raises_protocol_error() -> None:
+    with respx.mock:
+        respx.post(f"{BASE_URL}/chat/completions").mock(return_value=httpx.Response(200, json=[]))
+        async with HttpLLMClient(
+            ModelConfig(base_url=BASE_URL, model="deepseek-chat", timeout=5.0),
+            api_key=API_KEY,
+        ) as client:
+            with pytest.raises(LLMProtocolError):
+                await client.chat([Message(role="user", content="hi")])

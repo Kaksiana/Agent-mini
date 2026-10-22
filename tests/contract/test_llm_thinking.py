@@ -5,6 +5,7 @@ import json
 import httpx
 import pytest
 import respx
+from pydantic import ValidationError
 
 from agent_mini.llm.client import HttpLLMClient
 from agent_mini.llm.models import LLMResponse, Message, ModelConfig
@@ -55,6 +56,18 @@ def test_reasoning_is_parsed_independently() -> None:
 
     assert response.content == "答案"
     assert response.reasoning_content == "私有推理"
+
+
+@pytest.mark.parametrize("role", ["user", "system", "tool"])
+def test_reasoning_is_rejected_for_non_assistant(role: str) -> None:
+    with pytest.raises(ValidationError):
+        Message(role=role, content="内容", reasoning_content="私有推理")
+
+
+def test_reasoning_is_allowed_for_assistant() -> None:
+    message = Message(role="assistant", content="答案", reasoning_content="私有推理")
+
+    assert message.reasoning_content == "私有推理"
 
 
 async def test_default_mode_omits_reasoning_history() -> None:

@@ -104,6 +104,12 @@ def test_invalid_response_raises_protocol_error(payload: dict[str, object]) -> N
         LLMResponse.from_openai(payload)
 
 
+@pytest.mark.parametrize("payload", [[], "text", 42, None])
+def test_non_object_top_level_raises_protocol_error(payload: object) -> None:
+    with pytest.raises(LLMProtocolError):
+        LLMResponse.from_openai(payload)
+
+
 @pytest.mark.parametrize(
     "payload",
     [

@@ -10,6 +10,8 @@ import httpx
 from agent_mini.llm.errors import LLMProtocolError
 from agent_mini.llm.models import LLMResponse, Message, ModelConfig, ToolSchema
 
+_RESERVED_PARAMS = frozenset({"model", "thinking"})
+
 
 class LLMClient(Protocol):
     """模型客户端协议。"""
@@ -50,7 +52,15 @@ class HttpLLMClient:
         tools: list[ToolSchema] | None = None,
         **params: object,
     ) -> LLMResponse:
-        """发送单轮 Chat Completions 请求并归一化响应。"""
+        """发送单轮请求；model/thinking 不可被额外参数覆盖。"""
+        reserved = _RESERVED_PARAMS.intersection(params)
+        if reserved:
+            names = ", ".join(sorted(reserved))
+            raise ValueError(f"不允许覆盖保留参数: {names}")
+        if tools is not None and (
+            not isinstance(tools, list) or not all(isinstance(tool, ToolSchema) for tool in tools)
+        ):
+            raise ValueError("tools 必须是 ToolSchema 列表")
         payload: dict[str, Any] = {
             "model": self._config.model,
             "messages": [message.to_provider(self._thinking) for message in messages],

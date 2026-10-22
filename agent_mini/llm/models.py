@@ -6,7 +6,7 @@ import json
 from collections.abc import Mapping
 from typing import Any, Literal, NoReturn, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from agent_mini.llm.errors import (
     LLMEmptyResponseError,
@@ -17,6 +17,7 @@ from agent_mini.llm.errors import (
 
 _ALLOWED_FINISH_REASONS = {"stop", "tool_calls"}
 _INVALID_ARGUMENTS = "invalid_arguments"
+DEFAULT_TIMEOUT_SECONDS = 60.0
 
 
 class ModelConfig(BaseModel):
@@ -26,7 +27,7 @@ class ModelConfig(BaseModel):
 
     base_url: str = Field(min_length=1)
     model: str = Field(min_length=1)
-    timeout: float = Field(default=60.0, gt=0)
+    timeout: float = Field(default=DEFAULT_TIMEOUT_SECONDS, gt=0)
 
 
 class ToolCall(BaseModel):
@@ -97,8 +98,15 @@ class Message(BaseModel):
     tool_call_id: str | None = None
     reasoning_content: str | None = None
 
+    @model_validator(mode="after")
+    def _validate_reasoning_role(self) -> Message:
+        """reasoning 仅作为 assistant 的私有协议字段。"""
+        if self.reasoning_content is not None and self.role != "assistant":
+            raise ValueError("reasoning_content 仅允许 assistant")
+        return self
+
     def to_provider(self, include_reasoning: bool) -> dict[str, Any]:
-        """转换为供应商请求消息。"""
+        """转换为供应商请求消息；reasoning 仅随 assistant 回传。"""
         payload: dict[str, Any] = {"role": self.role, "content": self.content}
         if self.name is not None:
             payload["name"] = self.name
@@ -121,8 +129,10 @@ class LLMResponse(BaseModel):
     finish_reason: str
 
     @classmethod
-    def from_openai(cls, payload: Mapping[str, Any]) -> LLMResponse:
-        """校验并归一化上游响应。"""
+    def from_openai(cls, payload: object) -> LLMResponse:
+        """校验并归一化上游响应；顶层必须是 JSON object。"""
+        if not isinstance(payload, Mapping):
+            raise LLMProtocolError("响应顶层必须是对象")
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
             raise LLMProtocolError("响应缺少 choices")
