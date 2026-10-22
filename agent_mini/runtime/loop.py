@@ -1,6 +1,8 @@
 """S04 ReAct 工具循环。"""
 
 import re
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -23,6 +25,16 @@ _SECRET_KEY_VALUE = re.compile(
 )
 _SECRET_BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 _SECRET_SK = re.compile(r"\bsk-[A-Za-z0-9_-]{4,}\b")
+
+
+@dataclass(frozen=True)
+class LoopPolicy:
+    """S05 安全阀参数；默认不限制。"""
+
+    max_steps: int | None = None
+    deadline_seconds: float | None = None
+    repeat_threshold: int | None = None
+    clock: Callable[[], float] = time.monotonic
 
 
 @dataclass(frozen=True)
@@ -50,8 +62,9 @@ async def run_react_loop(
     llm_client: LLMClient,
     messages: list[Message],
     tool_executor: ToolExecutor | None,
+    policy: LoopPolicy | None = None,
 ) -> AgentResult:
-    """运行至最终文本；S05 将在外层接入步数/截止/重复检测。"""
+    """运行至最终文本；S05 将通过 policy 接入步数/截止/重复检测。"""
     tools = tool_executor.schemas() if tool_executor is not None else None
     usage = Usage()
     trace: list[ThoughtStep] = []

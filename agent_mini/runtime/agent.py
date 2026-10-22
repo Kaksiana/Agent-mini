@@ -2,7 +2,7 @@
 
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.models import Message
-from agent_mini.runtime.loop import ToolExecutor, run_react_loop
+from agent_mini.runtime.loop import LoopPolicy, ToolExecutor, run_react_loop
 from agent_mini.runtime.result import AgentResult
 
 
@@ -13,10 +13,12 @@ class Agent:
         self,
         llm_client: LLMClient,
         tool_executor: ToolExecutor | None = None,
+        policy: LoopPolicy | None = None,
     ) -> None:
-        """保存注入的模型客户端与工具执行器。"""
+        """保存注入的模型客户端、工具执行器与循环策略。"""
         self._llm_client = llm_client
         self._tool_executor = tool_executor
+        self._policy = policy
 
     async def run(self, user_input: str) -> AgentResult:
         """发送单条 user 消息并运行至最终文本。"""
@@ -24,4 +26,5 @@ class Agent:
             self._llm_client,
             [Message(role="user", content=user_input)],
             self._tool_executor,
+            self._policy,
         )
