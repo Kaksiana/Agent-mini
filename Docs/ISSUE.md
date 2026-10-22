@@ -272,3 +272,25 @@
 - 验证结果：用户配置 `.env` 后，从该文件载入当前子进程环境并成功发送一次最小文本消息；模型 `deepseek-chat` 返回 `OK`，`finish_reason=stop`，usage 为 prompt 8 / completion 1 / total 9，耗时约 1519ms，无 reasoning。未记录 Authorization、密钥或原始响应正文。
 - 状态：Resolved
 - 关联提交：本次文档记录（见最终报告）
+
+### ISSUE-024 — `LLMError` 临时根延后到 S20 迁移 `AgentError`
+
+- 日期：2026-10-22
+- 现象：S01/S02 的 `LLMError` 直接继承 `Exception`，而 `Docs/DESIGN.md` §3.7 的最终体系是 `AgentError → LLMError`；S20 才交付 `observability/errors.py`。
+- 根因：S01/S02 只实现模型接入层，提前实现 `AgentError` 会把 S20 的可观测/异常体系拉入当前阶段，形成跨层职责。
+- 决策：**S02–S19 继续使用临时 `LLMError` 根，S20 统一迁移**。S02 新增异常均继承 `LLMError`，保持 `*Error` 命名与 `code/http_status`。
+- 影响范围：`llm/errors.py`、`llm/client.py`、`llm/models.py`、`tests/contract/*`；S18 HTTP 错误映射与 S19 日志可先按 `LLMError` 处理。
+- 迁移工作量：S20 在 `observability/errors.py` 定义 `AgentError`，将 `LLMError` 改为其子类，更新引用点并补异常层次测试；预计 0.5–1 人日。
+- 触发时机：S20 建立统一异常体系时；S18 真实 API 验收前复核错误码映射。
+- 状态：Open
+- 关联提交：S02 规划提交（见最终报告）
+
+### ISSUE-025 — 运行依赖与 pytest 仍仅设下界（S01 P2-05 遗留）
+
+- 日期：2026-10-22
+- 现象：`httpx>=0.27`、`pydantic>=2.6`、`pytest>=8.0` 仍没有兼容上界或锁文件；S02 的 dev 工具已 pin，但运行依赖与 pytest 未 pin。
+- 根因：S01 只按设计最低版本声明；为避免在 S02 改变运行依赖行为，本轮未扩大范围。
+- 决策：保持现状，登记债务；目标在 S18 真实 API 验收前复核 `httpx`/`pydantic` 上界，在 S21 配置与依赖收口时统一锁定；`pytest` 在 CI 稳定后确定上界。
+- 验证方式：S18/S21 前检查 `pyproject.toml` 与干净环境解析结果；必要时引入 constraints/lock 文件并复跑全量测试。
+- 状态：Open
+- 关联提交：S02 规划提交（见最终报告）

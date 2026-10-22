@@ -75,6 +75,8 @@
 - **验收标准**：429/5xx 重试后成功；4xx 不重试；超时抛 `LLMTimeoutError` 且不挂起。
 - **测试项**：TC-L2-004、TC-L2-005、TC-L2-006。
 - **前置阶段**：S01。
+- **异常根边界**：S02–S19 继续使用 `llm/errors.py` 的临时 `LLMError` 根；S20 引入 `AgentError` 后统一迁移（ISSUE-024）。
+- **开工前检查**：全新 venv 安装 dev extras 后 50 passed、覆盖率 92.52%、ruff/mypy 通过；`test_packaging_config.py` marker 为 `unit`。
 
 ### S03 — Runtime：单轮直答
 
