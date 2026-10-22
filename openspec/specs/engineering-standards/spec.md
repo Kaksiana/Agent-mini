@@ -727,7 +727,7 @@ agent-mini/
 
 1. 基类 `AgentError` 必须携带 `code`、`http_status`、`message`；禁止只抛字符串。
 2. 子类至少覆盖：`ConfigError`、`LLMError`、`ToolError`、`SandboxError`、`ContextError`、`InputError`、`SystemDBError`（`Docs/DESIGN.md` §3.7）。
-3. LLM 细分错误至少包括：`LLMAuthError`、`LLMBadRequest`、`LLMTimeout`、`LLMProtocolError`、`LLMEmptyResponse`、`LLMOutputTruncated`、`LLMOutputRejected`。
+3. LLM 细分错误至少包括：`LLMAuthError`、`LLMBadRequestError`、`LLMTimeoutError`、`LLMProtocolError`、`LLMEmptyResponseError`、`LLMOutputTruncatedError`、`LLMOutputRejectedError`。
 4. 上下文超限使用 `ContextTooLarge`；工具内部错误不抛到 Runtime，转为 `ToolResult`。
 5. 禁止自定义异常继承 `BaseException`；禁止覆盖内置 `MemoryError` 等名称。
 

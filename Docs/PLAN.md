@@ -58,10 +58,11 @@
 - **模块**：模型接入层
 - **对应需求**：FR-LLM-01、FR-LLM-02、FR-LLM-04。
 - **目标**：用 OpenAI Chat Completions 协议完成一次真实可替换的单轮调用，并解析文本响应。
-- **输入**：`ModelConfig`（base_url、model、超时）。
-- **输出**：`llm/client.py`、`llm/models.py`（含可选 reasoning_content 的 LLMResponse）；tools 参数 JSON 严格解析与响应判别规则。
+- **输入**：`ModelConfig`（base_url、model、超时；S01 临时位于 `llm/models.py`，S21 迁移）。
+- **输出**：`llm/client.py`、`llm/models.py`（含可选 reasoning_content 的 LLMResponse）、`llm/errors.py`（仅 S01 判别错误）；tools 参数 JSON 严格解析与响应判别规则。
 - **验收标准**：文本、reasoning、tools 分开归一；非法响应、空/截断输出明确错误；工具 ID 唯一，JSON 参数严格解析；默认显式禁用 thinking，启用时正确回传保留历史的私有字段。
 - **测试项**：TC-L2-001、TC-L2-002、TC-L2-003、TC-L2-007、TC-L2-008、TC-L2-009、TC-L2-010（循环部分在 S04 集成）；真实客户端能力在 S18 以 TC-LIVE-001 验收。
+- **S01 覆盖边界**：TC-L2-007 的 Memory/裁剪部分留 S15/S16；TC-L2-009 的 Runtime/ToolResult 部分留 S04/S06；TC-L2-010 的循环/消息配对/trace 留 S04。详见 `Docs/TESTING.md` §4.2.1。
 - **前置阶段**：S00。
 
 ### S02 — 模型接入：错误处理与重试
@@ -70,8 +71,8 @@
 - **对应需求**：FR-LLM-03。
 - **目标**：把超时、限流、鉴权、服务端错误分类并实现退避重试。
 - **输入**：S01 的 `LLMClient`。
-- **输出**：`llm/errors.py`；重试策略（次数、退避、抖动）。
-- **验收标准**：429/5xx 重试后成功；4xx 不重试；超时抛 `LLMTimeout` 且不挂起。
+- **输出**：扩展 `llm/errors.py`（鉴权/限流/超时）；重试策略（次数、退避、抖动）。
+- **验收标准**：429/5xx 重试后成功；4xx 不重试；超时抛 `LLMTimeoutError` 且不挂起。
 - **测试项**：TC-L2-004、TC-L2-005、TC-L2-006。
 - **前置阶段**：S01。
 
@@ -307,6 +308,7 @@
 - [ ] `ruff` 零告警；`mypy` 无新增错误
 - [ ] 相关文档与实现一致（`REQUIREMENT` / `DESIGN` / `TESTING`）
 - [ ] `Docs/PROMPT.md` 已追加本轮记录；`Docs/ISSUE.md` 已更新
+- [ ] OpenSpec 归档在实现、测试、文档全部完成后执行；归档后阶段内变更必须新建 change 或记录例外
 - [ ] commit 信息符合 `AGENT.md` §5.2，并已推送
 
 ### 5.2 里程碑的 DoD
@@ -332,7 +334,7 @@
 | 阶段 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
 | S00 | 已完成 | 2026-10-22 | 2026-10-22 修正：补齐 DESIGN §2.2 骨架（ISSUE-017）；补 schema.sql package-data 与 wheel/结构/占位测试（ISSUE-018），复验通过 |
-| S01 | 进行中 | — | 2026-10-22 评估修复中：P0-01/P1-01/P1-09 及文档/依赖闭环（S01-report、ISSUE-022） |
+| S01 | 已完成 | 2026-10-22 | 2026-10-22 评估修复：P0-01/P1-01/P1-09 已修，依赖 pin 与文档闭环完成（S01-report、ISSUE-021/022） |
 | S02–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。

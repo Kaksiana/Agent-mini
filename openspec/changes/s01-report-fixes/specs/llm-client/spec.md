@@ -11,12 +11,12 @@
 
 ### Requirement: 请求保留字段不可覆盖
 
-客户端 MUST 拒绝调用方通过 `**params` 覆盖 `model`、`messages`、`thinking`、`tools` 等受控字段；拒绝必须在发送 HTTP 请求前发生。
+客户端 MUST 拒绝调用方覆盖 `model`、`messages`、`thinking`、`tools` 等受控字段；`model`/`thinking` 及非法 `tools` MUST 抛 `ValueError`，`messages` 重复传参由 Python 签名拒绝，拒绝必须发生在发送 HTTP 请求前。
 
 #### Scenario: 尝试覆盖受控字段
 
 - **WHEN** 调用方传入 `model`、`messages`、`thinking` 或 `tools` 作为额外参数
-- **THEN** 客户端抛 `ValueError`，且不发送请求
+- **THEN** 调用被拒绝（`ValueError` 或签名 `TypeError`），且不发送请求
 
 ### Requirement: reasoning 仅限 assistant
 

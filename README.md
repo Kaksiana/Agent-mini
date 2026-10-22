@@ -1,6 +1,6 @@
 # Agent-mini
 
-Agent-mini 是一个从零实现的最小 ReAct Agent。当前处于 S00 工程基线阶段，仅提供可安装的包骨架，不包含模型接入、Runtime、工具、记忆或接口功能。
+Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00 工程基线与 S01 单轮模型接入；包含可安装包与 OpenAI 兼容 LLM 客户端，不包含 Runtime、工具、记忆或接口功能。
 
 ## 环境要求
 
@@ -12,7 +12,7 @@ Agent-mini 是一个从零实现的最小 ReAct Agent。当前处于 S00 工程�
 pip install -e .
 ```
 
-安装开发工具（pytest、ruff、mypy）：
+安装开发工具（pytest、pytest-asyncio、pytest-cov、respx、ruff、mypy）：
 
 ```bash
 pip install -e ".[dev]"
@@ -30,6 +30,7 @@ python -c "import agent_mini; print(agent_mini.get_version())"
 pytest
 pytest -m unit
 pytest -m contract
+pytest --cov=agent_mini --cov-report=term-missing
 ```
 
 ## 静态检查

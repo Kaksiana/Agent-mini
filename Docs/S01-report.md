@@ -325,3 +325,30 @@
   - `C:\Users\Ryan\AppData\Local\Temp\agent-mini-coverage-f1f8da5f4e7d4fd59a9ae11f30301bdb`
 - 上述临时目录位于仓库外，可由人工在确认不再需要复核证据后清理。
 
+---
+
+## 10. 修复记录（2026-10-22）
+
+> §1–§9 保留评估时基线；本节记录修复结果，最终验收以交付报告为准。
+
+| 编号 | 状态 | 处理结果 |
+| --- | --- | --- |
+| S01-P0-01 | 已修复 | `LLMResponse.from_openai` 先校验顶层为 Mapping；数组/字符串/数字/null 均转 `LLMProtocolError`；新增直接解析与 HTTP 路径回归测试 |
+| S01-P1-01 | 已修复 | 拒绝 `model`/`thinking` 通过 `**params` 覆盖；非法 `tools` 抛 `ValueError`；`messages` 重复传参由 Python 签名拒绝；均不发送请求 |
+| S01-P1-02 | 阶段性闭环 | S01 保留临时 `LLMError` 根，S20 接入 `AgentError`；具体类型统一 `*Error` 后缀；DESIGN/ISSUE/OpenSpec 名称同步 |
+| S01-P1-03 | 已修复 | PLAN S01 输出补充 `llm/errors.py` 与临时 `ModelConfig`；S02 输出改为“扩展 errors.py” |
+| S01-P1-04 | 已修复 | TESTING §4.2.1 增加 S01 覆盖边界，明确 007/009/010 的后续阶段断言 |
+| S01-P1-05 | 规范已补，历史证据保留缺陷 | 新增“红必须进入执行阶段、收集错误不算 TC 级红”规则；S01 历史红证据为收集级，无法追溯补造，已如实记录 |
+| S01-P1-06 | 已修复 | README 当前状态、MEMORY 历史表述、`llm/__init__.py` 说明同步到 S01 |
+| S01-P1-07 | 已修复 | 声明并 pin `pytest-cov`；`pytest --cov` 可在项目 dev extras 下运行 |
+| S01-P1-08 | 流程闭环 | 不重写历史；归档后修复通过新 change `s01-report-fixes` 承接，后续归档作为阶段最后动作 |
+| S01-P1-09 | 已修复 | `Message` 校验 `reasoning_content` 仅 assistant 可携带；新增 user/system/tool 负例 |
+| S01-P1-10 | 已记录 | Ruff 0.17.1 `RUF102` 要求 selector 使用规则名、`N818` 要求异常 `*Error`；配置变更原因与影响见本记录、ISSUE-022 与 DESIGN §10，非规则放宽 |
+| S01-P2-02 | 已修复 | 默认超时改为 `DEFAULT_TIMEOUT_SECONDS` 命名常量 |
+| S01-P2-03 | 部分修复 | 关键公共边界 docstring 补充保留字段、顶层必须 object、reasoning 角色约束 |
+| S01-P2-05 | 部分修复 | 四个指定 dev 工具与 pytest-cov pin 到 minor 兼容范围；运行依赖与 pytest 仍保留下界，锁文件未引入 |
+| S01-P2-07 | 已修复 | `agent_mini/llm/__init__.py` 更新为当前职责说明 |
+| S01-P2-01/04/06 | 未修复（可选） | JSON `Any` 别名、重复测试职责、跨字段状态不变量保留为后续改进 |
+
+**复验**：`pytest` 50 passed；覆盖率 93%；`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 通过。修复后建议进入 S02；最终以交付报告为准。
+

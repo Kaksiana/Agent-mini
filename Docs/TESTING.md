@@ -57,6 +57,8 @@
 | 绿 | 写**最小**实现使测试通过 | 目标用例通过，已有用例不回归 |
 | 重构 | 消除重复、改善命名、抽取接口 | 全量测试仍全绿 |
 
+> **红证据规则**：测试必须在执行阶段因目标行为缺失而失败；import/collection/语法/夹具错误不计为 TC 级红。跨阶段 TC 必须在本文档拆出阶段覆盖边界。
+
 ### 2.2 测试代码规范
 
 1. **目录镜像**：`agent_mini/tools/sandbox.py` → `tests/unit/tools/test_sandbox.py`。
@@ -128,12 +130,24 @@
 | TC-L2-002 | 桩响应含 `tool_calls=[{id, function:{name, arguments}}]` | 调用 `chat()` | 解析出 1 个 `ToolCall`，`arguments` 已反序列化为 dict，`finish_reason=tool_calls` |
 | TC-L2-003 | 桩响应为普通文本 + `usage` | 调用 `chat()` | `content` 正确；`tool_calls` 为空；`usage.prompt/completion/total` 与响应一致 |
 | TC-L2-004 | 桩先返回 429、再返回 500、最后返回 200（`retry=3`） | 调用 `chat()` | 共 3 次请求；最终成功返回；退避间隔单调递增 |
-| TC-L2-005 | 桩延迟超过 `timeout` | 调用 `chat()` | 抛 `LLMTimeout`，不无限等待，错误消息含超时秒数 |
-| TC-L2-006 | 桩返回 400 与 401 | 分别调用 `chat()` | 抛 `LLMBadRequest` / `LLMAuthError`，且**不重试**（断言请求次数为 1） |
+| TC-L2-005 | 桩延迟超过 `timeout` | 调用 `chat()` | 抛 `LLMTimeoutError`，不无限等待，错误消息含超时秒数 |
+| TC-L2-006 | 桩返回 400 与 401 | 分别调用 `chat()` | 抛 `LLMBadRequestError` / `LLMAuthError`，且**不重试**（断言请求次数为 1） |
 | TC-L2-007 | 参数化桩：reasoning_content 为缺失/null/字符串，content 与 tool_calls 合法 | 归一化响应；启用 thinking 且 tools 非空时发起下一次请求，再以新用户消息开始下一轮 | reasoning/content 独立提取，缺失/null 不补造；保留完整历史轮次的 reasoning 原字段在每次后续请求回传，包括无工具调用的 assistant；裁掉的轮次不回传；默认模式请求显式 thinking.disabled |
 | TC-L2-008 | 参数化桩：无 choices、空列表、非法 message、重复/空调用 ID、非法调用结构、空答案、仅 reasoning、length/content_filter/未知终止原因 | 调用解析器，记录工具 handler 次数 | 结构错误/终止矛盾为 LLM_PROTOCOL_ERROR；无有效答案为 LLM_EMPTY_RESPONSE；截断为 LLM_OUTPUT_TRUNCATED；过滤为 LLM_OUTPUT_REJECTED；均 502、无工具执行、无无限重试 |
 | TC-L2-009 | 合法调用结构，arguments 分别为破损 JSON、数组、字符串、重复键或 NaN | 解析后交 Runtime 回灌；模型下一步修正为合法 JSON object | 各无效调用返回 invalid_arguments 与原 call_id，不执行 handler，不使用 eval；修正后可正常执行；trace 记录失败与恢复 |
 | TC-L2-010 | 桩第 1 步 content 与 2 个 tool_calls 共存，第 2 步返回最终文本 | 完成两步循环并捕获 messages、trace | 第 1 步不提前返回 content；先写 1 条 assistant，再按原顺序写 2 条有匹配 ID 的 tool；trace 长度=2，第 1 条工具列表长度=2；tool_calls 总次数=2 |
+
+#### 4.2.1 S01 覆盖边界
+
+| TC | S01 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L2-001 | 路径、Authorization、model/messages/tools/thinking 请求契约 | 真实 API 由 S18 LIVE-001/002 覆盖 |
+| TC-L2-002 | tool_call ID/name/arguments/finish_reason 归一 | 工具执行由 S04/S06 覆盖 |
+| TC-L2-003 | content、空 tool_calls、usage 三项 | 无 |
+| TC-L2-007 | reasoning 缺失/null/字符串、默认 disabled、enabled 回传、assistant 角色校验 | Memory 恢复与裁剪由 S13/S16 覆盖 |
+| TC-L2-008 | 结构错误、空答案、length/content_filter、非 object 顶层 | HTTP 502 映射、handler 次数与重试由 S02/S04 覆盖 |
+| TC-L2-009 | 严格 JSON、非法参数 `invalid_arguments`、call_id 保留 | Runtime 回灌、ToolResult、trace 由 S04/S06 覆盖 |
+| TC-L2-010 | content + 多 tool_calls 解析与顺序 | 两步循环、消息配对、trace 由 S04 覆盖 |
 
 ### 4.3 L3 集成测试
 

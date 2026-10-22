@@ -230,7 +230,7 @@
 - 现象：`PLAN.md` S01 测试项包含 TC-L2-008/009/010，需要 LLM 错误类型与非法工具参数的结构化结果；但 S01 输出只列 `llm/client.py`、`llm/models.py`，`llm/errors.py` 被列为 S02 输出；`ModelConfig` 被列为 S21 配置层输出；TC-L2-009/010 还涉及 Runtime/ToolResult 与循环 trace。
 - 根因：测试项按协议契约层归类，但错误类型、配置类型和 Runtime 行为分散在后续阶段，阶段输出边界未同步。
 - 解决方案/裁决：
-  1. `llm/errors.py` 在 S01 只提供协议判别所需的 `LLMError`、`LLMProtocolError`、`LLMEmptyResponse`、`LLMOutputTruncated`、`LLMOutputRejected`；鉴权/限流/超时与重试留 S02。
+  1. `llm/errors.py` 在 S01 只提供协议判别所需的 `LLMError`、`LLMProtocolError`、`LLMEmptyResponseError`、`LLMOutputTruncatedError`、`LLMOutputRejectedError`；鉴权/限流/超时与重试留 S02。
   2. `llm/models.py` 提供 S01 临时 `ModelConfig`（`base_url`、`model`、`timeout`）；S21 配置层落地时迁移或复用，不新增配置层实现。
   3. 非法工具参数在 S01 表示为 `ToolCall(error_code="invalid_arguments", arguments=None)` 并保留 `call_id`；映射为 `ToolResult`、执行工具与模型修正闭环留 S04/S06。
   4. TC-L2-010 在 S01 只覆盖“content + 多个 tool_calls 的解析与顺序”；循环、消息配对与 trace 留 S04。
@@ -247,9 +247,9 @@
 - 根因：初版依赖只按“最低版本”声明，没有为 dev 工具设置 minor 兼容上界，也没有把覆盖率工具纳入依赖清单。
 - 解决方案：将四个指定 dev 工具 pin 到当前 minor 兼容范围；补充 `pytest-cov` 并 pin 到 minor；在 ISSUE 与本轮 PROMPT 记录升级原因。
 - 验证方式：检查 `pyproject.toml` 的 dev 约束；`pip install -e ".[dev]"` 成功；`pytest --cov=agent_mini --cov-report=term-missing` 可运行；全量测试与静态检查通过。
-- 验证结果：待修复完成后回填。
-- 状态：Open
-- 关联提交：无（问题登记）
+- 验证结果：dev 约束已为 `pytest-asyncio>=1.3,<1.4`、`pytest-cov>=7.1,<7.2`、`respx>=0.23,<0.24`、`ruff>=0.17,<0.18`、`mypy>=2.4,<2.5`；`pip install -e ".[dev]"` 退出码 0；覆盖率命令 50 passed、总覆盖率 93%。
+- 状态：Resolved
+- 关联提交：S01 修复提交（见最终报告）
 
 ### ISSUE-022 — S01 评估报告的 P0/P1 问题修复
 
@@ -258,6 +258,6 @@
 - 根因：S01 主路径完成，但协议硬化、跨阶段边界与文档闭环不足。
 - 解决方案：创建 `s01-report-fixes` OpenSpec change；修复 P0-01、P1-01、P1-09；同步 PLAN/TESTING/DESIGN/README/MEMORY/ISSUE；补充 pytest-cov 与依赖 pinning；记录 P1-05/P1-08 的流程改进；P2 可选项按风险选择性处理。
 - 验证方式：定向负例测试先红后绿；全量 pytest、ruff、format、mypy、openspec、wheel/仓库外导入全部通过；S01-report 增加修复记录。
-- 验证结果：待修复完成后回填。
-- 状态：Open
-- 关联提交：无（问题登记）
+- 验证结果：P0-01 已修（非 object 顶层 → `LLMProtocolError`）；P1-01 已修（保留字段拒绝）；P1-09 已修（reasoning 仅 assistant）；P1-02/03/04/06/07/10 已闭环；P1-05 规范已补，历史收集级红证据保留说明；P1-08 由新 change 承接且未重写历史；P2-02/03/05/07 已修，P2-01/04/06 记录为后续可选改进。50 passed、覆盖率 93%、ruff/format/mypy/openspec 通过。
+- 状态：Resolved
+- 关联提交：S01 修复提交（见最终报告）

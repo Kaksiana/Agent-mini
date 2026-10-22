@@ -35,7 +35,7 @@
 
 ### Requirement: 响应判别
 
-客户端 MUST 将结构错误或未知终止原因映射为 `LLMProtocolError`，将 `length` 映射为 `LLMOutputTruncated`，将 `content_filter` 映射为 `LLMOutputRejected`，将无有效答案映射为 `LLMEmptyResponse`。
+客户端 MUST 将结构错误或未知终止原因映射为 `LLMProtocolError`，将 `length` 映射为 `LLMOutputTruncatedError`，将 `content_filter` 映射为 `LLMOutputRejectedError`，将无有效答案映射为 `LLMEmptyResponseError`。
 
 #### Scenario: 非法与终止响应
 
@@ -45,7 +45,7 @@
 #### Scenario: 空答案与截断
 
 - **WHEN** 响应只有 reasoning/空白 content，或 finish_reason 为 length/content_filter
-- **THEN** 分别抛出 `LLMEmptyResponse`、`LLMOutputTruncated`、`LLMOutputRejected`
+- **THEN** 分别抛出 `LLMEmptyResponseError`、`LLMOutputTruncatedError`、`LLMOutputRejectedError`
 
 ### Requirement: 工具参数严格解析
 

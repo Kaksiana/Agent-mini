@@ -3,8 +3,9 @@
 ## 2026-10-22 — S01 模型接入
 
 - S01 完成：`agent_mini/llm/{models,errors,client}.py`，支持 OpenAI Chat Completions 单轮请求、响应归一、工具参数严格解析与 thinking/reasoning 回传。
-- 依赖：运行时 `httpx>=0.27`、`pydantic>=2.6`；dev `respx>=0.21`、`pytest-asyncio>=0.23`。未调用真实 API，未读取 `DEEPSEEK_API_KEY`。
+- 依赖：运行时 `httpx>=0.27`、`pydantic>=2.6`；dev `pytest-asyncio>=1.3,<1.4`、`pytest-cov>=7.1,<7.2`、`respx>=0.23,<0.24`、`ruff>=0.17,<0.18`、`mypy>=2.4,<2.5`。未调用真实 API，未读取 `DEEPSEEK_API_KEY`。
 - 验收：L2 契约测试 29 个、全量 36 passed；ruff/format/mypy/openspec 通过。
+- 2026-10-22 评估修复：非 object 顶层统一 `LLMProtocolError`；拒绝 `model/thinking` 覆盖与非法 tools；reasoning 仅 assistant；全量 50 passed、覆盖率 93%；dev 工具 pin 到 minor（ISSUE-021/022）。
 - 边界：`ModelConfig` 为 S01 临时模型；非法工具参数以 `ToolCall.error_code=invalid_arguments` 返回；Runtime/ToolResult 与循环留 S04/S06，错误分类/重试留 S02（ISSUE-020）。
 
 ## 2026-10-22 — S00 工程基线
@@ -14,7 +15,7 @@
 - 2026-10-22 打包修正：`systemdb/schema.sql` 通过 `package-data` 进入 wheel；wheel 含 35/35 个 `agent_mini/` 文件；新增 `tests/unit/test_packaging_config.py` 与结构/占位测试；详见 ISSUE-018。
 - 验收：`pip install -e .` 成功；`pytest` 7 passed；`ruff check .` 零告警；`ruff format --check .` 37 files already formatted；`mypy agent_mini` 34 source files 无错误；`openspec validate --all --strict` 通过。
 - 环境修复：Python 3.13 Scripts 下 `pytest.exe` 曾静默退出 1，已用同版本 force-reinstall 重建；`python -m pytest` 一直可用。详见 ISSUE-016。
-- 未实现任何 Agent 业务模块；S01–S21 仍未开始。
+- S00 时未实现任何 Agent 业务模块；S01 起按阶段推进。
 
 ## 2026-10-21 — 文档评审修订
 

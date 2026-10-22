@@ -795,3 +795,21 @@ S00 阶段遗留的收口项见上一轮评审结论，涉及 ISSUE-019、ISSUE-
 - 产出：新增 `Docs/S01-report.md`，完整保存评估基准、复核证据、维度结论、分级问题、追溯表、边界结论、技术债、总体结论及副作用记录。
 - 规范：在 `AGENT.md` §1 新增阶段评估报告归档规则，统一使用 `Docs/S<两位阶段号>-report.md`，并在 §11 记录变更。
 - 边界：本轮仅修改文档，不修复 S01 代码、不修改 OpenSpec、不提交或推送。
+
+### Prompt 23 — 2026-10-22（时分未采样）— pin dev 依赖并修复 S01 报告问题
+
+#### 原始 Prompt
+
+```text
+【调整】1.在 pyproject.toml 的 [project.optional-dependencies].dev 里把 ruff、mypy、pytest-asyncio、respx 都 pin 到兼容范围（不要求 pin 到补丁号，但要求 pin 到 minor），并记录为新ISSUE 2.根据Docs/S01-report修复现有问题
+```
+
+#### 执行摘要
+
+- 依赖：`ruff>=0.17,<0.18`、`mypy>=2.4,<2.5`、`pytest-asyncio>=1.3,<1.4`、`respx>=0.23,<0.24`；补充 `pytest-cov>=7.1,<7.2`；新增 ISSUE-021。
+- 报告修复：新增 `s01-report-fixes` OpenSpec change；修复 P0-01（非 object 顶层 → `LLMProtocolError`）、P1-01（保留字段不可覆盖）、P1-09（reasoning 仅 assistant）。
+- 文档闭环：PLAN S01 输出与状态、TESTING S01 覆盖边界与红证据规则、DESIGN v0.9、README/MEMORY/`llm/__init__.py`、ISSUE-020~022、S01-report §10 修复记录。
+- TDD 红：新增的 4 类测试共 12 个用例先失败——非 object 顶层抛 `AttributeError`、保留字段未拒绝、非 assistant 可带 reasoning、dev 依赖缺少 minor 上界/pytest-cov。
+- TDD 绿：修复后 `pytest` 为 50 passed；覆盖率 93%；`ruff check .`、`ruff format --check .`、`mypy agent_mini`、`openspec validate --all --strict` 均通过。
+- 异常/边界：P1-05 的历史红证据为收集级，无法追溯补造，已补规则并如实记录；P1-08 通过新 change 承接，未重写历史；P2-01/04/06 保留为可选改进。
+- 提交：`411bb39` 归档评估报告；`b4bb98b` 记录报告修复计划；修复代码与归档提交见最终报告。

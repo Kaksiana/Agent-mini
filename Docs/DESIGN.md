@@ -5,7 +5,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.8（S01 协议边界澄清） |
+| 版本 | v0.9（S01 评估修复：协议硬化与依赖边界） |
 | 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
@@ -152,7 +152,8 @@ agent_mini/
 - **协议依据（2026-10-21 核对）**：DeepSeek 的 `reasoning_content` 与 `content` 是独立字段；思考模式下携带 `tools` 的后续请求，需要回传所保留历史的推理字段，包括未调用工具的历史 assistant 消息。仅对当前保留的完整轮次回传，不复活已裁剪历史。见 [官方思考模式](https://api-docs.deepseek.com/guides/thinking_mode/) 与 [官方工具调用](https://api-docs.deepseek.com/guides/tool_calls/)。
 - **错误解析边界**：无 choices、空 choices、message 类型不合法、tool_calls 结构不合法或调用 ID 重复，抛 `LLMProtocolError`（`LLM_PROTOCOL_ERROR/502`），本响应的任何工具均不执行。原始响应仅用于内存解析，默认不落盘、不记日志；诊断只输出脱敏的错误类型与 trace_id。
 - **S01 实现边界**：客户端只负责请求、归一与判别；非法工具参数以 `ToolCall.error_code="invalid_arguments"` 保留 call_id，Runtime/ToolResult 映射在 S04/S06；HTTP 状态分类与重试在 S02。S01 临时 `ModelConfig`（base_url/model/timeout）位于 `llm/models.py`，S21 配置层迁移或复用。
-- **错误处理**：`401/403` → `LLMAuthError`；`429` 与 `5xx` → 指数退避重试（默认 3 次，底数 0.5s，带抖动）；`400` → `LLMBadRequest`（不重试）；超时 → `LLMTimeout`（不重试，交由 Runtime 收敛）。
+- **协议硬化（S01 评估修复）**：响应顶层必须是 JSON object，否则统一抛 `LLMProtocolError`；`model/thinking` 等受控字段不得由 `**params` 覆盖；`reasoning_content` 仅允许 assistant 消息携带。异常类统一使用 `*Error` 后缀。
+- **错误处理**：`401/403` → `LLMAuthError`；`429` 与 `5xx` → 指数退避重试（默认 3 次，底数 0.5s，带抖动）；`400` → `LLMBadRequestError`（不重试）；超时 → `LLMTimeoutError`（不重试，交由 Runtime 收敛）。
 - **无状态**：不持有会话；调用方传入完整 `messages`。
 
 ### 3.2 Agent Runtime
@@ -295,7 +296,7 @@ return AgentResult(final=fallback_message, steps=len(trace), truncated=True, tra
   - **触发条件（任一成立）**：轮次数 > K（默认 10） **或** 估算 token > 预算；
   - **动作**：从**最旧的一轮整轮丢弃**，丢弃后重新计数，直到两个条件同时满足；
   - **绝不**拆分或截断单条消息，也绝不丢弃 system prompt 与当前用户消息。
-- **边界情形**：system、实际 tools 与当前轮（含所有已产生的工具往返）不可删减；完整历史轮次全部裁掉后仍超预算，记录 `context.over_budget_after_trim`，本地抛 `ContextTooLarge`（`CONTEXT_TOO_LARGE/400`），不再调用 LLM。若前面已执行工具，错误响应带脱敏 trace、steps 和 `truncated=true`，且不自动重试产生重复副作用；单轮过大拒绝写入可恢复窗口，仅保留脱敏审计。远端因估算偏差返回超限 400 时按 `LLMBadRequest/502` 明确返回。
+- **边界情形**：system、实际 tools 与当前轮（含所有已产生的工具往返）不可删减；完整历史轮次全部裁掉后仍超预算，记录 `context.over_budget_after_trim`，本地抛 `ContextTooLarge`（`CONTEXT_TOO_LARGE/400`），不再调用 LLM。若前面已执行工具，错误响应带脱敏 trace、steps 和 `truncated=true`，且不自动重试产生重复副作用；单轮过大拒绝写入可恢复窗口，仅保留脱敏审计。远端因估算偏差返回超限 400 时按 `LLMBadRequestError/502` 明确返回。
 - **可追溯**：`ContextPayload` 记录 `rounds_before / rounds_after / dropped_rounds / tokens_before / tokens_after / message_tokens / tool_schema_tokens / protocol_overhead_tokens / budget / trim_reason(rounds|tokens|both)`，并写入日志 `event=context.trimmed`（FR-CTX-04）；tokens_before/after 都指完整请求估算值。token 紧张时“保留最近 K 轮”表示最多 K 个已完成历史轮次，可能少于 K；当前轮不计入历史轮次窗口。
 
 ### 3.6 交互接口层
@@ -310,7 +311,7 @@ return AgentResult(final=fallback_message, steps=len(trace), truncated=True, tra
 ### 3.7 可观测与治理
 
 - **日志**：JSON 行，字段固定 `ts/level/event/trace_id/session_id/step/duration_ms`；`trace_id` 通过 `contextvars` 注入，跨异步边界保持。
-- **异常体系**：`AgentError` 基类 → `ConfigError / LLMError / ToolError / SandboxError / ContextError / InputError / SystemDBError`，每个带 `code` 与 `http_status`。
+- **异常体系**：`AgentError` 基类 → `ConfigError / LLMError / ToolError / SandboxError / ContextError / InputError / SystemDBError`，每个带 `code` 与 `http_status`。S01 的 `LLMError` 暂时作为独立临时根，S20 统一接入 `AgentError`；具体类型统一 `*Error` 后缀。
 - **脱敏**：日志过滤器统一拦截 `api_key`、`authorization`、`password` 字段（NFR-SEC-02、AC-14）。
 
 ### 3.8 配置与依赖注入
@@ -482,7 +483,7 @@ AgentResult →
 | 工具被注入恶意参数 | 越权访问文件 | 沙箱四步校验 + 属性测试覆盖路径组合 |
 | MySQL 写入阻塞主链路 | 响应变慢 | 异步批量写 + 不可用时降级为仅告警 |
 | 配置层最后交付导致重构面大 | 第 8 阶段风险集中 | 前期所有外部依赖通过构造函数注入，第 8 阶段仅集中装配 |
-| token 估算与 DeepSeek 分词器存在系统偏差 | 预估值偏离真实用量 | 统一保留 10% 安全余量；`usage` 落库用于对账；超限按 `LLMBadRequest` 明确报错 |
+| token 估算与 DeepSeek 分词器存在系统偏差 | 预估值偏离真实用量 | 统一保留 10% 安全余量；`usage` 落库用于对账；超限按 `LLMBadRequestError` 明确报错 |
 | 整轮裁剪后仍超预算（单轮或 Schema 过大） | 请求无法发送 | 本地返回 CONTEXT_TOO_LARGE，不丢弃必要 Schema，不再发送超预算请求 |
 
 ## 9. 本次修订验证与回滚
@@ -500,3 +501,4 @@ AgentResult →
 | v0.6 | 2026-10-21 | 解析契约、完整请求预算与验收用例修订 | 全文 |
 | v0.7 | 2026-10-22 | 环境变量统一为 `DEEPSEEK_API_KEY`，移除 `LLM_API_KEY` 别名 | §3.8；联动 `Docs/ISSUE.md` ISSUE-013、`openspec/specs/engineering-standards/spec.md` C-02 |
 | v0.8 | 2026-10-22 | 澄清 S01 客户端/错误/临时 ModelConfig/非法工具参数边界 | §3.1；联动 ISSUE-020 |
+| v0.9 | 2026-10-22 | 协议硬化：非 object 顶层、保留字段、reasoning 角色；异常临时根说明 | §3.1、§3.7；联动 S01-report、ISSUE-022 |
