@@ -1354,4 +1354,5 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 前置：`1a9bdb3` 参数化，默认不限制；S04 行为不变。PLR0915/PLR0912 已启用且无告警。
 - 人工修正 / 决策：deadline 使用自 run 启动计时与 `asyncio.wait_for` 取消；重复签名按连续 name+规范化 args；终止原因放 AgentResult，ThoughtStep 不增字段。
 - 验证：103 passed、覆盖率 94.51%；unit 39、contract 64；`mypy agent_mini tests` 49 files 0 errors。
-- 关联提交：S05 规划/代码/文档/归档提交见最终报告。
+- 关联提交：`1a9bdb3`（参数化）、S05 代码/文档提交、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s05-runtime-safety-valve`；runtime 主规格增至 11 项 Requirement；`openspec validate --all --strict` 为 4 passed、0 failed。
