@@ -1055,4 +1055,5 @@ Phase 1 文档补全先于 Phase 2 实现；同一 change 分列 tasks，Phase 1
 - Phase 2 TDD 红：7 个 S03 测试执行失败，红因是 `Agent` 尚未实现（不是收集错误）。
 - Phase 2 绿：`Agent(llm_client).run(user_input)`、冻结 `AgentResult`；异常原样传播；意外 tool_calls/空 content 防御；7 个 S03 单元测试通过。
 - 验收：79 passed、覆盖率 95.97%；unit 15、contract 64；`mypy agent_mini tests` 47 files 0 errors；ruff/format/openspec/wheel/仓库外导入见最终报告。
-- 提交：`dda1a10` Phase 1 文档；`111439b` Phase 2 代码+测试；文档/归档提交见最终报告。
+- 提交：`dda1a10` Phase 1 文档；`111439b` Phase 2 代码+测试；`13fa639` 文档收口；归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-22-s03-runtime-direct-reply`；新建 `runtime` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 4 passed、0 failed。
