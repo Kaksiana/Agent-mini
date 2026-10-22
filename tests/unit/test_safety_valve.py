@@ -228,9 +228,7 @@ async def test_invalid_arguments_do_not_collide_with_valid_empty_object() -> Non
 async def test_repeat_signature_normalizes_key_order() -> None:
     calls = [
         llm_models.ToolCall(id=f"call_{index}", name="echo", arguments=args)
-        for index, args in enumerate(
-            [{"a": 1, "b": 2}, {"b": 2, "a": 1}, {"a": 1, "b": 2}]
-        )
+        for index, args in enumerate([{"a": 1, "b": 2}, {"b": 2, "a": 1}, {"a": 1, "b": 2}])
     ]
     llm = ScriptedLLM([_response(calls=[call]) for call in calls])
     policy = LoopPolicy(max_steps=8, repeat_threshold=3)
