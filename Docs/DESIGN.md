@@ -1,12 +1,12 @@
-# DESIGN
+# DESIGN <!-- omit in toc -->
 
 > **Agent-mini 设计文档**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`（本文件所有设计点均可回溯到其中的 FR / NFR 编号）。
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.5（按 2026-10-21 调整单修订） |
-| 日期 | 2026-10-21 |
+| 版本 | v0.7（环境变量命名统一） |
+| 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
 | 下游 | `Docs/TESTING.md`、`Docs/PLAN.md` |
@@ -144,7 +144,11 @@ agent_mini/
   ```
 
 - **协议**：`POST {base_url}/chat/completions`，请求体遵循 OpenAI 规范（`model`、`messages`、`tools`、`tool_choice`、`temperature`、`max_tokens`）。
-- **响应归一**：`LLMResponse(content, tool_calls: list[ToolCall], usage: Usage, finish_reason, raw)`。
+- **响应归一**：`LLMResponse(content: str | None, reasoning_content: str | None, tool_calls: list[ToolCall], usage: Usage, finish_reason)`；缺失或 null 的 `tool_calls` 归一为空列表。`reasoning_content` 缺失或 null 均合法，不通过正则从普通正文猜测推理字段。
+- **工具参数解析**：先校验整个响应的结构和调用 ID（非空且本轮内唯一），再对每个 `function.arguments` 严格 JSON 反序列化，拒绝重复键、NaN/Infinity 与非 object 顶层；工具名、参数 Schema 由注册表校验。JSON/Schema 错误返回对应 call_id 的 `ToolResult`，不执行该工具，允许模型读错后修正；不使用 `eval` 或代码块提取兜底。
+- **模式配置**：首版默认显式发送 `thinking={"type":"disabled"}`；可配置开启思考模式，开启后按供应商协议保留 `reasoning_content`，实际模型名通过配置指定，不写死旧型号。
+- **协议依据（2026-10-21 核对）**：DeepSeek 的 `reasoning_content` 与 `content` 是独立字段；思考模式下携带 `tools` 的后续请求，需要回传所保留历史的推理字段，包括未调用工具的历史 assistant 消息。仅对当前保留的完整轮次回传，不复活已裁剪历史。见 [官方思考模式](https://api-docs.deepseek.com/guides/thinking_mode/) 与 [官方工具调用](https://api-docs.deepseek.com/guides/tool_calls/)。
+- **错误解析边界**：无 choices、空 choices、message 类型不合法、tool_calls 结构不合法或调用 ID 重复，抛 `LLMProtocolError`（`LLM_PROTOCOL_ERROR/502`），本响应的任何工具均不执行。原始响应仅用于内存解析，默认不落盘、不记日志；诊断只输出脱敏的错误类型与 trace_id。
 - **错误处理**：`401/403` → `LLMAuthError`；`429` 与 `5xx` → 指数退避重试（默认 3 次，底数 0.5s，带抖动）；`400` → `LLMBadRequest`（不重试）；超时 → `LLMTimeout`（不重试，交由 Runtime 收敛）。
 - **无状态**：不持有会话；调用方传入完整 `messages`。
 
@@ -158,12 +162,13 @@ HTTP handler
      ├─ 1. SystemDB.ensure_session(session_id)              # 会话登记 / 活跃时间更新
      ├─ 2. ContextBuilder.build(session_id, user_input)     # 读 Memory → 拼接 → 计 token → 裁剪
      ├─ 3. ReAct 循环（上限 max_steps）
-     │     ├─ 3.1 LLMClient.chat(messages, tools)
-     │     ├─ 3.2 若返回 tool_calls：
+     │     ├─ 3.1 Context.fit(messages, tools_snapshot)     # 每次出站前重算预算，超限则本地终止
+     │     ├─ 3.2 LLMClient.chat(messages, tools_snapshot)  # 解析 reasoning/content/tool_calls
+     │     ├─ 3.3 若返回 tool_calls：
      │     │      ToolRegistry.execute(name, args) → ToolResult
      │     │      SystemDB.record_tool_invocation(...)      # 审计（异步）
      │     │      messages += assistant(tool_calls) / tool(call_id, result)
-     │     └─ 3.3 每步记录 ThoughtStep(thought, action, observation)
+     │     └─ 3.4 每次 LLM 响应记录一条 ThoughtStep（同一步可含多个调用）
      ├─ 4. Memory 写回（时机见 3.2.2）
      └─ 5. SystemDB.record_metrics(...)                     # 请求指标（异步）
  └─ HTTP response {reply, steps, tool_calls, usage, trace, trace_id}
@@ -181,50 +186,74 @@ HTTP handler
 
 **写入内容**：按"轮"写入——`user` 消息 + 本轮所有 `assistant` / `tool` 往返 + 最终 `assistant` 回复，与 Context 的"轮"定义一致，避免裁剪时错位。
 
-**中断情形**：循环被安全阀中断（`truncated=true`）时，仍写回已产生的消息，并在记录中标记 `truncated`，便于事后排查。
+**中断情形**：循环被安全阀中断（`truncated=true`）时，先为本批未完成的调用补齐同 call_id 的结构化取消/超时结果，再写回合法配对的完整轮次，并标记 truncated。不可裁剪内容仍超预算的例外见 §3.5，该轮不进入可恢复窗口。
 
-#### 3.2.3 思考过程（Thought Process）
+#### 3.2.3 思考过程解析与决策轨迹（Thought Process）
 
-每个 ReAct 步骤产出一条 `ThoughtStep`：
+区分两类数据：模型实际返回的 `reasoning_content` 是可选协议字段；面向用户的 `thought` 是运行时根据可观察动作生成的简短决策摘要。运行时摘要不是模型原始推理，也不从最终答案反推“思考”。普通 `content` 单独保留，按 §3.2.4 决定是否为最终答案。
+
+每次 LLM 响应产出一条 `ThoughtStep`，失败响应也记录步骤与错误码；多工具调用按顺序记录在同一条 trace 内：
 
 | 字段 | 含义 | 说明 |
 | --- | --- | --- |
-| `step` | 步骤序号（从 1 开始） | 与日志 `step` 字段一致 |
-| `thought` | 模型该步的文本内容；若仅返回 `tool_calls` 而无文本，记为 `决定调用 <tool>` | 不额外调用模型生成"思考" |
-| `action` | `{tool, args}` | 参数按白名单脱敏，`api_key` 等一律替换为 `***` |
-| `observation` | 工具结果摘要（截断至 200 字符） | 失败时记录 `error_code` |
+| `step` | Runtime 调用 LLMClient.chat 的序号（从 1 开始） | 与日志 step 一致；trace 条数等于调用次数，客户端内部 HTTP 重试只记 attempt，不增加步骤 |
+| `decision` | `tool_call / final / error` | 由响应判别表产生 |
+| `thought` | 如“调用 calculator 获取结果”“返回最终答案” | 仅描述可观察行为，不复制完整模型推理或最终文本 |
+| `thought_source` | 固定为 `runtime_summary` | 明确摘要来源，禁止标记为模型原始思考 |
+| `reasoning_present` | 是否解析到非空 `reasoning_content` | 无推理字段不算错误，也不伪造内容 |
+| `tool_calls` | `[{call_id, tool, args, ok, error_code, observation}]` | 调用参数按白名单脱敏；结果摘要先脱敏再截断至 200 字符 |
+| `error_code` | 可选的步骤错误码 | final 步骤的 tool_calls 为空列表 |
 
-- `AgentResult.trace: list[ThoughtStep]` 随 HTTP 响应字段 `trace` 返回；
-- 同时以 `event=react.step` 写入结构化日志，便于按 `trace_id` 串联；
-- 思考过程**不落 MySQL**（避免与对话正文混淆），需要长期留存时由日志系统承接。
+- HTTP `trace` 与 `event=react.step` 日志仅使用上述公开字段，`AgentResult.tool_calls` 仅表示调用总次数；`tool_traces` 是所有步骤的工具调用记录展平结果。
+- 原始 `reasoning_content` 不出现在 HTTP、日志、MySQL、搜索召回片段或公开 trace；不额外请求模型生成推理。思考模式启用且携带 tools 时，仅作为同一 session 的私有协议状态随原 assistant 消息保存在 Redis/Mongo，按完整轮次保留/裁剪，并计入实际请求 token；跨会话不可读。非思考模式不主动收集该字段。
+- `content` 在有 tool_calls 时是伴随文本，不能提前作为最终回复；无 tool_calls 时才可被判定为最终答案。工具结果以 tool 消息回灌，公开 trace 摘要不再注入上下文，避免重复和污染。
 
 #### 3.2.4 主循环伪代码
 
 ```
-messages = context.build(...)                 # 拼接 + 计 token + 双触发裁剪
+tools_snapshot = registry.schemas()           # 本轮冻结实际发送的工具 Schema
+messages = context.build(...)                 # 完整消息 + 必需的私有协议字段
 trace = []
 for step in 1..max_steps:
-    resp = llm.chat(messages, tools=registry.schemas())
-    if resp.tool_calls is empty:
-        trace.append(ThoughtStep(step, resp.content, None, None))
+    messages = context.fit(messages, tools_snapshot)  # 超预算抛 ContextTooLarge，不发请求
+    resp = llm.chat(messages, tools=tools_snapshot)
+    decision = parse_decision(resp)            # 先检查 finish_reason 与结构，再决定分支
+    if decision == final:
+        messages.append(assistant(content=resp.content, private_reasoning=resp.reasoning_content))
+        trace.append(final_step(step, reasoning_present=bool(resp.reasoning_content)))
         return AgentResult(final=resp.content, steps=step, trace=trace)
-    messages.append(assistant(tool_calls=resp.tool_calls))
+    messages.append(assistant(content=resp.content, tool_calls=resp.tool_calls,
+                              private_reasoning=resp.reasoning_content))
+    calls_trace = []
     for call in resp.tool_calls:
-        result = registry.execute(call.name, call.arguments)
+        result = registry.execute_or_error(call)  # 含 JSON/Schema/未知工具的结构化错误
         messages.append(tool(call_id=call.id, content=result.to_content()))
-        trace.append(ThoughtStep(step, resp.content or f"决定调用 {call.name}", call, result))
+        calls_trace.append(public_tool_trace(call, result))
+    trace.append(tool_step(step, calls_trace, reasoning_present=bool(resp.reasoning_content)))
     if repeated_signature(messages) exceeds threshold: break   # 死循环检测
-return AgentResult(final=fallback_message, steps=max_steps, truncated=True, trace=trace)
+return AgentResult(final=fallback_message, steps=len(trace), truncated=True, trace=trace)
 ```
 
 - **工具结果的消息格式**：必须成对写入 `assistant(tool_calls)` 与 `tool(tool_call_id)`，否则模型会报协议错误（对应 FR-RT-04）。
 - **安全阀**：`max_steps`（默认 8）、`deadline`（默认 120s）、`repeat_threshold`（同一 `(name,args)` 连续 3 次即中断）。
 - **终止语义**：正常收敛返回模型内容；触达安全阀返回明确提示并标记 `truncated=True`（对应 FR-RT-05、AC-10）。
 
+响应判别表按自上而下优先级执行；终止错误交给统一错误处理，已发生的工具调用不会回滚或自动重放：
+
+| 条件 | 判定与处理 | 工具副作用 |
+| --- | --- | --- |
+| 响应结构或 ID 不合法 | `LLM_PROTOCOL_ERROR/502` | 本响应不执行工具 |
+| `finish_reason=length` | `LLM_OUTPUT_TRUNCATED/502`，不把截断正文当最终答案 | 本响应不执行工具 |
+| `finish_reason=content_filter` 或未知终止原因 | `LLM_OUTPUT_REJECTED/502` 或 `LLM_PROTOCOL_ERROR/502` | 本响应不执行工具 |
+| 非空 tool_calls，finish_reason 为 tool_calls 或 stop | `decision=tool_call`，即使 content 同时存在也先执行工具 | 结构校验后按序执行；参数错误仅回灌错误结果 |
+| tool_calls 为空、finish_reason=stop、content 去空白后非空 | `decision=final`，保留原始 content | 无 |
+| 仅 reasoning_content、空白 content，或 tool_calls 终止却无调用 | `LLM_EMPTY_RESPONSE/502` 或 `LLM_PROTOCOL_ERROR/502` | 无；不无限重试 |
+
 ### 3.3 Tool 能力层
 
 - **注册机制**：`@tool(name, description, params_model, enabled_key)` 装饰器写入全局 `ToolRegistry`；启动时由配置决定启停；`ToolSpec.to_json_schema()` 由 pydantic 模型生成，保证模型侧与服务侧 Schema 同源（FR-TOOL-01）。
 - **执行契约**：`handler(**validated_args) -> ToolResult`；**所有异常必须被捕获并转为** `ToolResult(ok=False, error_code=..., content=可读说明)`，不得向上抛出（FR-RT-06）。
+- **可信会话上下文**：注册表以 `ToolContext(session_id, trace_id)` 向 todo 等状态工具注入会话信息；session_id 不放入模型可写参数 Schema，若模型伪造该参数则按额外字段拒绝。模型不能自行指定另一个会话的待办分区。
 - **沙箱**：`Sandbox(root).resolve(rel_path)` 执行四步校验——① 拒绝绝对路径；② 拼接后 `Path.resolve()` 求真实路径；③ 校验真实路径仍在 `root` 之下（防 `..` 与符号链接逃逸）；④ 校验大小与扩展名白名单。任何一步失败抛 `SandboxViolation`（FR-TOOL-07）。
 - **六个工具**
 
@@ -240,34 +269,36 @@ return AgentResult(final=fallback_message, steps=max_steps, truncated=True, trac
 ### 3.4 Memory 记忆
 
 - **抽象**：`ShortTermStore` / `MidTermStore` 两个 Protocol，实现可替换（测试用 fakeredis / mongomock）。
-- **短时（Redis）**：`session:{id}:messages` 为 List，`RPUSH` + `LTRIM` 保留最近 N 条（默认 50），`EXPIRE` 默认 24h；读取 `LRANGE -N -1`。
-- **中期（MongoDB）**：集合 `messages`，字段 `{session_id, role, content, tool_calls, created_at}`；索引 `(session_id, created_at desc)`；检索按 `session_id` 过滤 + `created_at` 倒序 + 可选 `content` 正则关键词（FR-MEM-04）。
+- **短时（Redis）**：`session:{id}:messages` 为 List，每个元素是一个完整轮次 `{round_id, messages[]}`，一次 RPUSH 写入一轮；按整轮 LTRIM 保留最近 K 轮（默认 10），EXPIRE 默认 24h。读取后展开轮内消息，禁止按默认 50 条消息截断而拆散工具往返。
+- **中期（MongoDB）**：集合 `messages`，字段 `{session_id, round_id, role, content, tool_calls, tool_call_id, reasoning_content?, created_at}`；索引 `(session_id, created_at desc)`。`reasoning_content` 是受 session 限定的私有协议字段，不进入关键词检索或公开输出；上下文恢复完整轮次时才按模式加载。普通检索按 session 过滤、时间倒序和可选 content 关键词执行。
 - **降级**：任一存储不可用时记录 `memory.degraded` 告警日志并返回空集合，上层继续运行（FR-MEM-05、AC-07）。
-- **写回时机**：Runtime 每轮结束后异步写回，失败不影响本轮响应。
+- **写回时机**：Redis 在响应前同步 await，Mongo 在响应后异步写回；失败告警，详见 §3.2.2。公开 trace 摘要不作为历史消息重复存储。
 - **边界重申**：Memory **不存**会话元数据与审计（属 MySQL），也**不**做轮次窗口裁剪（属 Context）。
 
 ### 3.5 Context 管线与压缩
 
 - **组装顺序**：`system prompt（配置）→ 工具摘要（可选）→ 中期记忆摘要 → 短时窗口消息（时间正序）→ 当前用户消息`。
+- **工具定义位置**：实际工具定义由 `registry.schemas()` 生成，作为请求体顶层 `tools` 独立发送，不能只统计可选的工具摘要。Context 接收该次请求的 `tools_snapshot`；计数和 HTTP 发送复用同一份快照，启停变化从下一用户请求生效。
 - **Token 计算（本地估算）**：
-  - **实现**：`LocalTokenCounter` 基于 `tiktoken` 的 `cl100k_base`，逐条消息计数并叠加消息结构开销；`TokenCounter` 为 Protocol，便于替换。
+  - **实现**：`LocalTokenCounter.count_request(messages, tools)` 基于 `tiktoken` 的 `cl100k_base`；对实际 messages 与非空 tools 分别做规范 JSON 序列化（`ensure_ascii=False, sort_keys=True, separators=(",", ":")`），计数后叠加集中配置的 `protocol_overhead_tokens`（默认保守预留 256）。覆盖 role、content、tool_calls 的 ID/名称/参数、tool_call_id、工具结果、实际回传的 reasoning_content，以及工具名称、描述、完整 parameters Schema（嵌套 properties、required、enum、$defs/$ref 等）。无 tools 时该项为 0；工具摘要若也发送，则作为 messages 的一部分正常计数。
+  - **公式**：`estimated_input_tokens = message_tokens + tool_schema_tokens + protocol_overhead_tokens`；messages 与 tools 都为空时总计为 0。`tool_schema_tokens` 对整个实际 tools 数组计数，不逐字段重复累加，也不重复计算已在 messages 内的历史 tool_calls。
   - **定位**：纯本地估算，**不依赖任何外部 tokenizer 包分发或在线接口**；不下载官方离线包，也不调用服务端做预估。
   - **安全余量**：因 `cl100k_base` 与 DeepSeek 分词器并非同一套，预算计算统一保留 **10% 余量**以吸收偏差。
   - **预算** = `model.max_context_tokens` − `max_output_tokens`（默认 1024）− **安全余量 10%**。
-  - 每次拼接完成后统计一次，裁剪后再统计一次；响应 `usage` 仅用于**观测与对账**（写入 `request_metrics`），不参与预算判断。
-  - **降级**：`tiktoken` 不可用时退回字符比例估算（英文 ≈0.3、中文 ≈0.6 token/字符），并记录 `token_counter.degraded` 告警。
+  - **每次出站前**调用 `Context.fit`：首次拼接、每批工具结果回灌后及裁剪后都重新统计实际请求，比较 `estimated_input_tokens ≤ budget`。响应 `usage` 仅用于观测对账，不参与预算判断。本地 tokenizer 与供应商不同源，10% 余量降低超限风险，不宣称数学上保证服务端 token 永不超限。
+  - **降级**：`tiktoken` 不可用时对同样的规范 JSON 文本退回字符比例估算（ASCII 约 0.3、非 ASCII 约 0.6 token/字符，各项向上取整），保留结构开销与 10% 余量，并记录 `token_counter.degraded`。
 - **压缩策略 = 双触发的整轮滑动窗口**：
   - 「一轮」= 一条 `user` 消息 + 其后的 `assistant` 回复 + 其间所有 `assistant(tool_calls)/tool` 往返，作为**不可拆分的整体**；
   - **触发条件（任一成立）**：轮次数 > K（默认 10） **或** 估算 token > 预算；
   - **动作**：从**最旧的一轮整轮丢弃**，丢弃后重新计数，直到两个条件同时满足；
   - **绝不**拆分或截断单条消息，也绝不丢弃 system prompt 与当前用户消息。
-- **边界情形**：若只剩 1 轮（当前轮）时仍超预算，说明配置异常或单轮过大——不再丢弃，记录 `context.over_budget_after_trim` 告警并按"system + 当前轮"最小集合发送；若模型返回 400，按 `LLMBadRequest` 处理。
-- **可追溯**：`ContextPayload` 记录 `rounds_before / rounds_after / dropped_rounds / tokens_before / tokens_after / trim_reason(rounds|tokens|both)`，并写入日志 `event=context.trimmed`（FR-CTX-04）。
+- **边界情形**：system、实际 tools 与当前轮（含所有已产生的工具往返）不可删减；完整历史轮次全部裁掉后仍超预算，记录 `context.over_budget_after_trim`，本地抛 `ContextTooLarge`（`CONTEXT_TOO_LARGE/400`），不再调用 LLM。若前面已执行工具，错误响应带脱敏 trace、steps 和 `truncated=true`，且不自动重试产生重复副作用；单轮过大拒绝写入可恢复窗口，仅保留脱敏审计。远端因估算偏差返回超限 400 时按 `LLMBadRequest/502` 明确返回。
+- **可追溯**：`ContextPayload` 记录 `rounds_before / rounds_after / dropped_rounds / tokens_before / tokens_after / message_tokens / tool_schema_tokens / protocol_overhead_tokens / budget / trim_reason(rounds|tokens|both)`，并写入日志 `event=context.trimmed`（FR-CTX-04）；tokens_before/after 都指完整请求估算值。token 紧张时“保留最近 K 轮”表示最多 K 个已完成历史轮次，可能少于 K；当前轮不计入历史轮次窗口。
 
 ### 3.6 交互接口层
 
 - **仅 HTTP**，不提供 CLI / REPL / 图形界面（NG-03、G-06）：
-  - `POST /chat`：`{session_id?, message}` → `{session_id, reply, steps, tool_calls, usage, trace_id}`；
+  - `POST /chat`：`{session_id?, message}` → `{session_id, reply, steps, tool_calls, usage, trace, trace_id, truncated}`；`tool_calls` 是整数，trace 结构见 §3.2.3；未触发安全阀时 truncated=false。
   - `GET /healthz`：返回依赖连通性（Redis / Mongo / MySQL），**不暴露密钥**。
 - **会话**：请求未带 `session_id` 时由服务生成（UUID4）并在响应中返回；带则复用。
 - **错误码**：`400` 入参非法、`408` 超时、`429` 上游限流、`502` 模型不可用、`500` 内部错误（FR-IF-04）。
@@ -281,7 +312,7 @@ return AgentResult(final=fallback_message, steps=max_steps, truncated=True, trac
 
 ### 3.8 配置与依赖注入
 
-- **配置分层**：`config.yaml`（非敏感）+ 环境变量（敏感项：`LLM_API_KEY`、`REDIS_URL`、`MONGO_URI`、`MYSQL_DSN`）。
+- **配置分层**：`config.yaml`（非敏感）+ 环境变量（敏感项：`DEEPSEEK_API_KEY`、`REDIS_URL`、`MONGO_URI`、`MYSQL_DSN`）。DeepSeek 密钥统一使用 `DEEPSEEK_API_KEY`，禁止 `LLM_API_KEY` 别名（ISSUE-013）。
 - **四类配置**：`ModelConfig`（provider/base_url/model/timeout/retry）、`ToolConfig`（启停、sandbox_root、max_file_size、search provider）、`PromptConfig`（system prompt 文件路径 + 窗口轮次）、`SystemDBConfig`（DSN、连接池、是否自动建表）。
 - **校验**：`pydantic-settings` 启动即校验，缺失必填项直接失败并给出字段名（FR-CFG-01、AC-13）。
 - **DI 容器**：轻量手写容器（注册工厂 + 单例/瞬时作用域），按配置装配 `LLMClient`、`ToolRegistry`、`Memory`、`ContextBuilder`、`SystemDB`、`Agent`；测试可注入替身（FR-CFG-04）。
@@ -382,7 +413,7 @@ build: 历史 14 轮 / tokens = 21000，K = 10，预算 = 16000
 
 ```
 AgentResult →
-  ├─ [响应前·同步] Redis:  RPUSH session:{id}:messages + LTRIM(50) + EXPIRE(24h)
+  ├─ [响应前·同步] Redis:  RPUSH 完整轮次 + LTRIM(最近 K 轮) + EXPIRE(24h)
   ├─ [响应后·异步] Mongo:  insert_many（对话正文，失败仅告警）
   └─ [响应后·异步] MySQL:  UPSERT sessions / INSERT tool_invocations、request_metrics（失败仅告警）
 ```
@@ -435,18 +466,33 @@ AgentResult →
 | ADR-011 | **只提供 HTTP 入口**，不实现 CLI | 符合 NG-03 与 G-06；减少一套入口的测试与维护成本 | 本地调试需起服务或写脚本 | 同时提供 CLI |
 | ADR-012 | MySQL 访问用 `SQLAlchemy Core` + `asyncmy`，不引入 ORM | Core 足够表达五张表；避免 ORM 抽象与 N+1 | 手写 SQL 与映射 | SQLModel / Tortoise ORM |
 | ADR-013 | MySQL 扩为**系统信息库**（会话管理 / 系统模型 / 工具登记 / 审计指标） | 需求要求；这些数据需要事务、唯一约束与联表统计，Redis/Mongo 不适合 | 表结构需随功能演进迁移 | 仅存审计，模型与工具仅放配置文件 |
-| ADR-014 | 思考过程仅随**响应与日志**返回，不落 MySQL | 避免思考文本与对话正文混淆；日志已可按 trace_id 串联 | 长期留存依赖日志系统 | 单独建 `thoughts` 表 |
+| ADR-014 | 公开 trace 仅展示带来源标记的运行时决策摘要；模型 reasoning 作为可选私有协议字段 | 区分解析与展示，不伪造模型思考；思考工具模式仍满足供应商回传要求 | 需保护 session 内私有字段并参与完整请求计数 | 直接把正文或推理原文记入公开 trace |
 | ADR-015 | Token 计数用**本地 `tiktoken` 估算 + 10% 安全余量** | 不依赖外部分发包与网络；可测试、可复现；实现与运维成本最低 | 与 DeepSeek 分词器不同源，存在系统偏差，靠余量吸收 | 官方离线 tokenizer（需分发官方包，已放弃）/ 纯字符比例（更粗） |
 
 ## 8. 风险与缓解
 
 | 风险 | 影响 | 缓解措施 |
 | --- | --- | --- |
-| DeepSeek 与 OpenAI 协议存在细微差异 | 工具调用解析失败 | 契约测试用真实响应样本；保留 `raw` 字段便于排查 |
+| DeepSeek 与 OpenAI 协议存在细微差异 | 工具调用解析失败 | 契约测试覆盖真实响应结构与可选 reasoning；仅记录脱敏错误元数据 |
 | Redis / Mongo / MySQL 本地不可用 | 集成测试无法跑 | 单元测试用 fakeredis/mongomock/内存替身；集成测试标记 `@integration`，无依赖时跳过并记录 |
 | 按轮次裁剪时拆散了工具往返 | 出现 `tool` 消息无对应 `tool_calls` 的协议错误 | 以"轮"为不可分割单位整体丢弃；用例覆盖含工具调用的轮次 |
 | 工具被注入恶意参数 | 越权访问文件 | 沙箱四步校验 + 属性测试覆盖路径组合 |
 | MySQL 写入阻塞主链路 | 响应变慢 | 异步批量写 + 不可用时降级为仅告警 |
 | 配置层最后交付导致重构面大 | 第 8 阶段风险集中 | 前期所有外部依赖通过构造函数注入，第 8 阶段仅集中装配 |
 | token 估算与 DeepSeek 分词器存在系统偏差 | 预估值偏离真实用量 | 统一保留 10% 安全余量；`usage` 落库用于对账；超限按 `LLMBadRequest` 明确报错 |
-| 整轮裁剪后仍超预算（单轮过大） | 请求被模型拒绝 | 记录 `context.over_budget_after_trim` 告警；按"system + 当前轮"最小集合发送并返回可读错误 |
+| 整轮裁剪后仍超预算（单轮或 Schema 过大） | 请求无法发送 | 本地返回 CONTEXT_TOO_LARGE，不丢弃必要 Schema，不再发送超预算请求 |
+
+## 9. 本次修订验证与回滚
+
+- 影响范围：LLM 归一化、Runtime 判别与 trace、Memory 轮次边界、Context 计数输入、HTTP 响应字段；均为实现前设计修订。
+- 文档验收：新增测试编号与需求/计划关联一致；公开 trace 不含原始 reasoning；每次出站的计数和工具快照一致；真实 API 用例有独立执行门禁。
+- 回滚方式：若评审否决，按本次 Git diff 局部撤回定义与对应映射，保留 Prompt/Issue 历史；不涉及任何数据库初始化或数据迁移。
+
+---
+
+## 10. 变更记录
+
+| 版本 | 日期 | 变更 | 影响范围 |
+| --- | --- | --- | --- |
+| v0.6 | 2026-10-21 | 解析契约、完整请求预算与验收用例修订 | 全文 |
+| v0.7 | 2026-10-22 | 环境变量统一为 `DEEPSEEK_API_KEY`，移除 `LLM_API_KEY` 别名 | §3.8；联动 `Docs/ISSUE.md` ISSUE-013、`openspec/specs/engineering-standards/spec.md` C-02 |

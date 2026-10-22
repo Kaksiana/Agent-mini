@@ -1,7 +1,9 @@
-# ISSUE
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
+
+## 问题记录
 
 ### ISSUE-001 — 私有仓库在无权限账号下无法解析，报错与"仓库不存在"无法区分
 
@@ -92,3 +94,69 @@
 - 验证方式：`openspec list` 能看到活跃 change；`openspec validate <change-id>` 通过。
 - 状态：Open
 - 关联提交：无
+
+### ISSUE-010 — 思考字段与决策摘要混用，输出解析缺少异常分支
+
+- 日期：2026-10-21
+- 现象：`thought` 直接取最终文本或运行时补写文本，未区分模型推理、工具决策与最终答案；多工具调用的 trace 粒度和 HTTP 字段不一致。
+- 根因：只描述了正常的 function calling 路径，没有定义响应判别、来源标记和协议错误契约。
+- 解决方案：补充 `reasoning_content` 的可选解析、运行时决策摘要来源、完整响应判别表、多工具调用列表与脱敏输出；同步需求、测试与阶段计划。
+- 验证方式：检查 DESIGN §3.1、§3.2.3、§3.2.4 与 TESTING 的解析用例和 AC-22 映射一致；运行时验证留待实现阶段，不以文档检查代替测试通过。
+- 状态：Resolved
+- 验证结果：文档定义与用例映射已校验；关闭的是设计缺口，相关运行时功能尚未实现或执行测试。
+- 关联提交：无
+
+### ISSUE-011 — Token 预算遗漏工具 Schema 与循环增长，单轮超限仍发送
+
+- 日期：2026-10-21
+- 现象：TokenCounter 仅描述消息计数，未显式统计实际 `tools` JSON；工具结果增长后缺少再次检查；最小上下文超预算时仍尝试请求模型。
+- 根因：预算校验以初始消息拼接为中心，没有覆盖每次实际出站请求。
+- 解决方案：统一统计 messages、tools 和结构开销；冻结工具定义快照；每次调用前复核预算；仅剩不可裁剪内容仍超限时本地返回 `CONTEXT_TOO_LARGE`。
+- 验证方式：检查预算公式、Schema 统计、零出站请求与工具结果增长用例映射；实现后再运行对应测试。
+- 状态：Resolved
+- 验证结果：messages/tools/开销公式与出站预算规则一致；对应 TC 均已定义，运行验证待实现。
+- 关联提交：无
+
+### ISSUE-012 — 双窗口、工具追问和真实 API 缺少验收用例
+
+- 日期：2026-10-21
+- 现象：已设计并发隔离和纯对话追问，但没有双窗口交替恢复、待办隔离、带工具追问和真实 API 的正式用例。
+- 根因：现有用例拆分后未覆盖题目完整用户旅程，真实调用仅被列为手工步骤。
+- 解决方案：新增会话、工具追问、解析、预算和真实 API 用例；真实凭据仅从 `DEEPSEEK_API_KEY` 环境变量读取，Prompt 记录中脱敏。
+- 验证方式：机械核对新增 TC 编号唯一、统计准确、需求与计划可追溯；当前没有 Runtime 与测试代码，真实 API 验收保持未执行状态。
+- 状态：Resolved
+- 验证结果：75 个功能 TC 与 1 个工程 smoke 无重复或缺失引用；47 个 FR 全部关联计划；23 个 AC 在需求与测试文档中的映射一致。密钥模式扫描未命中真实格式凭据；不代表真实 API 已验收。
+- 关联提交：无
+
+### ISSUE-013 — 环境变量命名冲突：`LLM_API_KEY` 与 `DEEPSEEK_API_KEY`
+
+- 日期：2026-10-22
+- 现象：`Docs/DESIGN.md` §3.8 曾使用 `LLM_API_KEY`；`Docs/PLAN.md` S18、`Docs/TESTING.md` §4.6 与 `MEMORY.md` 使用 `DEEPSEEK_API_KEY`。同一密钥存在两个正式名，后续实现若双读会产生歧义与配置错误。
+- 根因：DESIGN 早期按通用 provider 命名，后续真实 API 验收改用 DeepSeek 专用名，文档之间未同步收敛。
+- 解决方案：统一为 `DEEPSEEK_API_KEY`；修订 `Docs/DESIGN.md` §3.8、版本号与 §10 变更记录；同步 `openspec/specs/engineering-standards/spec.md` C-02 与 `openspec/config.yaml` context；明确禁止 `LLM_API_KEY` 别名。
+- 验证方式：全仓搜索 `LLM_API_KEY`，仅允许命中 PROMPT/ISSUE 历史记录，以及 DESIGN/OpenSpec 规范/config 中“禁止别名”的说明；运行代码、README、测试夹具不得出现该别名；`DEEPSEEK_API_KEY` 在相关文档中保持一致。
+- 验证结果：当前仅命中历史 PROMPT/ISSUE 与 DESIGN/规范/config 的禁止别名说明；无运行代码、README 或测试夹具；`openspec validate --all` 通过。
+- 状态：Resolved
+- 关联提交：无（本轮未执行 Git 操作）
+
+### ISSUE-014 — `AGENT.md` 环境事实滞后（OpenSpec、`.gitignore`、技术栈）
+
+- 日期：2026-10-22
+- 现象：`AGENT.md` §6.1 仍写“尚未执行 `openspec init`”；§5.1 写 `.gitignore` 尚未创建；§2 写“技术栈尚未确定”。实际上 OpenSpec 已于 2026-10-21 初始化（ISSUE-005），`.gitignore` 已创建（ISSUE-004），技术栈已在 `Docs/DESIGN.md` §1.1 确定。
+- 根因：`AGENT.md` 初版按初始化前状态编写，后续 ISSUE-004/005 与 DESIGN 落地后未回填。
+- 解决方案：更新 `AGENT.md` §2、§5.1、§6.1；在 §6.1 增加 `openspec/specs/engineering-standards/spec.md` 全局规范入口；§11 追加变更记录；原因见 `Docs/PROMPT.md` Prompt 17。
+- 验证方式：在 `AGENT.md` 中搜索旧表述（“尚未执行 `openspec init`”“尚未创建”“技术栈尚未确定”）零命中；`git diff -- AGENT.md` 仅包含事实修正、规范入口与变更记录；`openspec validate --specs --strict` 通过。
+- 验证结果：旧表述零命中；`AGENT.md` diff 仅涉及 §2、§5.1、§6.1、§11；`openspec validate --all` 通过。
+- 状态：Resolved
+- 关联提交：无（本轮未执行 Git 操作）
+
+### ISSUE-015 — OpenSpec 全局规范任务未即时记录 PROMPT/ISSUE
+
+- 日期：2026-10-22
+- 现象：Prompt 16（建立 OpenSpec 全局规范）执行时受“只改 OpenSpec 文件”约束，未写入 `Docs/PROMPT.md` 与 `Docs/ISSUE.md`，与 `AGENT.md` §3/§4 的全过程记录要求冲突。
+- 根因：任务范围与全局记录规范冲突，执行时未即时登记例外，导致记录滞后一轮。
+- 解决方案：补录 `Docs/PROMPT.md` Prompt 16/17 与本条 ISSUE-013/014/015；在 Prompt 16 摘要中说明范围约束与补记决定；后续同类任务先登记例外再执行。
+- 验证方式：`Docs/PROMPT.md` 中存在 Prompt 16/17 的原始 Prompt 与执行摘要；ISSUE-013/014/015 编号连续、状态非空且均含验证方式；本轮仅追加 Prompt 16/17 与上述 ISSUE，未删除或改写历史条目。
+- 验证结果：Prompt 16/17 与 ISSUE-013/014/015 均已落盘；编号连续、状态均为 Resolved；历史 Prompt 01–15 未改写。
+- 状态：Resolved
+- 关联提交：无（本轮未执行 Git 操作）

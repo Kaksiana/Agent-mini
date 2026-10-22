@@ -1,11 +1,11 @@
-# REQUIREMENT
+# REQUIREMENT <!-- omit in toc -->
 
 > **Agent-mini 需求基线**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 本文件是整个项目的需求唯一来源；设计、测试、计划文档均以此为基准，变更需回溯同步。
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.6（按 2026-10-21 调整单修订） |
+| 版本 | v0.7（解析契约、Schema 预算与验收补充） |
 | 日期 | 2026-10-21 |
 | 状态 | 待评审 |
 | 关联文档 | `Docs/DESIGN.md`、`Docs/TESTING.md`、`Docs/PLAN.md` |
@@ -24,7 +24,7 @@ Agent-mini 是一个**最小可用 Agent**。
 
 三点设计取舍：
 
-1. **上下文仍做 token 计算**：每次拼装后统计 token 用量并与预算比较，确保不超过模型上限；token 只用于**判断是否超限**，不做单条消息级裁剪。
+1. **上下文仍做 token 计算**：每次调用 LLM 前统计实际 messages、tools Schema 和协议结构开销，与预算比较；超预算时裁剪或本地拒绝发送。不同 tokenizer 存在估算偏差，安全余量降低风险，但不保证服务端实际计数绝无超限；不做单条消息级裁剪。
 2. **压缩按整轮丢弃**：超限时以「轮」为单位从最旧处整轮移除，绝不拆散一轮内部的消息；即"轮次窗口 + token 预算"**双触发**。
 3. **只提供 HTTP 交互**：不实现 CLI、REPL、Web 前端等其它入口。
 
@@ -91,7 +91,7 @@ Agent-mini 是一个**最小可用 Agent**。
 - **职责**：封装 OpenAI Chat Completions 兼容调用；透传 `tools` 定义；归一化响应（文本 / tool_calls）；处理超时、重试、错误分类；统计 token 用量。
 - **边界**：**不**做提示词工程、**不**做上下文拼接与裁剪（属 Context 层）、**不**做工具调度（属 Runtime）、**不**保存任何会话状态。
 - **输入**：`messages[]`、`tools[]`、模型参数（`temperature`、`max_tokens` 等）。
-- **输出**：`LLMResponse`，含 `content`、`tool_calls[]`、`usage`、`finish_reason`。
+- **输出**：`LLMResponse`，含 `content`、可选 `reasoning_content`、`tool_calls[]`、`usage`、`finish_reason`；推理字段与最终文本分别解析，默认非思考模式，契约见 DESIGN §3.1。
 
 ### 5.2 Agent Runtime
 
@@ -116,7 +116,7 @@ Agent-mini 是一个**最小可用 Agent**。
 
 ### 5.5 Context 管线与压缩策略
 
-- **职责**：按 `system prompt + 工具定义 + 记忆片段 + 最近 K 轮对话` 的顺序**拼接**上下文；**计算 token 用量**并与预算比较；维护**按轮次的滑动窗口**（默认 10 轮）；当「轮次超窗」或「token 超预算」任一成立时，从最旧一轮开始**整轮丢弃**，直到两个约束同时满足。
+- **职责**：拼接 system prompt、记忆片段、最多 K 个已完成历史轮次和当前轮；工具定义在请求顶层 tools 独立发送。统一统计 messages、完整 tools Schema 和协议开销，每次出站前复核预算；默认保留最多 10 个历史轮次，超轮次或 token 预算时整轮丢弃最旧历史。不可裁剪部分仍超预算则本地拒绝，不发送 LLM 请求。
 - **边界**：**不**拆分或截断单条消息（不做 token 级细裁剪）、**不**做摘要生成（不调用模型）、**不**持久化记忆（写回由 Memory 层负责）。
 - **输入**：会话 ID、当前用户消息、窗口轮次配置、token 预算（模型上下文上限 − 输出预留 − 安全余量）。
 - **输出**：`ContextPayload`，含最终 `messages[]`、实际轮次、估算 token 数、裁剪触发原因（`rounds` / `tokens` / `both`）、被丢弃的轮次数。
@@ -154,9 +154,11 @@ Agent-mini 是一个**最小可用 Agent**。
 | UC-06 | 写入文件 | 目标路径在沙箱内 | 指定路径与内容 → write_file | 超限或越界 → 拒绝且不落盘 | 写入后内容可被 read_file 读回 |
 | UC-07 | 联网搜索 | 已配置搜索 provider | 提问 → 调用 search → 基于结果回答 | 未配置 provider → 明确提示未启用 | 未配置时不得伪造结果 |
 | UC-08 | 多轮记忆 | Redis 可用 | 第 1 轮告知信息，第 2 轮引用 | Redis 不可用 → 降级为单轮并告警 | 第 2 轮能正确引用第 1 轮 |
-| UC-09 | 上下文超限裁剪 | 轮次 > K 或 token > 预算 | 继续提问 → 整轮丢弃最旧对话至不超限 → 正常回答 | 裁剪异常 → 退化为固定 K 轮 | 最近 K 轮与系统提示不丢，最终 token 不超预算 |
+| UC-09 | 上下文超限裁剪 | 历史轮次 > K 或完整请求估算 token > 预算 | 整轮丢弃最旧历史 → 重新计数 → 正常回答 | 不可裁剪部分仍超限 → CONTEXT_TOO_LARGE/400，不再请求 LLM | 保留系统提示、实际 tools、当前完整轮次及最多 K 轮历史 |
 | UC-10 | 工具失败收敛 | 工具返回错误 | 工具报错 → Runtime 读取错误 → 决定重试或直接说明 | 连续失败 → 达上限后给出结论 | 进程不崩溃，用户得到可读说明 |
 | UC-11 | 通过 HTTP 使用 | 服务已启动 | 调用 `POST /chat` → 得到回复与元数据 | 服务不可用 / 入参非法 → 明确错误码 | 单入口即可完成单轮与多轮 |
+| UC-12 | 双窗口独立恢复 | 同一用户有 session A/B，todo 按 session 存储 | A 查天气并记待办 → B 写周报并记待办 → 交替携原 ID 继续追问 | 省略 ID → 生成新 session，不按用户身份合并 | 对话、工具状态和历史召回均不串扰 |
+| UC-13 | 带工具追问 | 同一 session 已调用 calculator 或 todo | “算 2+2”→“再乘 3”，或新增待办后“完成刚才那条” | 工具参数错误 → 模型收到结构化错误再修正 | 第 2 轮正确引用前文且再次自主选择工具 |
 
 ## 7. 功能需求清单
 
@@ -164,10 +166,10 @@ Agent-mini 是一个**最小可用 Agent**。
 
 | 编号 | 需求 | 优先级 | 验收要点（测试项） |
 | --- | --- | --- | --- |
-| FR-LLM-01 | 以 OpenAI Chat Completions 协议发起对话请求，兼容 DeepSeek | P0 | TC-L2-001 |
-| FR-LLM-02 | 透传 `tools` 定义并正确解析 `tool_calls` | P0 | TC-L2-002 |
+| FR-LLM-01 | 以 OpenAI Chat Completions 协议发起对话请求，兼容 DeepSeek；最终交付须真实 API 验收 | P0 | TC-L2-001、TC-LIVE-001、TC-LIVE-002 |
+| FR-LLM-02 | 透传 tools，校验调用结构、ID 和参数 JSON，覆盖混合文本、多调用及非法参数分支 | P0 | TC-L2-002、TC-L2-008、TC-L2-009、TC-L2-010 |
 | FR-LLM-03 | 超时、可重试错误（429/5xx）带退避重试，不可重试错误直接上抛 | P0 | TC-L2-004、TC-L2-005、TC-L2-006 |
-| FR-LLM-04 | 归一化响应结构（content / tool_calls / usage / finish_reason） | P0 | TC-L2-003 |
+| FR-LLM-04 | 分别归一化 content、可选 reasoning_content、tool_calls、usage、finish_reason；空输出/截断输出不得当最终答案 | P0 | TC-L2-003、TC-L2-007、TC-L2-008 |
 | FR-LLM-05 | 模型、base_url、超时、重试次数可配置 | P0 | TC-L1-017 |
 
 ### 7.2 Agent Runtime
@@ -176,12 +178,12 @@ Agent-mini 是一个**最小可用 Agent**。
 | --- | --- | --- | --- |
 | FR-RT-01 | 单轮直答：模型无 tool_calls 时直接返回 | P0 | TC-L1-015、TC-L4-003 |
 | FR-RT-02 | 工具调用决策：解析 tool_calls 并逐个执行 | P0 | TC-L1-015、TC-L3-006 |
-| FR-RT-03 | 多步循环：支持至少 3 步（工具→结果→再决策） | P0 | TC-L3-006 |
+| FR-RT-03 | 多步循环：支持至少 3 步（工具→结果→再决策）与带工具追问 | P0 | TC-L3-006、TC-L4-010、TC-L4-011 |
 | FR-RT-04 | 消息顺序正确：assistant(tool_calls) 与 tool(result) 成对出现 | P0 | TC-L1-015 |
-| FR-RT-05 | 安全阀：最大步数、单轮总超时、重复相同工具调用检测 | P0 | TC-L1-016、TC-L4-008 |
-| FR-RT-06 | 工具异常不中断进程，转为可读提示继续收敛 | P0 | TC-L4-007 |
+| FR-RT-05 | 安全阀：最大步数、单轮总超时、重复相同工具调用检测 | P0 | TC-L1-016、TC-L1-029、TC-L4-008 |
+| FR-RT-06 | 工具异常、未知工具和参数校验错误转为带 call_id 的结构化结果，允许模型修正后收敛 | P0 | TC-L1-028、TC-L4-007 |
 | FR-RT-07 | Memory 写回时机与调用链：一轮结束后先同步写短时记忆，再异步写中期与系统库；写失败不阻断响应 | P0 | TC-L3-011、TC-L3-012 |
-| FR-RT-08 | 思考过程可追溯：每个 ReAct 步骤记录 thought / action / observation，随结果返回并写入日志 | P1 | TC-L1-024 |
+| FR-RT-08 | 思考过程可追溯：解析可选模型推理字段；每次 LLM 响应记录一条带来源标记的决策摘要及工具结果列表；公开 trace 不暴露原始推理 | P1 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 
 ### 7.3 Tool 能力层
 
@@ -190,7 +192,7 @@ Agent-mini 是一个**最小可用 Agent**。
 | FR-TOOL-01 | 注册机制：装饰器注册，生成名称/描述/JSON Schema，支持启停 | P0 | TC-L1-007、TC-L1-008、TC-L1-009 |
 | FR-TOOL-02 | calculator：安全四则与括号运算，禁止任意代码执行 | P0 | TC-L1-001、TC-L1-002、TC-L1-003 |
 | FR-TOOL-03 | time：支持默认时区与指定 IANA 时区 | P0 | TC-L1-004、TC-L1-005 |
-| FR-TOOL-04 | todo：会话级增删改查 | P0 | TC-L1-006、TC-L4-002 |
+| FR-TOOL-04 | todo：会话级增删改查，session_id 由可信执行上下文注入，不允许模型参数覆盖 | P0 | TC-L1-006、TC-L3-013、TC-L4-009 |
 | FR-TOOL-05 | read_file：沙箱内读取，限制大小与编码 | P0 | TC-L1-012、TC-L4-002 |
 | FR-TOOL-06 | write_file：沙箱内写入，禁止覆盖越界与超限 | P0 | TC-L1-012、TC-L4-002 |
 | FR-TOOL-07 | 沙箱：阻断 `..` 逃逸、绝对路径越界、符号链接逃逸 | P0 | TC-L1-010、TC-L1-011、TC-L5-003 |
@@ -200,8 +202,8 @@ Agent-mini 是一个**最小可用 Agent**。
 
 | 编号 | 需求 | 优先级 | 验收要点（测试项） |
 | --- | --- | --- | --- |
-| FR-MEM-01 | 短时记忆：按会话写入 Redis 窗口，可设置 TTL | P0 | TC-L3-001、TC-L3-002 |
-| FR-MEM-02 | 短时恢复：按会话 ID 读回最近 N 条消息 | P0 | TC-L3-001、TC-L4-004 |
+| FR-MEM-01 | 短时记忆：按会话写入 Redis 完整轮次窗口，可设置 TTL，禁止按消息数拆散轮次 | P0 | TC-L3-001、TC-L3-002、TC-L3-014 |
+| FR-MEM-02 | 短时恢复：按会话 ID 恢复最近 K 个完整历史轮次，独立窗口可交替恢复 | P0 | TC-L3-001、TC-L4-004、TC-L4-009、TC-L4-010 |
 | FR-MEM-03 | 中期记忆：消息持久化到 MongoDB | P0 | TC-L3-003 |
 | FR-MEM-04 | 中期检索：按会话 + 时间倒序 + 关键词过滤 | P1 | TC-L3-004 |
 | FR-MEM-05 | 记忆不可用时降级：不阻断单轮对话并记录告警 | P0 | TC-L3-005 |
@@ -211,9 +213,9 @@ Agent-mini 是一个**最小可用 Agent**。
 | 编号 | 需求 | 优先级 | 验收要点（测试项） |
 | --- | --- | --- | --- |
 | FR-CTX-01 | 上下文拼接：system prompt + 工具定义 + 记忆片段 + 最近 K 轮，按固定顺序直接拼接 | P0 | TC-L1-013、TC-L3-007 |
-| FR-CTX-02 | Token 计算：每次拼装后统计 token 用量；采用**本地 tokenizer 估算**（tiktoken + 10% 安全余量），不可用时降级为字符比例估算 | P0 | TC-L1-022 |
-| FR-CTX-03 | 双触发整轮裁剪：轮次 > K 或 token > 预算时，从最旧一轮整轮丢弃，直到两项均满足 | P0 | TC-L1-014、TC-L1-023、TC-L4-005 |
-| FR-CTX-04 | 裁剪可追溯：记录触发原因、裁剪前后轮次与 token、丢弃轮次数 | P1 | TC-L1-014、TC-L4-005 |
+| FR-CTX-02 | 完整请求计数：本地 tiktoken 估算 messages、实际 tools Schema、协议开销；每次出站前校验；10% 安全余量，不可用时按同一输入降级估算 | P0 | TC-L1-022、TC-L1-025、TC-L1-027 |
+| FR-CTX-03 | 双触发整轮裁剪：保留最多 K 个历史轮次；不可裁剪的 system/tools/当前轮仍超预算时本地 CONTEXT_TOO_LARGE/400，不再调用 LLM | P0 | TC-L1-014、TC-L1-023、TC-L1-026、TC-L1-027、TC-L4-005、TC-L4-012 |
+| FR-CTX-04 | 裁剪可追溯：记录原因、前后轮次与完整请求 token、工具 Schema token 和丢弃轮次数 | P1 | TC-L1-014、TC-L1-025、TC-L4-005 |
 
 ### 7.6 交互接口层
 
@@ -222,7 +224,7 @@ Agent-mini 是一个**最小可用 Agent**。
 | FR-IF-01 | HTTP `POST /chat`：接收消息并返回回复与元数据 | P0 | TC-L4-001、TC-L4-003 |
 | FR-IF-02 | 会话透传：请求可带 session_id，缺省时由服务生成并在响应中返回 | P0 | TC-L4-003、TC-L4-004 |
 | FR-IF-03 | 健康检查：`GET /healthz` 返回依赖连通性且不暴露密钥 | P0 | TC-L4-003 |
-| FR-IF-04 | 错误码映射：入参非法 400、超时 408、上游限流 429、模型错误 502、内部错误 500 | P0 | TC-L4-003、TC-L1-019 |
+| FR-IF-04 | 错误码映射：入参非法/上下文过大 400、超时 408、上游限流 429、模型协议/输出错误 502、内部错误 500 | P0 | TC-L4-003、TC-L1-019、TC-L4-012 |
 
 ### 7.7 可观测与治理
 
@@ -264,7 +266,7 @@ Agent-mini 是一个**最小可用 Agent**。
 | NFR-SEC-02 | 安全 | 密钥只从环境变量读取，日志与响应中不得出现明文密钥 | TC-L5-004 |
 | NFR-SEC-03 | 安全 | calculator 不得执行任意代码（无 eval/exec/导入） | TC-L1-002 |
 | NFR-OBS-01 | 可观测 | 每个请求至少 1 条带 trace_id 的完成日志 | TC-L1-020、TC-L4-003 |
-| NFR-COST-01 | 成本 | 上下文受**轮次窗口 + token 预算**双重约束，任何一次请求的 token 均不超过预算；token 计算须留安全余量 | TC-L1-014、TC-L1-022、TC-L4-005 |
+| NFR-COST-01 | 成本 | 每次出站请求的本地完整输入估算值不得超过预算；工具结果增长后重新检查；服务端实际计数偏差按上游错误处理 | TC-L1-014、TC-L1-022、TC-L1-025、TC-L1-026、TC-L1-027、TC-L4-005 |
 | NFR-MAINT-01 | 可维护性 | 新增一个工具只需新增文件 + 注册，不改 Runtime | TC-L1-007 |
 | NFR-MAINT-02 | 可维护性 | 分层依赖单向，下层不得反向依赖上层 | 代码评审 + 依赖检查 |
 | NFR-COMPAT-01 | 兼容性 | Python 3.11+；Linux 与 Windows 均可运行 | TC-L4-003 |
@@ -281,11 +283,11 @@ Agent-mini 是一个**最小可用 Agent**。
 | AC-03 | 危险表达式（如 `__import__('os')`）被拒绝且无副作用 | FR-TOOL-02、NFR-SEC-03 | TC-L1-002 |
 | AC-04 | 沙箱外路径（`../`、绝对路径、符号链接）一律阻断 | FR-TOOL-07、NFR-SEC-01 | TC-L1-010、TC-L1-011、TC-L5-003 |
 | AC-05 | 六个工具全部注册成功且 Schema 合法 | FR-TOOL-01 | TC-L1-007、TC-L1-008 |
-| AC-06 | 同一会话第 2 轮能正确引用第 1 轮信息 | FR-MEM-02 | TC-L4-004 |
+| AC-06 | 纯对话和带工具追问均可引用前文；同用户两个 session 可交替恢复且对话/待办互不影响 | FR-MEM-02、FR-TOOL-04、FR-RT-03 | TC-L4-004、TC-L3-013、TC-L4-009、TC-L4-010 |
 | AC-07 | Redis 不可用时自动降级，单轮对话仍可完成 | FR-MEM-05 | TC-L3-005 |
-| AC-08 | 轮次或 token 超限时按轮次整轮丢弃最旧对话，保留系统提示与最近 K 轮，最终 token 不超预算 | FR-CTX-03 | TC-L1-014、TC-L4-005 |
+| AC-08 | 超限时整轮丢弃最旧历史，保留 system/tools/当前轮及最多 K 个历史轮次；最小请求仍超预算则本地拒绝 | FR-CTX-03 | TC-L1-014、TC-L1-026、TC-L4-005、TC-L4-012 |
 | AC-09 | 工具连续失败时进程不崩溃，返回可读说明 | FR-RT-06 | TC-L4-007 |
-| AC-10 | 达到最大步数时返回明确提示而非死循环 | FR-RT-05 | TC-L4-008 |
+| AC-10 | 达到最大步数、deadline 或重复调用阈值时明确终止，无死循环 | FR-RT-05 | TC-L1-016、TC-L1-029、TC-L4-008 |
 | AC-11 | 仅通过 HTTP 即可完成单轮与多轮对话，响应结构稳定且含 trace_id | FR-IF-01、FR-IF-02 | TC-L4-003、TC-L4-004 |
 | AC-12 | 每次请求日志包含 trace_id，且可串起工具调用 | FR-OBS-02 | TC-L1-020 |
 | AC-13 | 配置缺失或非法时启动失败并给出可定位的错误 | FR-CFG-01 | TC-L4-006 |
@@ -295,9 +297,10 @@ Agent-mini 是一个**最小可用 Agent**。
 | AC-17 | 20 并发会话无串话、无失败 | NFR-PERF-02 | TC-L5-002 |
 | AC-18 | 全项目不依赖任何被禁 Agent 框架 | G-01、NG-07 | 依赖清单评审 |
 | AC-19 | 会话、模型、工具元数据与审计指标均可落库；MySQL 不可用时对话仍可正常完成 | FR-SYS-01~05 | TC-L3-009、TC-L3-010 |
-| AC-20 | 每次请求的上下文 token 均不超过预算；超限时整轮裁剪，不拆分单轮消息 | FR-CTX-02、FR-CTX-03、NFR-COST-01 | TC-L1-022、TC-L1-023、TC-L4-005 |
+| AC-20 | 每次出站均统计实际 messages/tools 和开销；Schema 或工具结果增长触发预算检查，超预算请求不出站 | FR-CTX-02、FR-CTX-03、NFR-COST-01 | TC-L1-022、TC-L1-023、TC-L1-025、TC-L1-026、TC-L1-027、TC-L4-005、TC-L4-012 |
 | AC-21 | 一轮结束后短时记忆同步写回、中期异步写回，写失败不影响响应 | FR-RT-07 | TC-L3-011、TC-L3-012 |
-| AC-22 | 每个 ReAct 步骤的 thought / action / observation 可追溯 | FR-RT-08 | TC-L1-024 |
+| AC-22 | 每个 LLM 步骤有带来源的决策摘要和工具结果列表；可选 reasoning 正确解析/按协议回传，公开输出不含推理原文 | FR-RT-08 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
+| AC-23 | 真实 DeepSeek API 完成一次直答与至少一次自主工具闭环；明确记录模型、用量、trace_id 和实际结果 | FR-LLM-01、FR-RT-03 | TC-LIVE-001、TC-LIVE-002 |
 
 ## 10. 需求变更规则
 
@@ -315,3 +318,4 @@ Agent-mini 是一个**最小可用 Agent**。
 | v0.4 | 2026-10-21 | ① MySQL 扩展为系统信息库（系统模型、工具、会话管理）；② 恢复 token 计算并确保不超预算；③ Runtime 补充 Memory 写回时机/调用链与思考过程；④ 压缩保留「整轮丢弃」且同时受 token 预算约束 | §2、G-05、NG-09、§4、§5.5、UC-09、FR-RT-07~08、FR-CTX-01~04、FR-SYS-01~05、NFR-COST-01、AC-08、AC-19、AC-20~22；联动 `DESIGN` / `TESTING` / `PLAN` |
 | v0.5 | 2026-10-21 | Token 计算优先采用**官方离线 tokenizer** + 响应 `usage` 校准，官方方案不可用时降级为字符比例估算；明确官方 API 无在线计数接口 | FR-CTX-02、§5.5；联动 `DESIGN` §1.1/§3.5/ADR-015、`TESTING` TC-L1-022、`PLAN` S15 |
 | v0.6 | 2026-10-21 | **放弃官方 tokenizer 方案**，改回**本地 tokenizer 估算**（`tiktoken` + 10% 安全余量）；`usage` 仅用于观测对账，不参与预算判断 | FR-CTX-02；联动 `DESIGN` §1.1/§2.2/§3.5/ADR-015/§8、`TESTING` TC-L1-022 与工具表、`PLAN` S15 |
+| v0.7 | 2026-10-21 | 完善 reasoning/content/tool_calls 解析和 trace 来源；完整请求预算统计 tools Schema、循环增长与本地超限拒绝；补充双窗口、工具追问和真实 API 验收；Redis 改为整轮保留 | DESIGN v0.6、TESTING v0.6（75 个用例）、PLAN v0.6；AC-06/08/20/22 修订，新增 AC-23；ISSUE-010~012 |

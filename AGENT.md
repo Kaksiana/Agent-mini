@@ -58,7 +58,7 @@
 ### 验证方式
 
 - `git show --stat <commit>` 中测试文件与实现文件同时出现。
-- 本地全量测试通过。**测试命令以 `README.md` 中记录的真实脚本为准**；当前仓库技术栈尚未确定，引入测试框架的同一个 PR 必须把可执行的测试命令写入 `README.md`，禁止在规范或文档中虚构命令。
+- 本地全量测试通过。**测试命令以 `README.md` 中记录的真实脚本为准**；技术栈已在 `Docs/DESIGN.md` §1.1 确定，S00 落地测试框架时必须在同一个 PR 把可执行的测试命令写入 `README.md`，禁止在规范或文档中虚构命令。
 - 若接入覆盖率工具，覆盖率不得低于上一提交。
 
 ---
@@ -158,7 +158,7 @@
    - 密钥与环境变量：`.env`、`.env.*`、`*.pem`、`*.key`、`*.p12`
    - 本地数据与临时文件：`Data/tmp/`、`*.sqlite-journal`、`*.tmp`
 2. 严禁将密钥、令牌、证书、大体积二进制文件提交进仓库。
-3. **当前事实**：截至 2026-10-21 本仓库 `.gitignore` **尚未创建**。按本规范应在首次功能性提交前补齐；补齐动作需单独 commit（`chore(git): add .gitignore`）。
+3. **当前事实**：截至 2026-10-22，仓库根目录 `.gitignore` 已创建（ISSUE-004），覆盖本条第 1 款所列类别，并保留 `!.env.example` / `!.env.template` 例外。新增技术栈或新增产物类型时必须同步补充。
 
 **执行时机**：首次提交前创建；新增技术栈或新增产物类型时同步补充。
 
@@ -243,10 +243,12 @@ git log --format=%s -20 | grep -Ev '^(feat|fix|docs|test|refactor|perf|chore|bui
 
 ### 6.1 OpenSpec
 
-**环境事实（2026-10-21 实测）**
+**环境事实（2026-10-22 复核）**
 
 - `openspec` CLI 可用，版本 `1.12.0`。
-- 本仓库**尚未执行 `openspec init`**，即 `openspec/` 目录尚不存在；首次使用前需初始化。
+- 本仓库已于 2026-10-21 执行 `openspec init`（ISSUE-005），存在 `openspec/config.yaml`、`openspec/specs/`、`openspec/changes/`。
+- 项目上下文写在 `openspec/config.yaml` 的 `context`；OpenSpec 1.12 不再使用 legacy `openspec/project.md`。
+- 全局工程规范见 `openspec/specs/engineering-standards/spec.md`；与 `AGENT.md` 冲突时以 `AGENT.md` 为准。
 
 **要求**
 
@@ -256,6 +258,7 @@ git log --format=%s -20 | grep -Ev '^(feat|fix|docs|test|refactor|perf|chore|bui
 3. 实现阶段逐条勾选 tasks；实现完成、验证通过后执行归档（`openspec-archive-change`）。
 4. 归档前必须 `openspec validate` 通过；未通过不得归档。
 5. 禁止绕过 change 直接改行为（纯文档、纯配置调整除外）。
+6. 全局编码规范的执行细节以 `openspec/specs/engineering-standards/spec.md` 为准；该文件对 `AGENT.md` 做引用与细化，冲突时以 `AGENT.md` 为准。
 
 **执行时机**
 
@@ -268,6 +271,7 @@ git log --format=%s -20 | grep -Ev '^(feat|fix|docs|test|refactor|perf|chore|bui
 - `openspec list` 能看到当前活跃 change。
 - `openspec validate <change-id>` 返回通过。
 - 仓库中存在 `openspec/` 目录及对应 change 文件。
+- `openspec/specs/engineering-standards/spec.md` 存在且 `openspec validate --specs --strict` 通过。
 
 ### 6.2 SuperPower SKILL
 
@@ -437,3 +441,4 @@ git log --format=%s -20 | grep -Ev '^(feat|fix|docs|test|refactor|perf|chore|bui
 | --- | --- | --- |
 | 2026-10-21 | 初版 | 建立文档优先、TDD、Prompt/Issue 记录、Git 规范、OpenSpec 与 SuperPower SKILL 六项全局规范 |
 | 2026-10-21 | 新增 §7–§9 | 增加需求驱动开发（顺序与编号可追溯）、阶段执行粒度（单功能单阶段）、从零开发（禁止 Agent 框架清单与例外审批）；原"提交前检查清单""变更记录"顺延为 §10、§11 |
+| 2026-10-22 | 事实复核与全局规范入口 | 更新 §2 技术栈状态、§5.1 `.gitignore` 状态、§6.1 OpenSpec 初始化事实；新增 `openspec/specs/engineering-standards/spec.md` 入口；原因与验证见 `Docs/PROMPT.md` Prompt 17、`Docs/ISSUE.md` ISSUE-014 |

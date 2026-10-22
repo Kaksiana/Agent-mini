@@ -1,5 +1,22 @@
 schema: spec-driven
 
+# 项目上下文：OpenSpec 创建或更新 artifacts 时自动注入。
+# 详细规范见 openspec/specs/engineering-standards/spec.md。
+context: |
+  Project: Agent-mini — minimal ReAct agent, Python 3.11+, no agent frameworks.
+  Primary rules: AGENT.md (process), Docs/REQUIREMENT.md, Docs/DESIGN.md,
+  Docs/TESTING.md, Docs/PLAN.md.
+  Global engineering standards: openspec/specs/engineering-standards/spec.md.
+  Non-negotiables:
+  - Code must be readable line by line: max line 100 chars, one statement per line,
+    nesting <= 3, function <= 50 lines.
+  - Comments and docstrings default to concise Chinese; redundant, stale or
+    commented-out comments are defects.
+  - Tooling: ruff format + ruff check + mypy strict + pytest; config in pyproject.toml (S00).
+  - No secrets in repo; secrets only from environment variables; .env is ignored.
+  - DeepSeek API key: DEEPSEEK_API_KEY only; do not add an LLM_API_KEY alias.
+  - No agent frameworks (langgraph, langchain, autogen, crewai, etc.).
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.

@@ -1,4 +1,4 @@
-# TESTING
+# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -6,10 +6,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.5（按 2026-10-21 调整单修订） |
+| 版本 | v0.6（解析契约、Schema 预算与验收补充） |
 | 日期 | 2026-10-21 |
 | 状态 | 待评审 |
-| 用例总数 | 56（L1×24、L2×6、L3×12、L4×8、L5×6） |
+| 用例总数 | 75（L1×30、L2×10、L3×14、L4×12、L5×6、LIVE×3） |
+
+> 本文件是测试设计清单，当前无测试代码；75 个用例均未执行，不表示测试已通过。S00 的工程 smoke 检查另计，不计入功能用例数。
 
 ---
 
@@ -33,6 +35,8 @@
 | 集成测试（L3） | ~12% | Redis、Mongo、MySQL、Runtime + Tool 联合 |
 | 端到端（L4） | ~6% | HTTP 全链路 |
 | 非功能（L5） | ~2% | 性能、并发、安全、脱敏 |
+
+> 上述占比是后续测试代码数量目标，不是本表设计用例数量的比例；真实 API 验收独立统计。
 
 ### 1.3 各阶段与测试的对应
 
@@ -75,8 +79,9 @@
 | L3 集成 | Redis / Mongo / MySQL / Runtime+Tool 联合 | fakeredis、mongomock、MySQL 替身；真实服务标记 `@integration` | 5–30s | 是（替身）/ 可选（真实） | `pytest -m integration` |
 | L4 端到端 | HTTP 全链路 | 真实进程 + mock 模型服务 | 10–60s | 是 | `pytest -m e2e` |
 | L5 非功能 | 性能、并发、安全、脱敏 | 视用例 | 10–120s | 否（`@slow`） | `pytest -m slow` |
+| LIVE 真实验收 | DeepSeek 直答、工具闭环、可选思考模式 | 真实 API + 密钥，有限调用次数 | 视模型时延 | 否，显式 opt-in；发布前必验 001/002 | 待实现后写入 README |
 
-> 测试命令以 `README.md` 记录的真实脚本为准（`AGENT.md` §2）。当前 `README.md` 尚未写入命令，属已知缺口，见 `Docs/ISSUE.md` 待登记项。
+> 测试命令以 `README.md` 记录的真实脚本为准（`AGENT.md` §2）。当前尚未实现，上表仅为设计约定；README 缺口已登记为 ISSUE-008。
 
 ## 4. 每层测试用例清单
 
@@ -102,12 +107,18 @@
 | TC-L1-016 | `max_steps=3`，mock LLM 永远返回 tool_calls | 运行 `Agent.run()` | 恰好 3 步后停止；`truncated=True`；返回明确提示文案；不抛异常 |
 | TC-L1-017 | 无配置文件 / 必填项缺失 | 加载配置 | 抛 `ConfigError` 且消息含缺失字段名；合法配置可正常解析 |
 | TC-L1-018 | 已注册 LLM 与 Memory 的假实现 | 从容器解析 `Agent` | 返回实例且其依赖为注入的假实现（同一次解析为同一单例） |
-| TC-L1-019 | 构造各类异常 | 调用 `to_error_response()` | LlmAuth→`LLM_AUTH/502`、Sandbox→`SANDBOX_VIOLATION/400`、Input→`INVALID_INPUT/400`、未知→`INTERNAL/500` |
+| TC-L1-019 | 构造各类异常 | 调用 `to_error_response()` | LlmAuth→LLM_AUTH/502、Sandbox→SANDBOX_VIOLATION/400、Input→INVALID_INPUT/400、ContextTooLarge→CONTEXT_TOO_LARGE/400、协议/空输出/截断→对应 LLM_* 错误/502、未知→INTERNAL/500 |
 | TC-L1-020 | 设置 trace_id 后触发一次工具调用 | 捕获日志输出 | 所有日志行均为合法 JSON，含 `trace_id`、`event`、`duration_ms`，同一次请求内 `trace_id` 一致 |
 | TC-L1-021 | search 未配置任何 provider | 调用 `search("今天天气")` | 返回 `ok=False`、`error_code=not_configured`；响应中不含任何伪造的搜索结果 |
-| TC-L1-022 | `max_context_tokens=16000`、`max_output=1024`、余量 10% | 计算预算并统计固定中英文文本的 token | 预算 = 16000 − 1024 − 1600 = 13376；同一输入多次计数结果一致（可复现）；空消息计 0；`tiktoken` 缺失时降级为字符比例并记录 `token_counter.degraded` |
+| TC-L1-022 | max_context_tokens=16000、max_output=1024、余量 10%、结构开销 256 | 对固定中英文 messages 与实际 tools JSON 调用 count_request；注入 tokenizer 不可用分支 | 预算=13376；总估算=message_tokens+tool_schema_tokens+256；同输入计数一致；messages/tools 均空时为 0；降级路径保留相同 Schema 输入和开销并记 token_counter.degraded |
 | TC-L1-023 | 14 轮，K=10，按轮次裁剪后 token 仍超预算 | 触发双触发裁剪 | 先按轮次丢 4 轮，再按 token 继续整轮丢弃至不超预算；`trim_reason=both`；最终 `tokens_after ≤ budget` |
-| TC-L1-024 | mock LLM 第 1 步返回 tool_calls，第 2 步返回文本 | 运行 `Agent.run()` 并检查 `AgentResult.trace` | trace 长度=2；第 1 条含 `action.tool` 与 `observation` 摘要；第 2 条 `thought` 为最终文本；日志含 `event=react.step` |
+| TC-L1-024 | mock LLM 第 1 步返回 tool_calls，第 2 步返回文本，无 reasoning 字段 | 运行 Agent.run 并检查 trace 与日志 | trace 长度=2；decision 依次为 tool_call/final；thought_source=runtime_summary，reasoning_present=false；第 1 条含 tool_calls[0].tool/observation，第 2 条 tool_calls=[]；thought 不复制最终文本；日志含 react.step |
+| TC-L1-025 | 固定 messages、含嵌套 properties/required/enum/$defs 的 tools；禁用一个工具 | 以可注入的确定性计数器比较空 tools、实际 tools、增加长描述/嵌套约束后的请求，并捕获发送体 | tools 的规范 JSON 全量参与计数；工具名称/描述/Schema 任一修改改变对应计数；禁用工具不发送不计数；HTTP tools 与计数快照一致；total 分项无重复；增加 Schema 可触发历史整轮裁剪 |
+| TC-L1-026 | 无历史，分别构造超大用户消息、system 或 Schema，使最小请求超预算 | 调用 Context.fit；LLM 为可记录调用次数的替身 | CONTEXT_TOO_LARGE/400；LLM 调用数=0；不删除 tools 或截断当前消息规避校验；日志有 over_budget_after_trim |
+| TC-L1-027 | 初次完整请求低于预算，工具返回超大结果，LLM 替身记录每次输入 | 分别构造“删历史后可发送”和“当前轮仍超限”场景运行循环 | 第一种整轮删除旧历史后调用第 2 次 LLM；第二种 LLM 调用数=1，返回 CONTEXT_TOO_LARGE、truncated=true；工具调用与结果保持配对；已有工具不重放 |
+| TC-L1-028 | 注册 calculator，LLM 先请求未知工具或缺必填参数，再返回合法调用和最终答案 | 参数化执行各错误场景，记录 handler 副作用次数 | 未知工具为 unknown_tool，Schema 错误为 invalid_arguments；错误结果带原 call_id 回灌；无效调用不执行 handler；后续合法调用可收敛 |
+| TC-L1-029 | 可注入单调时钟和 async timeout；工具替身可取消 | 分别模拟工具挂起超过 deadline、相同 name+规范化 args 连续返回 3 次 | 截止时间触发后取消挂起调用且不再请求模型；重复阈值触发停止；均返回明确提示与 truncated=true、steps 等于实际步骤；为未完成 call_id 补齐取消/超时 tool 结果，恢复后协议合法；不依赖长时间 sleep |
+| TC-L1-030 | 启用思考工具模式，mock 响应带唯一私有 reasoning 标记；工具参数与结果含假密钥 | 检查公开 HTTP trace、日志、MySQL 事件、公开记忆召回与下一次请求体 | 私有 reasoning 仅在同 session 协议字段中回传；公开输出均不含标记原文或假密钥；thought_source 固定 runtime_summary，reasoning_present=true |
 
 ### 4.2 L2 契约测试（LLM HTTP）
 
@@ -119,12 +130,16 @@
 | TC-L2-004 | 桩先返回 429、再返回 500、最后返回 200（`retry=3`） | 调用 `chat()` | 共 3 次请求；最终成功返回；退避间隔单调递增 |
 | TC-L2-005 | 桩延迟超过 `timeout` | 调用 `chat()` | 抛 `LLMTimeout`，不无限等待，错误消息含超时秒数 |
 | TC-L2-006 | 桩返回 400 与 401 | 分别调用 `chat()` | 抛 `LLMBadRequest` / `LLMAuthError`，且**不重试**（断言请求次数为 1） |
+| TC-L2-007 | 参数化桩：reasoning_content 为缺失/null/字符串，content 与 tool_calls 合法 | 归一化响应；启用 thinking 且 tools 非空时发起下一次请求，再以新用户消息开始下一轮 | reasoning/content 独立提取，缺失/null 不补造；保留完整历史轮次的 reasoning 原字段在每次后续请求回传，包括无工具调用的 assistant；裁掉的轮次不回传；默认模式请求显式 thinking.disabled |
+| TC-L2-008 | 参数化桩：无 choices、空列表、非法 message、重复/空调用 ID、非法调用结构、空答案、仅 reasoning、length/content_filter/未知终止原因 | 调用解析器，记录工具 handler 次数 | 结构错误/终止矛盾为 LLM_PROTOCOL_ERROR；无有效答案为 LLM_EMPTY_RESPONSE；截断为 LLM_OUTPUT_TRUNCATED；过滤为 LLM_OUTPUT_REJECTED；均 502、无工具执行、无无限重试 |
+| TC-L2-009 | 合法调用结构，arguments 分别为破损 JSON、数组、字符串、重复键或 NaN | 解析后交 Runtime 回灌；模型下一步修正为合法 JSON object | 各无效调用返回 invalid_arguments 与原 call_id，不执行 handler，不使用 eval；修正后可正常执行；trace 记录失败与恢复 |
+| TC-L2-010 | 桩第 1 步 content 与 2 个 tool_calls 共存，第 2 步返回最终文本 | 完成两步循环并捕获 messages、trace | 第 1 步不提前返回 content；先写 1 条 assistant，再按原顺序写 2 条有匹配 ID 的 tool；trace 长度=2，第 1 条工具列表长度=2；tool_calls 总次数=2 |
 
 ### 4.3 L3 集成测试
 
 | 编号 | 前置条件 | 测试步骤 | 预期结果 |
 | --- | --- | --- | --- |
-| TC-L3-001 | fakeredis（或真实 Redis） | `append` 三条消息 → `get_recent(2)` | 返回后两条，顺序为时间正序，内容与写入一致 |
+| TC-L3-001 | fakeredis（或真实 Redis），每个 List 元素为完整轮次 | append 三轮 → get_recent_rounds(2) 并展开消息 | 返回后两轮，时间正序，轮内内容/调用 ID 完整且无孤立 tool 消息 |
 | TC-L3-002 | 同上，TTL 设为 1s | 写入后等待 TTL 过期再读 | 返回空集合，且不抛异常 |
 | TC-L3-003 | mongomock（或真实 Mongo） | 写入 3 条消息后查询集合 | 集合内 3 条文档，字段 `session_id/role/content/created_at` 完整 |
 | TC-L3-004 | 会话 A 有 5 条、会话 B 有 2 条 | 按 session A + 关键词过滤检索 | 只返回 A 中命中关键词的记录，`created_at` 倒序 |
@@ -134,8 +149,10 @@
 | TC-L3-008 | 两个会话并发运行 | 并发执行 10 次请求 | 两个会话的消息窗口互不污染；各自结果与串行执行一致 |
 | TC-L3-009 | 真实或替身 MySQL；启动时已登记 2 个模型、6 个工具 | 完成一次带工具调用的会话后查询五张表 | `models`=2 条、`tools`=6 条且 `enabled` 正确；`sessions` 1 条且 `status / last_active_at / message_count` 正确；`tool_invocations`、`request_metrics` 各有对应 trace_id 记录 |
 | TC-L3-010 | MySQL 连接不可用 | 运行一次完整对话 | 对话正常返回；日志含 `systemdb.degraded`；系统信息未写入但进程未退出 |
-| TC-L3-011 | 正常链路，记录各写回调用时序 | 发起一次请求并观察调用顺序 | Redis 写入发生在响应返回**之前**且为同步；Mongo 与 MySQL 写入发生在响应**之后**且为异步；三者都不阻塞响应 |
+| TC-L3-011 | 正常链路，记录各写回调用时序 | 发起一次请求并观察调用顺序 | Redis 同步写入完成后才返回响应；Mongo/MySQL 后台写入不阻塞响应；Redis 等待在配置超时内，不能断言其完全不阻塞 |
 | TC-L3-012 | Mongo 与 MySQL 均抛连接异常 | 发起一次请求 | 响应正常返回 200；日志含 `memory.degraded` / `systemdb.degraded`；进程未退出 |
+| TC-L3-013 | 两个 session 各有独立 todo；工具执行上下文由服务端注入 session_id | A/B 分别 add/list/complete；构造模型参数试图把 A 的 session_id 改为 B | A 操作不影响 B；越权 session_id 参数被 Schema 拒绝；B 的待办与历史均不泄漏给 A |
+| TC-L3-014 | Redis/Mongo 存在含多批工具往返与私有 reasoning 的完整轮次，窗口 K=2 | 写入 3 轮并按原 session 恢复；运行 Context 裁剪和公共关键词检索 | 仅最旧完整轮被移除；消息保留 tool_call_id 与必需 reasoning；无孤立 tool；公开检索不返回私有 reasoning；B session 无法读取 A 状态 |
 
 ### 4.4 L4 端到端测试
 
@@ -143,12 +160,16 @@
 | --- | --- | --- | --- |
 | TC-L4-001 | 启动 HTTP 服务，mock 模型返回纯文本 | `POST /chat {"message":"你好"}` | 200；响应 `reply` 非空；`steps=1`；无 traceback |
 | TC-L4-002 | 同上，模型返回 calculator 调用 | `POST /chat {"message":"算下 2+2"}` | 200；`tool_calls` 记录 1 次；回复含结果 4 |
-| TC-L4-003 | 启动 HTTP 服务 | `POST /chat`、`GET /healthz`，并构造 400/500 场景 | `/chat` 返回 200 且含 `session_id/reply/trace_id/usage`；未传 session_id 时自动生成并回传；`/healthz` 返回 200 且不含密钥；错误码映射正确 |
+| TC-L4-003 | 启动 HTTP 服务 | POST /chat、GET /healthz，并构造 400/500 场景 | /chat 返回 200，含 session_id/reply/steps/tool_calls/usage/trace/trace_id/truncated；tool_calls 为整数；未传 ID 自动生成；trace 符合 DESIGN §3.2.3 且不含原始 reasoning；健康检查不含密钥；错误码正确 |
 | TC-L4-004 | 同一 session_id 连续两次请求 | 第 1 轮说"我叫小明"，第 2 轮问"我叫什么" | 第 2 轮回复包含"小明"；两轮 trace_id 不同、session_id 相同 |
 | TC-L4-005 | 预置 14 轮历史（窗口 10，token 预算较小） | 发起新问题 | 触发裁剪（日志 `context.trimmed`，`trim_reason` 为 rounds / tokens / both）；回复正常；最终 token 不超预算；无孤立 `tool` 消息 |
 | TC-L4-006 | 配置文件缺失必填项 | 启动 HTTP 服务 | 进程启动失败；错误信息指出缺失字段；不产生堆栈噪声 |
 | TC-L4-007 | mock 工具抛异常 | 发起请求 | 返回可读说明；进程存活；错误被分类记录 |
 | TC-L4-008 | `max_steps=2`，模型持续要求工具 | 发起请求 | 返回"达到最大步数"类明确提示；HTTP 200 且标记 `truncated=true`；无死循环 |
+| TC-L4-009 | 同一用户两个窗口；mock LLM、search 测试 provider 返回明确标注的天气夹具；真实 todo | 窗口 A 新建 session 查天气并记“带伞”；B 新建另一 session 写周报并记“提交周报”；交替携原 ID 追问天气/周报并列出待办 | 两次新建 ID 不同；A 只恢复天气及带伞，B 只恢复周报及提交周报；A 完成待办不影响 B；保留逐次 trace_id；服务端不按用户合并 session |
+| TC-L4-010 | 同一 session、mock LLM 决策、真实 calculator/todo | 分别执行“算 2+2”→“再乘 3”；“记待办提交周报”→“完成刚才那条” | 第二轮实际调用工具；calculator 得 12；todo 完成原条目；断言工具参数、状态变化和消息上下文，不能只断言回复措辞 |
+| TC-L4-011 | mock LLM 按轮返回 calculator、todo、最终文本 | 用户要求“计算 2+2 并记入待办”，运行 HTTP 全链路 | 恰好 3 次 LLM 调用；calculator=4；todo 存在结果 4；每次 LLM 可见前次工具结果；trace 3 条且 decision=tool_call/tool_call/final |
+| TC-L4-012 | 实际 tools Schema 占满预算，LLM 替身有计数器 | POST /chat 提交消息并收集错误响应/日志 | HTTP 400、code=CONTEXT_TOO_LARGE、trace_id 非空；LLM 请求次数=0；不把大 Schema 静默删除或降级为仅摘要发送 |
 
 ### 4.5 L5 非功能测试
 
@@ -157,9 +178,25 @@
 | TC-L5-001 | mock 模型固定 50ms 返回 | 串行 100 次单轮问答，统计分位 | p95 ≤ 500ms（不含模型真实时延） |
 | TC-L5-002 | 20 个独立会话 | 并发发起请求 | 成功率 100%；无跨会话内容串扰；内存无明显增长 |
 | TC-L5-003 | 沙箱已就绪 | 跑安全用例集：`..`、绝对路径、符号链接、超长文件名、NTFS 流、大小写变体 | 全部被阻断；无一个越界成功 |
-| TC-L5-004 | 配置含密钥 | 触发一次请求并采集全部日志与响应 | 日志与响应中均不含明文密钥（正则扫描 `sk-`、`Bearer `、`api_key`） |
+| TC-L5-004 | 配置、模型响应与工具结果含唯一假密钥/私有 reasoning 标记 | 执行请求并扫描日志、响应、MySQL 审计及版本控制文件 | 无完整假密钥或私有 reasoning 原文泄漏；允许 api_key 字段名与 *** 占位符，不因字段名本身误报；真实 API Key 不进入测试夹具 |
 | TC-L5-005 | 全量测试可运行 | 执行带覆盖率统计的测试命令 | 新增代码行覆盖率 ≥ 80%；未覆盖行有说明 |
 | TC-L5-006 | `max_steps` 较大 | 运行 200 次请求 | 无文件句柄/连接泄漏（`ResourceWarning` 为 0） |
+
+### 4.6 LIVE 真实 DeepSeek 验收
+
+| 编号 | 前置条件 | 测试步骤 | 预期结果 |
+| --- | --- | --- | --- |
+| TC-LIVE-001 | 已实现客户端与 HTTP；显式 live 开关；DEEPSEEK_API_KEY 环境变量；配置实际可用模型 | 关闭工具，使用真实 API 发起“只回复 验收通过”，记录脱敏结果 | 非 mock 响应非空、steps=1、工具数=0，记录时间/模型/usage/trace_id 和断言结果；不得以桩响应代替 |
+| TC-LIVE-002 | 同上，工具已注册，thinking 显式 disabled，tool_choice=auto | 自然语言请求用 calculator 计算 (17+25)*3，捕获真实请求与工具执行 trace | 模型自主给出合法 tool_call，真实 calculator 得 126，结果回灌后获得最终答案；至少 2 次真实 LLM 调用；记录 usage 与 trace_id |
+| TC-LIVE-003 | 已实现思考模式；所选模型支持 thinking+tools；显式启用该模式 | 第 1 轮使用 calculator，第 2 轮带原 session 追问；检查每次出站协议字段和公开 trace | 若供应商返回 reasoning，则按官方要求回传保留历史并计入预算；公开输出无推理原文；模型不返回 reasoning 时记录“不提供该字段”，不能伪造；协议行为与契约测试一致 |
+
+LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必验。缺密钥/网络/可用模型时记录“未执行”及原因，整体真实 API 验收不得标记通过。默认测试运行不得自动联网或产生调用费用；显式执行有次数上限（每例最多 8 次模型请求，含重试）与总超时，失败保存脱敏错误，不保存 Authorization、原始响应或 reasoning 正文。
+
+### 4.7 工程 smoke 检查（不计入 75 个功能用例）
+
+| 编号 | 前置条件 | 测试步骤 | 预期结果 |
+| --- | --- | --- | --- |
+| TC-SMOKE-001 | S00 工程包已安装 | 导入 agent_mini 并读取版本 | 导入成功、版本非空；无网络与存储访问 |
 
 ## 5. 测试环境与工具
 
@@ -171,7 +208,7 @@
 | 操作系统 | Windows 10+ / Linux（CI 以 Linux 为准） |
 | Redis | ≥ 7（仅 L3 真实服务用例需要） |
 | MongoDB | ≥ 6（同上） |
-| 模型 | 单元/集成测试全部使用 mock；仅手工验收时连真实 DeepSeek |
+| 模型 | L1–L5 使用 mock；LIVE 显式连接真实 DeepSeek，模型名和密钥均由运行环境提供 |
 
 ### 5.2 工具与职责
 
@@ -184,7 +221,7 @@
 | `mongomock` | 无依赖的 Mongo 替身 |
 | `pytest-cov` | 覆盖率统计与阈值门禁 |
 | `hypothesis` | calculator 表达式、沙箱路径的属性测试 |
-| `tiktoken` | token 计数（与生产实现同源）；不可用时相关用例标记 `skip` |
+| `tiktoken` | 完整请求的本地 token 估算；缺失分支必须测试字符比例降级，不得 skip 掩盖 |
 | `ruff` | 静态检查（先于测试运行） |
 | `mypy` | 类型检查（CI 阶段） |
 | `docker compose` | 本地拉起真实 Redis/Mongo（可选） |
@@ -198,8 +235,9 @@
 | `integration` | 集成测试 | 无真实服务时用替身；连接真实服务的子集需显式 `--integration-real` |
 | `e2e` | 端到端 | 默认执行 |
 | `slow` | 非功能/耗时 | 默认跳过，CI 夜间跑 |
+| `live` | 真实 API 验收 | 默认不选中；需显式开关与 DEEPSEEK_API_KEY，最终验收必须有 001/002 的实际通过记录 |
 
-> 上述命令为设计约定。`AGENT.md` §2 要求"测试命令以 `README.md` 记录的真实脚本为准"；本次受文件白名单限制未更新 `README.md`，该缺口已列入 `Docs/ISSUE.md` 待登记项，落地阶段 0 时必须补齐。
+> 上述标记和命令尚待实现。S00/S18 落地时应把真实可执行命令、live 开关与前置条件写入 README；当前缺口见 ISSUE-008。本轮未执行真实 API，也未持久化用户提供的密钥。
 
 ### 5.4 测试数据管理
 
@@ -225,6 +263,7 @@
 - [ ] 新增代码覆盖率 ≥ 80%（NFR-TEST-01、AC-16）
 - [ ] 沙箱安全用例集（TC-L5-003）全通过
 - [ ] 日志脱敏用例（TC-L5-004）通过
+- [ ] 最终交付时 LIVE-001/002 真实 API 验收通过；开启思考模式时 LIVE-003 也通过；缺少外部条件不能算验收成功
 - [ ] `ruff` 零告警、`mypy` 无新增错误
 - [ ] 无 P0/P1 未解决缺陷
 - [ ] `Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、本文件与实现保持一致
@@ -249,11 +288,11 @@
 | AC-03 | TC-L1-002 |
 | AC-04 | TC-L1-010、TC-L1-011、TC-L5-003 |
 | AC-05 | TC-L1-007、TC-L1-008 |
-| AC-06 | TC-L4-004 |
+| AC-06 | TC-L4-004、TC-L3-013、TC-L4-009、TC-L4-010 |
 | AC-07 | TC-L3-005 |
-| AC-08 | TC-L1-014、TC-L4-005 |
+| AC-08 | TC-L1-014、TC-L1-026、TC-L4-005、TC-L4-012 |
 | AC-09 | TC-L4-007 |
-| AC-10 | TC-L1-016、TC-L4-008 |
+| AC-10 | TC-L1-016、TC-L1-029、TC-L4-008 |
 | AC-11 | TC-L4-003、TC-L4-004 |
 | AC-12 | TC-L1-020 |
 | AC-13 | TC-L4-006 |
@@ -263,6 +302,7 @@
 | AC-17 | TC-L5-002 |
 | AC-18 | 依赖清单评审（非自动化） |
 | AC-19 | TC-L3-009、TC-L3-010 |
-| AC-20 | TC-L1-022、TC-L1-023、TC-L4-005 |
+| AC-20 | TC-L1-022、TC-L1-023、TC-L1-025、TC-L1-026、TC-L1-027、TC-L4-005、TC-L4-012 |
 | AC-21 | TC-L3-011、TC-L3-012 |
-| AC-22 | TC-L1-024 |
+| AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
+| AC-23 | TC-LIVE-001、TC-LIVE-002 |
