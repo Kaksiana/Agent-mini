@@ -14,14 +14,14 @@
 - **WHEN** 429/500 触发两次重试
 - **THEN** 事件依次记录 attempt=1/2、最大尝试次数、状态码与等待秒数
 
-### Requirement: 超时配置真正约束等待
+### Requirement: 超时配置传递与分类
 
-客户端 MUST 将 `ModelConfig.timeout` 传入 HTTP 传输层；本地慢响应超过该超时后 MUST 在 timeout 上限附近抛 `LLMTimeoutError`，不得等待完整响应。
+客户端 MUST 将 `ModelConfig.timeout` 传入 HTTP 传输层；timeout 触发时 MUST 抛 `LLMTimeoutError` 且只发起 1 次请求，不得重试。测试 MUST 断言底层客户端 timeout 与配置一致，避免只验证异常转换。
 
-#### Scenario: 本地慢服务器
+#### Scenario: 超时配置与读超时
 
-- **WHEN** 本地服务器延迟超过配置 timeout
-- **THEN** 客户端在有限时间内抛 `LLMTimeoutError`，且只发起 1 次请求
+- **WHEN** 配置 timeout 并收到 `httpx.ReadTimeout`
+- **THEN** 底层客户端 timeout 等于配置值，只请求 1 次并抛 `LLMTimeoutError`
 
 ### Requirement: 非预期 HTTP 状态分类
 

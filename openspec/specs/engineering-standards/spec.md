@@ -730,6 +730,7 @@ agent-mini/
 3. LLM 细分错误至少包括：`LLMAuthError`、`LLMBadRequestError`、`LLMTimeoutError`、`LLMRateLimitError`、`LLMServerError`、`LLMConnectionError`、`LLMProtocolError`、`LLMEmptyResponseError`、`LLMOutputTruncatedError`、`LLMOutputRejectedError`。
 4. 上下文超限使用 `ContextTooLarge`；工具内部错误不抛到 Runtime，转为 `ToolResult`。
 5. 禁止自定义异常继承 `BaseException`；禁止覆盖内置 `MemoryError` 等名称。
+6. **阶段例外（S02–S19）**：`LLMError` 可作为临时根存在，但必须保留 `code/http_status` 与 `*Error` 命名，并在 S20 前迁移为 `AgentError` 子类；到期未迁移视为违反本条，例外自动失效。
 
 **错误码分层**
 

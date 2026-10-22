@@ -104,7 +104,7 @@ thinking 启用时，客户端 MUST 在请求中保留并回传历史 assistant 
 
 ### Requirement: HTTP 与 httpx 异常分类
 
-客户端 MUST 将 `400` 映射为 `LLMBadRequestError`，`401/403` 映射为 `LLMAuthError`，`429` 映射为 `LLMRateLimitError`，`5xx` 映射为 `LLMServerError`，httpx 超时映射为 `LLMTimeoutError`，其他传输异常映射为 `LLMConnectionError`；所有异常 MUST 继承临时 `LLMError` 并携带稳定 `code/http_status`。
+客户端 MUST 将 `400` 映射为 `LLMBadRequestError`，`401/403` 映射为 `LLMAuthError`，`429` 映射为 `LLMRateLimitError`，`5xx` 映射为 `LLMServerError`，httpx 超时映射为 `LLMTimeoutError`，其他传输异常映射为 `LLMConnectionError`；所有异常 MUST 继承临时 `LLMError` 并携带稳定 `code/http_status`。临时根仅有效至 S19，S20 必须迁移为 `AgentError` 子类（ISSUE-024）。
 
 #### Scenario: 4xx 分类
 

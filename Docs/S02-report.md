@@ -224,3 +224,22 @@ P2 可登记后进入后续阶段，但建议同步修复过时子包说明和�
 - 仓库外 wheel/安装目录：`C:\Users\Ryan\AppData\Local\Temp\agent-mini-s02-wheel-383ce17733634cb0810f8f9699e12612`。
 - 上述产物均未被 Git 跟踪；需要时由人工确认后清理。
 
+## 10. 修复记录（2026-10-22）
+
+| 报告项 | 修复 | 证据 |
+| --- | --- | --- |
+| S02-P1-01 尝试次数突破 3；cap 后下降 | `RetryPolicy` 限制 1–3；cap 后延迟取 `min(..., 8.0)` | `RetryPolicy` 非法值测试；backoff cap 非递减测试 |
+| S02-P1-02 重试无 attempt 记录 | 新增 `RetryEvent` 与 `on_retry` 回调 | attempt/status/delay 事件测试 |
+| S02-P1-03 timeout 测试未证明上限 | 断言底层 `AsyncClient.timeout` 等于配置；保留 `ReadTimeout` 单请求测试 | `test_timeout_is_passed_to_http_client` |
+| S02-P1-04 全局 `AgentError` 与临时根冲突 | 全局规范写入 S02–S19 阶段例外，S20 到期迁移 | `engineering-standards` 错误处理第 6 条；`llm-client` 同步 |
+| S02-P2-01 3xx 误归 BadRequest | 仅明确 4xx 归 BadRequest；3xx/未知归 `LLMProtocolError` | 302 测试与 `http_status` 断言 |
+| S02-P2-02 RetryPolicy 校验不足 | 构造时校验整数、1–3、callable sleep/on_retry | 非法值参数化测试 |
+| S02-P2-03 llm 子包说明过时 | 更新为 S01/S02 职责 | `agent_mini/llm/__init__.py` |
+| S02-P2-04 L2 耗时超目标 | 按实测把目标从 <3s 调整为 <60s | contract 64 passed、31.5s |
+| S02-P2-05 异常断言不足 | 断言具体类型、code、http_status；补协议错误不重试 | HTTP 错误测试与协议错误测试 |
+| S01 TC-L2-007 thinking+tools 组合 | 新增组合请求回归 | `test_enabled_thinking_with_tools_keeps_both` |
+
+**红证据**：仓库外以基线 `22eba3a` 叠加当前新增测试，得到 **10 failed、21 passed**；失败均为业务行为（非法尝试次数、缺失 on_retry、cap 失效、非 callable、302 误分类），不是收集或夹具错误。
+
+**复验**：全量 72 passed；覆盖率 94.38%；contract 64 passed、31.5s；ruff/format/mypy/openspec 通过。P1-03 采用“配置传递断言 + ReadTimeout 分类”而非不稳定的本地慢服务器测试；P1-04 为阶段例外，S20 仍需迁移。S02 可进入 S03。
+

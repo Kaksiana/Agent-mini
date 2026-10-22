@@ -5,7 +5,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.10（S02 错误分类与退避重试） |
+| 版本 | v0.11（S02 评估修复：策略上界、事件与状态边界） |
 | 日期 | 2026-10-22 |
 | 状态 | 待评审 |
 | 上游 | `Docs/REQUIREMENT.md` |
@@ -312,7 +312,7 @@ return AgentResult(final=fallback_message, steps=len(trace), truncated=True, tra
 ### 3.7 可观测与治理
 
 - **日志**：JSON 行，字段固定 `ts/level/event/trace_id/session_id/step/duration_ms`；`trace_id` 通过 `contextvars` 注入，跨异步边界保持。
-- **异常体系**：`AgentError` 基类 → `ConfigError / LLMError / ToolError / SandboxError / ContextError / InputError / SystemDBError`，每个带 `code` 与 `http_status`。S01 的 `LLMError` 暂时作为独立临时根，S20 统一接入 `AgentError`；具体类型统一 `*Error` 后缀。
+- **异常体系**：`AgentError` 基类 → `ConfigError / LLMError / ToolError / SandboxError / ContextError / InputError / SystemDBError`，每个带 `code` 与 `http_status`。S02–S19 的 `LLMError` 暂时作为独立临时根，S20 统一接入 `AgentError`；具体类型统一 `*Error` 后缀，临时根到期后必须迁移。
 - **脱敏**：日志过滤器统一拦截 `api_key`、`authorization`、`password` 字段（NFR-SEC-02、AC-14）。
 
 ### 3.8 配置与依赖注入
@@ -504,3 +504,4 @@ AgentResult →
 | v0.8 | 2026-10-22 | 澄清 S01 客户端/错误/临时 ModelConfig/非法工具参数边界 | §3.1；联动 ISSUE-020 |
 | v0.9 | 2026-10-22 | 协议硬化：非 object 顶层、保留字段、reasoning 角色；异常临时根说明 | §3.1、§3.7；联动 S01-report、ISSUE-022 |
 | v0.10 | 2026-10-22 | S02 错误分类与退避重试：状态码/httpx 异常映射、3 次尝试、抖动与不重试边界 | §3.1；联动 TC-L2-004/005/006 |
+| v0.11 | 2026-10-22 | 重试策略硬上限 1–3、RetryEvent、cap 后非递减、3xx 归协议错误；临时异常根 S20 到期 | §3.1、§3.7；联动 S02-report、ISSUE-026 |

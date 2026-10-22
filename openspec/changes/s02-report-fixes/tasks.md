@@ -7,7 +7,7 @@
 
 - [ ] 2.1 新增 RetryPolicy 边界与运行时类型测试
 - [ ] 2.2 新增 RetryEvent 记录测试
-- [ ] 2.3 新增本地慢服务器 timeout 上限测试
+- [ ] 2.3 新增 timeout 配置传递与 ReadTimeout 测试
 - [ ] 2.4 新增 3xx/未知状态分类与具体异常/http_status 测试
 - [ ] 2.5 新增 S01 TC-L2-007 thinking+tools 组合回归
 - [ ] 2.6 运行新增测试，确认红因

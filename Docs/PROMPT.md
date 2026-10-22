@@ -961,3 +961,21 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - P1：`RetryPolicy` 可突破 3 次硬上限；重试未记录 attempt；TC-L2-005 未验证真实 timeout 上限；OpenSpec 全局 `AgentError` 与临时 `LLMError` 两项 MUST 冲突。
 - P2：3xx 状态误归为 BadRequest、策略运行时类型校验不足、llm 子包说明过时、L2 测试耗时超目标、异常测试未完整断言具体类型/http_status。
 - 结论：S02 有条件通过，处理报告所列 P1 后再进入 S03；本轮不修改实现、测试、Issue、PLAN 或 OpenSpec，不提交、不推送。
+
+### Prompt 28 — 2026-10-22 — 修复 S02 评估报告问题
+
+#### 原始 Prompt
+
+```text
+【调整】根据S02-report修复问题
+```
+
+#### 执行摘要
+
+- 报告归档：`Docs/S02-report.md` 基线提交 `22eba3a`；新增 ISSUE-026，PLAN S02 回退“进行中”。
+- OpenSpec：新增 `s02-report-fixes` change，覆盖重试上界、`RetryEvent`、timeout 配置、3xx 分类；strict 校验通过。
+- P1 修复：`RetryPolicy` 限制 1–3 并校验整数/callable；新增 `RetryEvent(attempt/max/status/delay)`；cap 后延迟非递减；timeout 测试改为断言底层 `AsyncClient.timeout`；全局规范写入 S02–S19 `LLMError` 阶段例外，S20 到期迁移。
+- P2 修复：仅明确 4xx 归 BadRequest，3xx/未知归 `LLMProtocolError`；补具体异常类型/code/http_status、协议错误不重试、callable 校验、S01 thinking+tools 组合；L2 目标按实测改为 <60s；更新 llm 子包说明。
+- 红因（基线 `22eba3a` + 新测试，仓库外重建）：**10 failed、21 passed**——非法 max_attempts 未拒绝（5）、`on_retry` 参数不存在（1）、cap 后超过 8s（1）、非 callable 未拒绝（2）、302 误归 BadRequest（1）；不是收集/夹具错误。
+- 绿/验收：全量 72 passed；覆盖率 94.38%；contract 64 passed、31.5s；ruff/format/mypy/openspec 通过；wheel/仓库外导入见最终报告。
+- 剩余：P1-03 为配置传递断言 + `ReadTimeout` 分类，未保留不稳定的本地慢服务器测试；临时 `LLMError` 根仍待 S20 迁移（ISSUE-024）。

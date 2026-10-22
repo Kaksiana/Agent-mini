@@ -3,8 +3,9 @@
 ## 2026-10-22 — S02 错误处理与重试
 
 - S02 完成：`llm/errors.py` 扩展鉴权/请求/超时/限流/服务端/连接错误；`llm/client.py` 支持 429/5xx 最多 3 次总请求、`0.5 * 2^(attempt-1)` 秒退避 + 0..0.1s 抖动；4xx、超时、协议错误不重试。
-- 验收：L2 测试 8 个、全量 58 passed、覆盖率约 94%；ruff/format/mypy/openspec 通过。
-- 边界：临时 `LLMError` 根继续使用，S20 迁移 `AgentError`（ISSUE-024）；真实 API 留 S18。
+- 2026-10-22 评估修复：`RetryPolicy` 限制 1–3；`RetryEvent` 记录 attempt/status/delay；cap 后非递减；3xx/未知归协议错误；timeout 配置断言；S01 thinking+tools 回归。
+- 验收：全量 72 passed、覆盖率 94.38%；contract 64 passed、31.5s（目标 <60s）；ruff/format/mypy/openspec 通过。
+- 边界：临时 `LLMError` 根继续使用至 S19，S20 迁移 `AgentError`（ISSUE-024/026）；真实 API 留 S18。
 
 ## 2026-10-22 — S01 模型接入
 

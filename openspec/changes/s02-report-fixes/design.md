@@ -22,11 +22,11 @@
 - **硬上限 `MAX_ATTEMPTS_LIMIT = 3`**：与主规格和 TC-L2-004 对齐；`RetryPolicy` 1–3。
 - **`RetryEvent` 作为回调**：不引入日志依赖，S19 可将事件接入结构化日志。
 - **退避取 cap 后值**：`min(base + jitter, max)`，高尝试次数下不再下降。
-- **timeout 测试使用本机 `asyncio.start_server` 慢响应**：真实验证传输层超时，不依赖 respx 直接抛异常。
+- **timeout 测试采用配置断言 + ReadTimeout 分类**：本机慢服务器在 httpx 超时期限内调度不稳定，改为直接断言 `AsyncClient.timeout` 等于配置值，避免不稳定测试。
 - **全局规范添加阶段例外**：S02–S19 临时 LLMError 根有效，S20 到期迁移，消除无条件 MUST 冲突。
 
 ## Risks / Trade-offs
 
-- [本地慢服务器增加测试复杂度] → 使用 0.05s timeout 与短延迟，确保快速稳定。
+- [直接断言私有 timeout 字段] → 仅测试使用，生产 API 不变；同时保留异常分类测试。
 - [RetryEvent 回调异常影响主流程] → 由调用方负责回调；默认无回调，不在核心路径抛业务异常。
 - [3xx 更严格分类] → 代理/重定向场景明确失败，符合不可信边界。

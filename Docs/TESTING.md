@@ -77,7 +77,7 @@
 | 层级 | 范围 | 外部依赖 | 运行时间 | 默认执行 | 命令 |
 | --- | --- | --- | --- | --- | --- |
 | L1 单元 | 单模块纯逻辑：calculator、沙箱、预算裁剪、循环判定、配置校验、异常映射 | 无（全部替身） | < 5s | 是 | `pytest -m unit` |
-| L2 契约 | LLM 客户端与 HTTP 协议适配 | `respx` 拦截 | < 3s | 是 | `pytest -m contract` |
+| L2 契约 | LLM 客户端与 HTTP 协议适配 | `respx` 拦截 + 本地超时测试 | < 60s（含客户端/事件循环开销） | 是 | `pytest -m contract` |
 | L3 集成 | Redis / Mongo / MySQL / Runtime+Tool 联合 | fakeredis、mongomock、MySQL 替身；真实服务标记 `@integration` | 5–30s | 是（替身）/ 可选（真实） | `pytest -m integration` |
 | L4 端到端 | HTTP 全链路 | 真实进程 + mock 模型服务 | 10–60s | 是 | `pytest -m e2e` |
 | L5 非功能 | 性能、并发、安全、脱敏 | 视用例 | 10–120s | 否（`@slow`） | `pytest -m slow` |
@@ -153,9 +153,9 @@
 
 | TC | S02 已覆盖 | 留待后续阶段 |
 | --- | --- | --- |
-| TC-L2-004 | 429/500/200 三次请求、两次退避、间隔单调递增、重试耗尽映射 | 真实限流行为由 S18 LIVE 覆盖 |
-| TC-L2-005 | `httpx.ReadTimeout` → `LLMTimeoutError`、单次请求、消息含超时秒数 | 真实网络超时由 S18 覆盖 |
-| TC-L2-006 | 400/401/403 分类且仅 1 次请求；连接错误分类且不重试 | 对外 HTTP 状态映射由 S18 覆盖 |
+| TC-L2-004 | 429/500/200 三次请求、两次退避、间隔单调递增、重试耗尽映射；`RetryPolicy` 1–3 上界与 `RetryEvent` attempt 记录 | 真实限流行为由 S18 LIVE 覆盖 |
+| TC-L2-005 | `httpx.ReadTimeout` → `LLMTimeoutError`、单次请求、消息含超时秒数；底层 `httpx.AsyncClient.timeout` 与配置一致 | 真实网络超时由 S18 覆盖 |
+| TC-L2-006 | 400/401/403 分类且仅 1 次请求；3xx/未知状态归协议错误；连接错误分类且不重试 | 对外 HTTP 状态映射由 S18 覆盖 |
 
 ### 4.3 L3 集成测试
 

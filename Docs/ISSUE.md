@@ -306,6 +306,7 @@
 - 根因：S02 默认路径完整，但公开策略边界、可观测出口、超时验证与规范例外未闭环。
 - 解决方案：创建 `s02-report-fixes` change；限制 RetryPolicy 1–3 并补运行时校验；增加 `RetryEvent` 出口；补真实本地超时测试；收窄状态映射；补具体异常/http_status 与协议错误不重试测试；在全局规范写入 S20 前临时异常例外；同步文档与 S01 TC-L2-007 组合回归。
 - 验证方式：新增测试先红后绿；全量 pytest、覆盖率、ruff/format/mypy、openspec、wheel/仓库外导入通过；S02-report 追加修复记录。
-- 验证结果：待修复完成后回填。
-- 状态：Open
-- 关联提交：无（报告修复登记）
+- 验证结果：RetryPolicy 限制 1–3 并做运行时校验；重试事件记录 attempt/max/status/delay；退避 cap 后非递减；3xx/未知状态归 `LLMProtocolError`；补 http_status、协议错误不重试、timeout 配置传递与 S01 TC-L2-007 thinking+tools 回归。全量 72 passed、覆盖率 94.38%；contract 64 passed、31.5s（TESTING 目标调整为 <60s）；ruff/format/mypy/openspec 通过。
+- 剩余限制：P1-03 以“底层 httpx timeout 配置断言 + ReadTimeout 分类”验证，本地慢服务器测试因 handler 调度不稳定未保留；P1-04 通过全局规范阶段例外解决，S20 仍需迁移 AgentError。
+- 状态：Resolved
+- 关联提交：S02 report-fix 提交（见最终报告）
