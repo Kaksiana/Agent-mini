@@ -1,6 +1,8 @@
 """TC-L1-016/TC-L1-029：Runtime 循环安全阀。"""
 
 import asyncio
+import math
+from typing import cast
 
 import pytest
 
@@ -58,6 +60,29 @@ class SlowExecutor(Executor):
             self.cancelled = True
             raise
         return ToolOutcome(ok=True, content="late")
+
+
+class LocalTimeoutExecutor(Executor):
+    async def execute(self, call: llm_models.ToolCall) -> ToolOutcome:
+        raise TimeoutError("tool-local-timeout")
+
+
+class SlowSecondLLM:
+    def __init__(self, first: llm_models.LLMResponse) -> None:
+        self.first = first
+        self.requests = 0
+
+    async def chat(
+        self,
+        messages: list[llm_models.Message],
+        tools: list[llm_models.ToolSchema] | None = None,
+        **params: object,
+    ) -> llm_models.LLMResponse:
+        self.requests += 1
+        if self.requests == 1:
+            return self.first
+        await asyncio.sleep(1.0)
+        raise AssertionError("unreachable")
 
 
 def _response(
@@ -128,6 +153,76 @@ async def test_repeat_same_call_stops_at_threshold() -> None:
     assert result.termination_reason == "repeat"
     assert result.reply == REPEAT_MESSAGE
     assert result.tool_calls == 3
+
+
+async def test_tool_local_timeout_is_refed_not_global_deadline() -> None:
+    llm = ScriptedLLM(
+        [
+            _response(calls=[_call()]),
+            _response(content="工具异常后完成"),
+        ]
+    )
+    policy = LoopPolicy(deadline_seconds=1.0)
+
+    result = await Agent(llm, LocalTimeoutExecutor(), policy).run("hi")
+
+    assert result.truncated is False
+    assert result.reply == "工具异常后完成"
+    assert result.tool_traces[0].error_code == "tool_execution_error"
+
+
+@pytest.mark.parametrize("deadline", [math.inf, math.nan, True, 0.0])
+def test_non_finite_or_invalid_deadline_is_rejected(deadline: object) -> None:
+    with pytest.raises(ValueError):
+        LoopPolicy(deadline_seconds=cast(float, deadline))
+
+
+async def test_llm_deadline_keeps_attempted_steps() -> None:
+    llm = SlowSecondLLM(_response(calls=[_call()]))
+    executor = Executor()
+    policy = LoopPolicy(deadline_seconds=0.01)
+
+    result = await Agent(llm, executor, policy).run("hi")
+
+    assert result.steps == 2
+    assert result.truncated is True
+    assert result.termination_reason == "deadline"
+
+
+async def test_invalid_arguments_do_not_collide_with_valid_empty_object() -> None:
+    invalid_one = llm_models.ToolCall(
+        id="bad_1",
+        name="echo",
+        arguments=None,
+        error_code="invalid_arguments",
+    )
+    invalid_two = llm_models.ToolCall(
+        id="bad_2",
+        name="echo",
+        arguments=None,
+        error_code="invalid_arguments",
+    )
+    valid_empty = llm_models.ToolCall(id="good_1", name="echo", arguments={})
+    llm = ScriptedLLM(
+        [
+            _response(calls=[invalid_one]),
+            _response(calls=[invalid_two]),
+            _response(calls=[valid_empty]),
+            _response(content="修正后完成"),
+        ]
+    )
+    executor = Executor()
+    policy = LoopPolicy(max_steps=10, repeat_threshold=3)
+
+    result = await Agent(llm, executor, policy).run("hi")
+
+    assert result.truncated is False
+    assert result.reply == "修正后完成"
+    assert [trace.error_code for trace in result.tool_traces] == [
+        "invalid_arguments",
+        "invalid_arguments",
+        None,
+    ]
 
 
 async def test_normal_convergence_has_no_truncation() -> None:

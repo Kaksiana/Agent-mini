@@ -1,7 +1,8 @@
-"""S05 ReAct 工具循环与安全阀。"""
+"""ReAct 工具循环与 S05 安全阀。"""
 
 import asyncio
 import json
+import math
 import re
 import time
 from collections.abc import Callable
@@ -54,6 +55,8 @@ class LoopPolicy:
         """校验安全阀参数范围。"""
         if self.max_steps < 1:
             raise ValueError("max_steps 必须至少为 1")
+        if isinstance(self.deadline_seconds, bool) or not math.isfinite(self.deadline_seconds):
+            raise ValueError("deadline_seconds 必须是有限正数")
         if self.deadline_seconds <= 0:
             raise ValueError("deadline_seconds 必须大于 0")
         if self.repeat_threshold < 1:
@@ -62,7 +65,7 @@ class LoopPolicy:
 
 @dataclass(frozen=True)
 class ToolOutcome:
-    """S04 工具执行结果的最小结构。"""
+    """工具执行结果的最小结构；ok 与 error_code 由实现方保持语义一致。"""
 
     ok: bool
     content: str
@@ -70,7 +73,7 @@ class ToolOutcome:
 
 
 class ToolExecutor(Protocol):
-    """S04 工具执行协议；S06 注册表负责适配。"""
+    """工具执行协议；S06 注册表负责适配，调用方需保证可取消。"""
 
     def schemas(self) -> list[ToolSchema]:
         """返回本轮冻结的工具 Schema。"""
@@ -85,7 +88,7 @@ class ToolExecutor(Protocol):
 class _ToolContext:
     executor: ToolExecutor
     policy: LoopPolicy
-    deadline: float | None
+    deadline: float
 
 
 @dataclass
@@ -107,18 +110,17 @@ async def run_react_loop(
 ) -> AgentResult:
     """运行至最终文本；安全阀终止时返回 truncated 结果而不抛异常。"""
     active_policy = policy if policy is not None else LoopPolicy()
-    tools = tool_executor.schemas() if tool_executor is not None else None
     deadline = _deadline_at(active_policy)
+    tools = tool_executor.schemas() if tool_executor is not None else None
     state = _LoopState()
     while True:
         remaining = _remaining(deadline, active_policy.clock)
-        if remaining is not None and remaining <= 0:
+        if remaining <= 0:
             return _truncated_result(state, "deadline")
         state.step += 1
         try:
             response = await _request(llm_client, messages, tools, remaining)
         except TimeoutError:
-            state.step = max(state.step - 1, 1)
             return _truncated_result(state, "deadline")
         state.usage = _add_usage(state.usage, response.usage)
         reasoning_present = bool(response.reasoning_content)
@@ -146,10 +148,8 @@ async def _request(
     llm_client: LLMClient,
     messages: list[Message],
     tools: list[ToolSchema] | None,
-    remaining: float | None,
+    remaining: float,
 ) -> LLMResponse:
-    if remaining is None:
-        return await llm_client.chat(messages, tools=tools)
     return await asyncio.wait_for(llm_client.chat(messages, tools=tools), remaining)
 
 
@@ -163,7 +163,7 @@ async def _process_tools(
     step_traces: list[ToolCallTrace] = []
     for index, call in enumerate(calls):
         remaining = _remaining(context.deadline, context.policy.clock)
-        if remaining is not None and remaining <= 0:
+        if remaining <= 0:
             _fill_cancelled(calls[index:], "deadline", messages, state, step_traces)
             _append_tool_step(state, step_traces, reasoning_present)
             return _truncated_result(state, "deadline")
@@ -173,7 +173,7 @@ async def _process_tools(
             _fill_cancelled(calls[index + 1 :], "deadline", messages, state, step_traces)
             _append_tool_step(state, step_traces, reasoning_present)
             return _truncated_result(state, "deadline")
-        state.repeat_count = _repeat_count(state, call)
+        _record_repeat(state, call, outcome)
         if state.repeat_count >= context.policy.repeat_threshold:
             _fill_cancelled(calls[index + 1 :], "repeat", messages, state, step_traces)
             _append_tool_step(state, step_traces, reasoning_present)
@@ -185,16 +185,18 @@ async def _process_tools(
 async def _execute_tool(
     executor: ToolExecutor,
     call: ToolCall,
-    remaining: float | None,
+    remaining: float,
 ) -> tuple[ToolOutcome, bool]:
     if call.error_code is not None:
         return ToolOutcome(False, f"工具参数不合法：{call.error_code}", call.error_code), False
+    scope = asyncio.timeout(remaining)
     try:
-        if remaining is None:
+        async with scope:
             return await executor.execute(call), False
-        return await asyncio.wait_for(executor.execute(call), remaining), False
     except TimeoutError:
-        return ToolOutcome(False, "工具执行超时", "deadline"), True
+        if scope.expired():
+            return ToolOutcome(False, "工具执行超时", "deadline"), True
+        return ToolOutcome(False, "工具执行失败", "tool_execution_error"), False
     except Exception:
         return ToolOutcome(False, "工具执行失败", "tool_execution_error"), False
 
@@ -293,14 +295,17 @@ def _append_tool_step(
     )
 
 
-def _repeat_count(state: _LoopState, call: ToolCall) -> int:
+def _record_repeat(state: _LoopState, call: ToolCall, outcome: ToolOutcome) -> None:
+    if call.error_code is not None or not outcome.ok:
+        state.last_signature = None
+        state.repeat_count = 0
+        return
     signature = _signature(call)
     if signature == state.last_signature:
         state.repeat_count += 1
     else:
         state.last_signature = signature
         state.repeat_count = 1
-    return state.repeat_count
 
 
 def _signature(call: ToolCall) -> str:
@@ -308,15 +313,11 @@ def _signature(call: ToolCall) -> str:
     return f"{call.name}:{args}"
 
 
-def _deadline_at(policy: LoopPolicy) -> float | None:
-    if policy.deadline_seconds is None:
-        return None
+def _deadline_at(policy: LoopPolicy) -> float:
     return policy.clock() + policy.deadline_seconds
 
 
-def _remaining(deadline: float | None, clock: Callable[[], float]) -> float | None:
-    if deadline is None:
-        return None
+def _remaining(deadline: float, clock: Callable[[], float]) -> float:
     return deadline - clock()
 
 

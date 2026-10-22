@@ -1,4 +1,4 @@
-"""S04 ReAct Agent 入口。"""
+"""Agent Runtime 入口：直答、ReAct 工具循环与安全阀。"""
 
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.models import Message
@@ -7,7 +7,7 @@ from agent_mini.runtime.result import AgentResult
 
 
 class Agent:
-    """通过构造器注入 LLM 与可选工具执行器的最小 Runtime。"""
+    """通过构造器注入 LLM、可选工具执行器与安全阀策略的 Runtime。"""
 
     def __init__(
         self,
