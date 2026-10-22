@@ -617,4 +617,5 @@ S00 阶段定义（来自 `Docs/PLAN.md`）：
 - TDD 绿：实现 `agent_mini/version.py`、`agent_mini/__init__.py` 与 `pyproject.toml` 后，`pytest` 输出 `1 passed`；随后因 `RUF067` 将版本函数下沉到 `version.py`，`__init__.py` 只做重导出，重构后仍全绿。
 - 验收：`pip install -e .` 成功；`pytest` 1 passed；`ruff check .` All checks passed；`ruff format --check .` 3 files already formatted；`mypy agent_mini` Success。裸 `pytest` 曾因 Scripts 下 console script 损坏静默退出 1，已用同版本 force-reinstall 修复，详见 ISSUE-016。
 - 文档：更新 README 安装/测试/静态检查命令；更新 PLAN S00 进度、MEMORY 当前状态、ISSUE-016 与本 Prompt。
+- OpenSpec 归档：change 归档为 `2026-10-22-s00-engineering-baseline`；主规格 `openspec/specs/engineering-baseline/spec.md`（4 项 Requirement）；`openspec validate --all` 为 2 passed、0 failed。
 - 关联提交：S00 阶段提交（见最终报告）。
