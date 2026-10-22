@@ -1017,4 +1017,5 @@ S01 评估报告遗留的开工前检查项包括：干净 venv 验证 dev extra
 - 类型门禁：修复 tests 的 15 个 mypy 错误（cast、`RetryEvent` 列表、`Mapping`、`Literal`、typed kwargs 等）；README 与规范改为 `mypy agent_mini tests`，46 files 0 errors。
 - 验收：全量 72 passed、覆盖率 95.69%、contract 64 passed、`mypy agent_mini tests` 0 errors；ruff/format/openspec/pip check/wheel/仓库外导入通过。
 - 文档：新增 ISSUE-027 并 Resolved；S02-report §12 记录第二次复验；PLAN/MEMORY/DESIGN 同步；OpenSpec 新增 `s02-reverify-fixes` 并归档。
+- OpenSpec 归档：change 归档为 `2026-10-22-s02-reverify-fixes`；`llm-client` 主规格增至 15 项 Requirement；`openspec validate --all --strict` 为 3 passed、0 failed。
 - 结论：S02 复验遗留闭环，可进入 S03。
