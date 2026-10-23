@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -447,13 +447,22 @@
 - 状态：Resolved
 - 关联提交：`s09-report-fixes` change（见最终报告）
 
+### ISSUE-037 — S10 报告 P1/P2 修复
+
+- 日期：2026-10-23
+- 现象：Windows 反斜杠隐藏段/任意 `..` 绕过、非文本 codec、stat 后增长、skip、错误码过粗与计数矛盾。
+- 解决方案：POSIX+Windows 拆段、任意 `..` path_escape、设备名拒绝；文本 codec 校验；最多读 limit+1；file_not_found/file_read_error 区分；移除 skip；新 change 承接。
+- 验证结果：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors；OpenSpec/wheel 通过。
+- 状态：Resolved
+- 关联提交：`s10-report-fixes` change（见最终报告）
+
 ### S10 阶段问题记录（2026-10-23）
 
 - 实现：`Sandbox` 四步校验、read_file、`ToolContext.sandbox_root/max_file_size`。
 - 安全：`..`、绝对路径、junction/symlink 逃逸、NTFS 流、隐藏、超长、扩展名大小写均阻断。
 - 限制：默认 1 MiB、扩展名白名单、路径 240、禁止隐藏；空文件正常；二进制/解码/编码结构化错误。
 - TOCTOU：resolve 后 open，最小防护，未宣称强原子性。
-- 验收：215 passed、覆盖率 96.66%；unit 151、contract 64；mypy 59 files 0 errors；OpenSpec/wheel 通过。
+- 验收：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞；write_file 留 S11。
 
 ### S09 阶段问题记录（2026-10-23）
@@ -478,6 +487,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 

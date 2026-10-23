@@ -5,7 +5,7 @@
 - 新增 `Sandbox` 四步校验：绝对路径、空/`.`、NTFS 流、隐藏、超长、扩展名、resolve 越界。
 - `ToolContext` 增量 `sandbox_root/max_file_size`；read_file 返回 JSON content/size/encoding；空文件正常、二进制/超限/解码失败结构化。
 - 默认 1 MiB、扩展名白名单、路径 ≤240、禁止隐藏；TOCTOU 为 resolve 后 open，不宣称强原子性。
-- 验收：215 passed、覆盖率 96.66%；unit 151、contract 64；mypy 59 files 0 errors。
+- 验收：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors。
 
 ## 2026-10-23 — S09 todo
 
@@ -93,6 +93,7 @@
 - 每次 LLM 出站前，统一计数实际 messages、完整 tools Schema 与协议开销；计数/发送复用 tools_snapshot。保留最多 K 个历史完整轮次，最小集合仍超预算时本地 CONTEXT_TOO_LARGE/400，不继续请求模型。
 - Redis 按完整轮次保留；todo 的 session_id 由可信执行上下文注入，模型不能覆盖。新增双窗口、工具追问和真实 API 验收用例，功能用例共 75 个，另有 1 个工程 smoke。
 - 真实 API 001/002 是交付门禁；启用思考模式时还需 003。密钥只从 DEEPSEEK_API_KEY 读取，文档仅保留脱敏占位；本轮未保存或验证用户提供的密钥。
+
 
 
 

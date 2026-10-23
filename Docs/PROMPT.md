@@ -1752,9 +1752,43 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 红：Sandbox/read_file 未实现时测试失败；symlink 在 Windows 无权限时用 junction 复验。
 - 绿：`../`、多层 `../`、POSIX/Windows 绝对路径、junction 逃逸、NTFS 流、隐藏、超长、扩展名大小写均阻断；read_file 空/超限/二进制/解码/编码错误结构化。
-- 验收：215 passed、覆盖率 96.66%；unit 151、contract 64；mypy 59 files 0 errors。
+- 验收：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors。
 - 关联提交：`f71568f`（OpenSpec 规划）、`a278271`（代码+测试）、`f74cc68`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s10-tool-sandbox-readfile`；新建 `sandbox` 规格（2 项 Requirement）；`openspec validate --all --strict` 为 9 passed、0 failed。
 
 
 
+## 2026-10-23 14:11 — S10 独立代码评估
+
+### 原始 Prompt
+
+```text
+【评估】S10代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S10 沙箱/read_file 的路径安全、编码/大小边界、测试真实性、分发、依赖与流程合规性。
+- 产出：新增 `Docs/S10-report.md`；识别 5 项 P1、4 项 P2，结论为修复 P1 后方可进入 S11。
+- 验证：224 passed；unit 160、contract 64；覆盖率 96.66%；ruff/format/mypy/OpenSpec/wheel/隔离安装通过。
+- 关键发现：Windows 反斜杠隐藏路径绕过；非文本 codec 退化为 tool_execution_error；stat 后增长突破大小上限；chain 测试归档后补交；TESTING 计数/层级矛盾。
+- 人工修正 / 决策：只记录评估结果，不修改实现、测试、Issue、PLAN、OpenSpec、README、MEMORY 或远程状态。
+- 关联提交：无（独立评估未提交）。
+
+
+
+## 2026-10-23 14:17 — 修复 S10 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】修复S10-report中问题
+```
+
+### 执行摘要
+
+- Windows 路径：POSIX+Windows 拆段，任意 `..` path_escape，反斜杠隐藏/设备名拒绝。
+- codec：仅文本 codec；空/非文本 invalid_encoding。
+- 读取：最多 limit+1，stat 后增长也 file_too_large；file_not_found 与 file_read_error 区分。
+- 测试：移除 skip；补组合路径/增长/编码/OSError；新 change 承接。
+- 验收：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors。
