@@ -12,7 +12,9 @@ ERROR_HIDDEN = "hidden_path"
 ERROR_EXTENSION = "extension_not_allowed"
 ERROR_TOO_LONG = "path_too_long"
 WINDOWS_RESERVED = frozenset(
-    {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3"}
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{number}" for number in range(1, 10)}
+    | {f"LPT{number}" for number in range(1, 10)}
 )
 
 

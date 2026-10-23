@@ -3,7 +3,7 @@
 import json
 import os
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -135,11 +135,55 @@ def test_replace_failure_leaves_no_residue(
         raise OSError("replace failed")
 
     monkeypatch.setattr(os, "replace", boom)
-    result = write_file("a.txt", "x", context=_context(tmp_path))
+    result = write_file("a.txt", "x", overwrite=True, context=_context(tmp_path))
 
     assert result.error_code == "file_write_error"
     assert not (tmp_path / "a.txt").exists()
     assert _temps(tmp_path) == []
+
+
+def test_concurrent_create_is_not_overwritten(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tempfile
+
+    original = tempfile.mkstemp
+
+    def create_competitor(*args: Any, **kwargs: Any) -> tuple[int, str]:
+        descriptor, path = original(*args, **kwargs)
+        (tmp_path / "a.txt").write_text("competitor")
+        return descriptor, path
+
+    monkeypatch.setattr(tempfile, "mkstemp", create_competitor)
+    result = write_file("a.txt", "mine", context=_context(tmp_path))
+
+    assert result.error_code == "file_exists"
+    assert (tmp_path / "a.txt").read_text() == "competitor"
+    assert _temps(tmp_path) == []
+
+
+def test_parent_swap_before_publish_is_blocked(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tempfile
+
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    original = tempfile.mkstemp
+
+    def create_outside(*args: Any, **kwargs: Any) -> tuple[int, str]:
+        return original(dir=outside, prefix=".write-", suffix=".tmp")
+
+    monkeypatch.setattr(tempfile, "mkstemp", create_outside)
+    result = write_file("a.txt", "x", context=_context(root))
+
+    assert result.error_code == "path_escape"
+    assert list(outside.glob(".write-*")) == []
+    assert not (outside / "a.txt").exists()
 
 
 def test_overwrite_non_bool_is_rejected(tmp_path: Path) -> None:

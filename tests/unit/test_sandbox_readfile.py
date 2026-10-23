@@ -32,6 +32,8 @@ def _write(root: Path, name: str, data: bytes) -> Path:
         ("a/../b.txt", "path_escape"),
         ("dir\\.hidden.txt", "hidden_path"),
         ("NUL.txt", "invalid_path"),
+        ("COM9.txt", "invalid_path"),
+        ("LPT9.log", "invalid_path"),
         ("/etc/passwd", "absolute_path"),
         ("C:\\Windows\\win.ini", "absolute_path"),
         ("", "invalid_path"),

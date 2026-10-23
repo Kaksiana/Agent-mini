@@ -58,11 +58,31 @@ def write_file(
     data, exists, error = _prepare(target, content, selected, overwrite, limit)
     if error is not None:
         return ToolResult(False, error[1], error[0])
+    return _commit(target, data, exists, sandbox.root, overwrite)
+
+
+def _commit(
+    target: Path,
+    data: bytes,
+    exists: bool,
+    root: Path,
+    overwrite: bool,
+) -> ToolResult:
     try:
-        _atomic_write(target, data, target.stat().st_mode & 0o777 if exists else None)
+        _atomic_write(
+            target,
+            data,
+            target.stat().st_mode & 0o777 if exists else None,
+            root,
+            overwrite,
+        )
+    except _TargetExistsError:
+        return ToolResult(False, "目标文件已存在", ERROR_FILE_EXISTS)
+    except SandboxViolation as exc:
+        return ToolResult(False, str(exc), exc.error_code)
     except OSError:
         return ToolResult(False, "文件写入失败", ERROR_WRITE)
-    relative = target.relative_to(sandbox.root).as_posix()
+    relative = target.relative_to(root).as_posix()
     payload = {"path": relative, "size": len(data), "overwritten": exists}
     return ToolResult(True, json.dumps(payload, ensure_ascii=False))
 
@@ -108,7 +128,17 @@ def _prepare(
     return data, exists, None
 
 
-def _atomic_write(target: Path, data: bytes, mode: int | None) -> None:
+class _TargetExistsError(Exception):
+    """原子发布发现目标已存在。"""
+
+
+def _atomic_write(
+    target: Path,
+    data: bytes,
+    mode: int | None,
+    root: Path,
+    overwrite: bool,
+) -> None:
     descriptor, temporary = tempfile.mkstemp(
         dir=target.parent,
         prefix=".write-",
@@ -116,13 +146,31 @@ def _atomic_write(target: Path, data: bytes, mode: int | None) -> None:
     )
     temp_path = Path(temporary)
     try:
+        _assert_inside(target.parent, root)
+        _assert_inside(temp_path, root)
         with os.fdopen(descriptor, "wb") as handle:
+            descriptor = -1
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
         if mode is not None:
             os.chmod(temp_path, mode)
-        os.replace(temp_path, target)
+        _assert_inside(target.parent, root)
+        if overwrite:
+            os.replace(temp_path, target)
+        else:
+            try:
+                os.link(temp_path, target)
+            except FileExistsError as exc:
+                raise _TargetExistsError from exc
+            temp_path.unlink(missing_ok=True)
     except Exception:
+        if descriptor >= 0:
+            os.close(descriptor)
         temp_path.unlink(missing_ok=True)
         raise
+
+
+def _assert_inside(path: Path, root: Path) -> None:
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise SandboxViolation("path_escape", "路径在写入期间越界")
