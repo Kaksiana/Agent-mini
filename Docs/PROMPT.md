@@ -2042,3 +2042,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - MidTermMemory：conversation_rounds、session_created_desc 幂等索引、session/关键词检索、reasoning 公开隔离。
 - Agent 响应后异步 Mongo 写回；失败 memory.degraded。
 - 依赖 pymongo/mongomock；验收 288 passed、1 skipped、覆盖率 95.91%。
+
+- OpenSpec 归档：`s14-memory-mongo-midterm` 归档为 `2026-10-23-s14-memory-mongo-midterm`；新建 `mid-term-memory`（2 Requirement）；`openspec validate --all --strict` 14 passed。
+- 关联提交：`9be69e5`（change）、`b72a0fa`（代码+测试+依赖）、`79e341b`（文档）、归档提交见最终报告。
