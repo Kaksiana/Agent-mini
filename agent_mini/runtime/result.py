@@ -92,6 +92,7 @@ class AgentResult(BaseModel):
     tool_traces: tuple[ToolCallTrace, ...] = ()
     truncated: bool = False
     termination_reason: Literal["max_steps", "deadline", "repeat"] | None = None
+    session_id: str | None = None
 
     @model_validator(mode="after")
     def _truncation_is_consistent(self) -> AgentResult:

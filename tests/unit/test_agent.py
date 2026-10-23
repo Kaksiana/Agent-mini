@@ -77,6 +77,7 @@ async def test_direct_reply_returns_one_step_result() -> None:
         "tool_traces",
         "truncated",
         "termination_reason",
+        "session_id",
     }
     assert len(stub.calls) == 1
     messages, tools = stub.calls[0]
@@ -95,10 +96,11 @@ async def test_agent_result_is_frozen() -> None:
         result.reply = "被修改"
 
 
-def test_run_signature_has_no_session_id() -> None:
+def test_run_signature_adds_optional_session_id() -> None:
     parameters = inspect.signature(Agent.run).parameters
 
-    assert list(parameters) == ["self", "user_input"]
+    assert list(parameters) == ["self", "user_input", "session_id"]
+    assert parameters["session_id"].default is None
     assert inspect.iscoroutinefunction(Agent.run)
 
 

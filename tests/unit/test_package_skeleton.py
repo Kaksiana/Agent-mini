@@ -50,6 +50,8 @@ DESIGN_FILES = [
     "tools/builtin/read_file.py",
     "tools/builtin/write_file.py",
     "tools/builtin/search.py",
+    "memory/short_term.py",
+    "memory/base.py",
     "memory/__init__.py",
     "memory/short_term.py",
     "memory/mid_term.py",
@@ -88,6 +90,8 @@ NON_PLACEHOLDER_MODULES = {
     "tools/builtin/read_file.py",
     "tools/builtin/write_file.py",
     "tools/builtin/search.py",
+    "memory/short_term.py",
+    "memory/base.py",
 }
 
 PLACEHOLDER_MODULES = [
