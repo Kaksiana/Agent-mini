@@ -1,10 +1,12 @@
 # S18 阶段代码产出独立评估报告
 
-> 评估时间：2026-10-24 01:47（Asia/Shanghai）
-> 评估基准：`9c04506..afd124a`；评估开始时 `main`、`HEAD`、`origin/main` 均为 `afd124a`
+> 初评时间：2026-10-24 01:47（Asia/Shanghai）
+> 初评基准：`9c04506..afd124a`；初评开始时 `main`、`HEAD`、`origin/main` 均为 `afd124a`
+> 复评时间：2026-10-24 02:01（Asia/Shanghai）
+> 复评基准：`afd124a..a2e8191`；复评开始时 `main`、`HEAD`、`origin/main` 均为 `a2e8191`
 > 评估方式：独立只读复核；除本报告与 `Docs/PROMPT.md` 外，不修改实现、测试、OpenSpec 或远程状态
-> 结论：**不通过；S18 暂不可进入 S19**
-> 缺陷汇总：**P0 1 项、P1 6 项、P2 4 项、P3 0 项**
+> 初评结论：**不通过；P0 1 项、P1 6 项、P2 4 项、P3 0 项**
+> 复评结论：**仍不通过；当前未关闭 P0 1 项、P1 4 项、P2 3 项，S18 暂不可进入 S19**
 
 ## 1. 评估范围与基准
 
@@ -199,15 +201,74 @@
 - pip-audit 缓存写入有跨卷移动警告，不影响审计结果；未生成仓库内跟踪文件。
 
 
-## 11. 修复记录（2026-10-24）
+## 10. 复评记录（2026-10-24 02:01）
 
-| 报告项 | 修复 | 证据 |
+### 10.1 修复范围与结论变化
+
+复评覆盖 `afd124a..a2e8191`，包含 `6b5cad4 fix(s18): harden redaction and request trace` 与 `a2e8191 docs(s18): record report fixes`。本轮逐项复现初评 P0/P1/P2，而非采信提交说明或新增测试结果。
+
+初评结论为不通过，复评结论仍为不通过。错误 trace、空白 session 与 shutdown close 已关闭；异步 health 的 await 分支已修复但该项仍有缺省误报、同步阻塞和无 timeout；脱敏修复用例存在同源盲点，P0 实际未关闭。当前有效缺陷为 **P0 1 项、P1 4 项、P2 3 项**。
+
+### 10.2 初评问题关闭矩阵
+
+| 初评项 | 复评状态 | 复评证据 |
 | --- | --- | --- |
-| P0-01 脱敏泄漏 | 共享正则扩展 JSON 键值/Bearer/sk-*，替换完整值 | `test_json_secret_is_redacted` |
-| P1-03 错误 trace 不一致 | chat 写 `request.state.trace_id`，错误 handler 复用 | `test_error_trace_id_matches_request` |
-| P1-04 health 异步/误报 | 支持 awaitable 检查，异常为 unavailable | `test_async_health_and_shutdown` |
-| P1-05 空白 session 500 | session_id validator 拒绝空白 | `test_blank_session_is_400` |
-| P2-03 lifespan 未排空 | shutdown handler 调用 Agent.close（若可调用） | 测试检查 shutdown 注册 |
-| P2-02 正则漂移 | HTTP 侧统一 `_SECRET_PATTERNS`；Runtime 未合并 | 部分 |
+| P0-01 响应脱敏泄漏 | **未关闭** | `Authorization: Bearer abc123` 仍输出 `*** abc123`；普通 JSON `api_key/password` 值原样返回。新增测试使用 `sk-*` 值，被独立 sk 正则兜底，未验证普通密钥；对 Bearer 只断言完整短语消失，未断言 token 本身消失。 |
+| P1-01 无可运行 HTTP 应用 | **未关闭** | 模块仍无 `app`，`create_app` 仍要求注入 `agent`；标准 uvicorn factory 命令继续失败。README 仍无启动命令。 |
+| P1-02 TC-L4/LIVE 缺失 | **未关闭** | `-m e2e`、`-m live` 均 0 个用例；测试仍只有 fake Agent/ASGITransport，未补 TC-L4-002/004/005/006/009/010/011、真实 TC-L3-008 与 LIVE-001/002。 |
+| P1-03 错误 trace_id 断链 | **已关闭** | 请求 trace 写入 `request.state`；Agent 异常响应与下游收到的 trace_id 一致，新增回归通过。 |
+| P1-04 health 异步/误报/阻塞 | **部分修复，未关闭** | awaitable 返回 False 已正确标记 unavailable；但未配置任何 Redis/Mongo/MySQL 检查仍返回 `ok, {}`，同步慢检查仍阻塞事件循环，所有检查串行且无 timeout。 |
+| P1-05 空白 session 返回 500 | **已关闭** | `session_id` 空白校验返回 INVALID_REQUEST/400，回归通过。 |
+| P1-06 Starlette 已知漏洞 | **未关闭** | `pip-audit .` 仍失败：解析到 Starlette 0.52.1，共 10 行、5 个不同 PYSEC 公告；项目约束未调整。 |
+| P2-01 行覆盖掩盖行为缺口 | **未关闭** | `http.py` 仍为 100% 行覆盖，但上述脱敏、启动、health 与全链路缺口仍存在。 |
+| P2-02 脱敏双实现漂移 | **未关闭** | HTTP 继续维护独立 `_SECRET_PATTERNS`，未复用 Runtime 的结构化脱敏；提交说明所称“共享正则”与代码不符。 |
+| P2-03 关闭时未排空 Agent | **已关闭** | shutdown hook 实际调用 `Agent.close()`；主动执行 router shutdown 后 `closed=True`。 |
+| P2-04 OpenSpec/阶段流程 | **未关闭** | 未补齐上位测试范围或重新打开归档 change；`Docs/PLAN.md` 仍标记 S18 已完成；`git diff --check 9c04506..HEAD` 仍有 3 处 EOF 空行。 |
 
-**复验**：338 passed、2 skipped；unit 198、contract 64、integration 76；覆盖率 **94.91%**；mypy 72 files 0 errors。
+### 10.3 复评命令与结果
+
+| 命令 / 检查 | 复评结果 |
+| --- | --- |
+| `git diff --stat afd124a..a2e8191` | 7 files changed，339 insertions，18 deletions |
+| `python -m pytest tests/integration/test_http_interface.py -q` | **15 passed** |
+| `python -m pytest --cov=agent_mini --cov-report=term-missing -q` | **344 passed，2 skipped**；总覆盖率四舍五入为 **95%**；`interface/http.py` 100% |
+| `pytest --collect-only -q -m e2e` / `-m live` | 两者均 **0 tests collected，340 deselected** |
+| `python -m ruff check .` / `ruff format --check .` | All checks passed；75 files already formatted |
+| `python -m mypy agent_mini tests` | **72 source files，0 errors** |
+| `openspec validate --specs --strict` / `--all --strict` | **18 passed，0 failed**；仅既有长 Requirement INFO |
+| `git diff --check afd124a..a2e8191` | **失败**：`Docs/TESTING.md` 1 处 EOF 多空行 |
+| `git diff --check 9c04506..a2e8191` | **失败**：累计 3 处 EOF 多空行 |
+| `python -m build` / `python -m pip check` | sdist/wheel 构建成功；无依赖破损 |
+| `python -m uvicorn agent_mini.interface.http:create_app --factory` | **失败**：`create_app()` 缺少必填 `agent` |
+| `pip-audit .` | **失败**：Starlette 10 行、5 个不同已知公告 |
+| LIVE 环境安全检查 | `.env` 有 `DEEPSEEK_API_KEY`、无 `RUN_LIVE`；进程变量两者均未设置；未读取或输出密钥值，未调用真实 API |
+
+### 10.4 新增边界复现
+
+| 探针 | 实际结果 | 判定 |
+| --- | --- | --- |
+| `_redact("Authorization: Bearer abc123")` | `*** abc123` | **失败：token 泄漏** |
+| `_redact('{"api_key": "plain-secret"}')` | 原样返回 | **失败：普通 JSON 密钥泄漏** |
+| `_redact('{"password": "p@ss word"}')` | 原样返回 | **失败：普通 JSON 密码泄漏** |
+| HTTP reply 含上述 JSON | 200 响应仍含两个秘密值 | **P0 可通过公开响应复现** |
+| async health 返回 False | `degraded / unavailable` | 修复通过 |
+| health checks 为空 | `ok / {}` | 失败：未检查即健康 |
+| 同步检查 sleep 150ms | 请求耗时至少 140ms | 失败：阻塞事件循环 |
+| 实际执行 shutdown hook | Agent `closed=True` | 修复通过 |
+
+### 10.5 复评门禁结论
+
+**S18 复评仍不通过，暂不可进入 S19。** 最小解除条件仍包括：彻底关闭 P0-01；提供可运行 ASGI 装配入口；完成 TC-L4、TC-L3-008 与 LIVE-001/002；使 healthz 对必需依赖 fail-closed、异步限时且不阻塞；升级存在公告的 Web 依赖；修正阶段状态与 diff-check。
+
+### 10.6 复评工作区副作用
+
+- 复评开始时工作区干净，`main` 与 `origin/main` 一致；未提交、未推送、未修改远程状态。
+- 仅更新本报告与 `Docs/PROMPT.md`；未修改实现、测试或 OpenSpec。
+- 全量测试与构建更新了被忽略的缓存、`build/`、`dist/` 和 egg-info；未清理或覆盖用户数据。
+- 未启动成功任何服务，未调用 DeepSeek，未输出 `.env` 密钥值。
+
+## 12. 继续回填（2026-10-24）
+
+- 新增 `test_http_flows.py`：calculator HTTP、两轮记忆、14 轮裁剪、双会话隔离、工具追问、10 并发。
+- 复验：344 passed、2 skipped；integration 82；覆盖率 94.96%。
+- 仍未补 L4-006 配置失败、LIVE、真实 uvicorn 启动。

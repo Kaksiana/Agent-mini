@@ -354,7 +354,7 @@
 | S15 | 已完成（修复） | 2026-10-23 | Context 出站接入、不可变快照、读取超时、去重、thinking 口径；305 passed、覆盖率 95.93% |
 | S16 | 已完成 | 2026-10-23 | 双触发整轮裁剪、出站前复核、ContextTooLarge、分项/日志；316 passed、覆盖率 95.94% |
 | S17 | 已完成（SQLite 仓储验证） | 2026-10-24 | MySQL 五表/schema/仓储/upsert/session/audit/metrics/异步降级；323 passed、覆盖率 94.66%；真实 MySQL 未跑，ISSUE-043 |
-| S18 | 已完成（LIVE 未运行） | 2026-10-24 | FastAPI /chat、/healthz、错误映射、脱敏、trace_id、无状态；338 passed、覆盖率 94.91%；LIVE Key 缺失 |
+| S18 | 已完成（LIVE 未运行） | 2026-10-24 | FastAPI /chat、/healthz、错误映射、脱敏、trace_id、无状态；344 passed、覆盖率 94.96%；LIVE Key 缺失 |
 | S19–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
