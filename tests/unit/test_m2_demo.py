@@ -5,10 +5,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from agent_mini.tools.builtin.read_file import read_file
 from agent_mini.tools.builtin.search import reset_search_provider, search
 from agent_mini.tools.builtin.write_file import write_file
 from agent_mini.tools.registry import ToolContext
+
+pytestmark = pytest.mark.integration
 
 PROJECT_ROOT = Path(__file__).parents[2]
 EXPECTED_TOOLS = {"calculator", "time", "todo", "read_file", "write_file", "search"}

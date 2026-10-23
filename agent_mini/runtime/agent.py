@@ -25,12 +25,14 @@ class Agent:
         tool_executor: ToolExecutor | None = None,
         policy: LoopPolicy | None = None,
         short_term: ShortTermStore | None = None,
+        memory_timeout: float = MEMORY_WRITEBACK_TIMEOUT_SECONDS,
     ) -> None:
         """保存注入依赖；旧调用不传 short_term 时行为不变。"""
         self._llm_client = llm_client
         self._tool_executor = tool_executor
         self._policy = policy
         self._short_term = short_term
+        self._memory_timeout = memory_timeout
 
     async def run(
         self,
@@ -57,6 +59,9 @@ class Agent:
     def _executor_for(self, session_id: str | None) -> ToolExecutor | None:
         if session_id is None or self._tool_executor is None:
             return self._tool_executor
+        bind_request = getattr(self._tool_executor, "bind_request", None)
+        if callable(bind_request):
+            return cast(ToolExecutor, bind_request(session_id, uuid4().hex))
         with_context = getattr(self._tool_executor, "with_context", None)
         if not callable(with_context):
             return self._tool_executor
@@ -81,7 +86,7 @@ class Agent:
                     result.truncated,
                     result.termination_reason,
                 ),
-                MEMORY_WRITEBACK_TIMEOUT_SECONDS,
+                self._memory_timeout,
             )
         except Exception:
             LOGGER.warning(

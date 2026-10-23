@@ -24,6 +24,10 @@ class ShortTermMemory:
         max_rounds: int = DEFAULT_MAX_ROUNDS,
         ttl_seconds: int = DEFAULT_TTL_SECONDS,
     ) -> None:
+        if isinstance(max_rounds, bool) or max_rounds <= 0:
+            raise ValueError("max_rounds 必须是正整数")
+        if isinstance(ttl_seconds, bool) or ttl_seconds <= 0:
+            raise ValueError("ttl_seconds 必须是正整数")
         self._client = client
         self._max_rounds = max_rounds
         self._ttl_seconds = ttl_seconds
@@ -41,6 +45,8 @@ class ShortTermMemory:
         termination_reason: str | None = None,
     ) -> bool:
         """同步写回完整轮次；异常降级为 False。"""
+        if not _valid_session(session_id):
+            return False
         try:
             payload = _encode_round(round_id, messages, truncated, termination_reason)
             key = self.key(session_id)
@@ -64,20 +70,29 @@ class ShortTermMemory:
     ) -> list[list[Message]]:
         """读取最近完整轮次；异常/解析失败降级为空。"""
         count = self._max_rounds if limit is None else limit
-        if count <= 0:
+        if count <= 0 or not _valid_session(session_id):
             return []
         try:
             raw = await cast(
                 Awaitable[list[Any]],
                 self._client.lrange(self.key(session_id), -count, -1),
             )
-            return [_decode_round(item) for item in raw]
         except Exception:
             LOGGER.warning(
                 "memory.degraded",
                 extra={"event": "memory.degraded", "session_id": session_id},
             )
             return []
+        rounds: list[list[Message]] = []
+        for item in raw:
+            try:
+                rounds.append(_decode_round(item))
+            except Exception:
+                LOGGER.warning(
+                    "memory.corrupt_round",
+                    extra={"event": "memory.corrupt_round", "session_id": session_id},
+                )
+        return rounds
 
 
 def _encode_round(
@@ -98,3 +113,7 @@ def _encode_round(
 def _decode_round(raw: str | bytes) -> list[Message]:
     data: Any = json.loads(raw)
     return [Message.model_validate(item) for item in data["messages"]]
+
+
+def _valid_session(session_id: str) -> bool:
+    return bool(session_id.strip()) and len(session_id) <= 128

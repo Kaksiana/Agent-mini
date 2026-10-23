@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any, cast
 
 import fakeredis.aioredis
@@ -98,6 +99,42 @@ class _BrokenClient:
         raise ConnectionError("down")
 
 
+@pytest.mark.parametrize(("max_rounds", "ttl"), [(0, 1), (1, 0), (True, 1), (1, True)])
+def test_invalid_constructor_arguments(
+    client: Any,
+    max_rounds: int,
+    ttl: int,
+) -> None:
+    with pytest.raises(ValueError):
+        ShortTermMemory(client, max_rounds=max_rounds, ttl_seconds=ttl)
+
+
+async def test_corrupt_round_is_skipped(client: Any) -> None:
+    memory = ShortTermMemory(client)
+    await memory.append_round("A", [_user("good")], "r1")
+    await client.rpush(memory.key("A"), "not-json")
+
+    rounds = await memory.get_recent_rounds("A")
+
+    assert [round_[0].content for round_ in rounds] == ["good"]
+
+
+def test_bind_request_preserves_sandbox_fields(tmp_path: Path) -> None:
+    from agent_mini.runtime.registry_adapter import RegistryExecutor
+    from agent_mini.tools.registry import ToolContext, ToolRegistry
+
+    executor = RegistryExecutor(
+        ToolRegistry(),
+        ToolContext("old", "old-trace", sandbox_root=str(tmp_path), max_file_size=1024),
+    )
+    bound = executor.bind_request("new", "new-trace")
+
+    assert bound._context is not None
+    assert bound._context.session_id == "new"
+    assert bound._context.sandbox_root == str(tmp_path)
+    assert bound._context.max_file_size == 1024
+
+
 async def test_redis_failure_degrades_without_raise(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -191,7 +228,7 @@ async def test_agent_timeout_degrades(
     import agent_mini.runtime.agent as agent_module
 
     monkeypatch.setattr(agent_module, "MEMORY_WRITEBACK_TIMEOUT_SECONDS", 0.01)
-    agent = Agent(cast(LLMClient, _StubLLM()), short_term=_HangingStore())
+    agent = Agent(cast(LLMClient, _StubLLM()), short_term=_HangingStore(), memory_timeout=0.01)
 
     with caplog.at_level(logging.WARNING):
         result = await agent.run("hi", session_id="A")

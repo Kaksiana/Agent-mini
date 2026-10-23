@@ -22,6 +22,17 @@ class RegistryExecutor:
         """返回带请求级可信上下文的新适配器。"""
         return RegistryExecutor(self._registry, context)
 
+    def bind_request(self, session_id: str, trace_id: str) -> RegistryExecutor:
+        """只替换请求级字段，保留 sandbox 配置。"""
+        base = self._context
+        context = ToolContext(
+            session_id=session_id,
+            trace_id=trace_id,
+            sandbox_root=base.sandbox_root if base is not None else None,
+            max_file_size=base.max_file_size if base is not None else None,
+        )
+        return RegistryExecutor(self._registry, context)
+
     def schemas(self) -> list[ToolSchema]:
         """返回注册表当前的 OpenAI tools Schema。"""
         return [ToolSchema.model_validate(schema) for schema in self._registry.schemas()]
