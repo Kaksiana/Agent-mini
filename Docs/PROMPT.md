@@ -2084,3 +2084,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 预算 16000-1024-1600=13376；协议开销 256；tiktoken 不可用字符降级仍统计 Schema。
 - tools_snapshot 原引用复用；不实现 S16 裁剪。
 - 验收：301 passed、1 skipped；unit 198、contract 64、integration 39；覆盖率 95.42%。
+
+- OpenSpec 归档：`s15-context-builder` 归档为 `2026-10-23-s15-context-builder`；新建 `context-builder`（2 Requirement）；`openspec validate --all --strict` 15 passed。
+- 关联提交：`1caec9d`（change）、`1c015b0`（代码+测试+依赖）、`210c98c`（文档）、归档提交见最终报告。
