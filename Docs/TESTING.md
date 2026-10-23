@@ -9,7 +9,7 @@
 | 版本 | v0.22（S18 HTTP API） |
 | 日期 | 2026-10-23 |
 | 状态 | 执行中（S00–S18 已实现；LIVE 条件未满足） |
-| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 338（unit 198、contract 64、integration 82、unmarked 0；MySQL/POSIX skip） |
+| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 338（unit 198、contract 64、integration 84、unmarked 0；MySQL/POSIX skip） |
 
 > 本文件同时记录测试设计与执行状态。截至 S14，S00–S14 已实现 301 个 pytest 用例（最近全量 305 passed、1 skipped、覆盖率 95.93%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
@@ -438,4 +438,3 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 | AC-21 | TC-L3-011、TC-L3-012 |
 | AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 | AC-23 | TC-LIVE-001、TC-LIVE-002 |
-

@@ -48,6 +48,18 @@ pytest -q \
 预期：`4 passed`。覆盖直接回复、两步工具配对、max_steps 固定文案与 deadline 取消/补齐。
 
 
+## HTTP 服务
+
+```bash
+pip install -e ".[dev]"
+cp .env.example .env
+# 在环境中设置 DEEPSEEK_API_KEY，禁止写入 tracked 文件
+uvicorn agent_mini.interface.http:create_app_from_env --factory --port 8000
+curl http://127.0.0.1:8000/healthz
+```
+
+LIVE 验收：`RUN_LIVE=1 DEEPSEEK_API_KEY=... pytest -m live`；缺失时 skip。
+
 ## M3 离线演示
 
 验证三轮记忆、跨轮上下文与超 K 整轮裁剪，不访问网络：

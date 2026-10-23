@@ -231,7 +231,7 @@
 | --- | --- |
 | `git diff --stat afd124a..a2e8191` | 7 files changed，339 insertions，18 deletions |
 | `python -m pytest tests/integration/test_http_interface.py -q` | **15 passed** |
-| `python -m pytest --cov=agent_mini --cov-report=term-missing -q` | **344 passed，2 skipped**；总覆盖率四舍五入为 **95%**；`interface/http.py` 100% |
+| `python -m pytest --cov=agent_mini --cov-report=term-missing -q` | **346 passed，2 skipped**；总覆盖率四舍五入为 **95%**；`interface/http.py` 100% |
 | `pytest --collect-only -q -m e2e` / `-m live` | 两者均 **0 tests collected，340 deselected** |
 | `python -m ruff check .` / `ruff format --check .` | All checks passed；75 files already formatted |
 | `python -m mypy agent_mini tests` | **72 source files，0 errors** |
@@ -270,5 +270,13 @@
 ## 12. 继续回填（2026-10-24）
 
 - 新增 `test_http_flows.py`：calculator HTTP、两轮记忆、14 轮裁剪、双会话隔离、工具追问、10 并发。
-- 复验：344 passed、2 skipped；integration 82；覆盖率 94.96%。
+- 复验：346 passed、2 skipped；integration 84；覆盖率 94.86%。
 - 仍未补 L4-006 配置失败、LIVE、真实 uvicorn 启动。
+
+## 13. 继续修复（2026-10-24）
+
+- `create_app_from_env` + uvicorn factory；缺 DEEPSEEK_API_KEY 启动失败；`.env.example` 无真实 Key。
+- 真实 uvicorn 启动：`GET /healthz` 200 `{"status":"ok","dependencies":{}}`。
+- 新增 HTTP 三工具链路、并发、记忆/裁剪等测试；L4-006/L4-011 已覆盖。
+- 依赖审计：`pip-audit` 仍报 certifi/urllib3 4 项（无法升级），登记 ISSUE-045。
+- 复验：346 passed、2 skipped；integration 84；覆盖率 94.86%。
