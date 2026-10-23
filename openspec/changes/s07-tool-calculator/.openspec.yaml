@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-23
+goal: S07 calculator：ast 白名单四则求值与结构化错误
