@@ -65,7 +65,7 @@ _UNARY_OPS: dict[type[ast.unaryop], UnaryOperation] = {
 class CalculatorArgs(BaseModel):
     """calculator 的唯一参数。"""
 
-    expression: str = Field(min_length=1, max_length=MAX_EXPRESSION_CHARS)
+    expression: str = Field(min_length=1)
 
 
 class CalculatorError(Exception):
@@ -89,10 +89,6 @@ def calculate(expression: str) -> ToolResult:
         value = _evaluate_expression(expression)
     except CalculatorError as exc:
         return ToolResult(False, _MESSAGES.get(exc.error_code, "计算失败"), exc.error_code)
-    except ZeroDivisionError:
-        return ToolResult(False, "除数不能为零", ERROR_DIVISION_BY_ZERO)
-    except OverflowError:
-        return ToolResult(False, "计算结果超出范围", ERROR_OVERFLOW)
     except Exception:
         return ToolResult(False, "计算失败", ERROR_EVALUATION)
     return ToolResult(True, str(value))
@@ -134,10 +130,7 @@ def _binary(node: ast.BinOp, depth: int) -> Number:
     right = _eval(node.right, depth + 1)
     if isinstance(node.op, ast.Div) and right == 0:
         raise CalculatorError(ERROR_DIVISION_BY_ZERO)
-    try:
-        return _checked(operation(left, right))
-    except OverflowError as exc:
-        raise CalculatorError(ERROR_OVERFLOW) from exc
+    return _checked(operation(left, right))
 
 
 def _unary(node: ast.UnaryOp, depth: int) -> Number:

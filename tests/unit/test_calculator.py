@@ -1,9 +1,12 @@
 """TC-L1-001/002/003：calculator 安全求值。"""
 
+import ast
+from pathlib import Path
 from typing import cast
 
 import pytest
 
+import agent_mini.tools.builtin.calculator as calculator_module
 from agent_mini.tools.builtin.calculator import calculate
 from agent_mini.tools.registry import DEFAULT_REGISTRY
 
@@ -15,7 +18,9 @@ pytestmark = pytest.mark.unit
     [
         ("(2+3)*4", "20"),
         ("1+2*3", "7"),
+        ("5-2", "3"),
         ("-3+2", "-1"),
+        ("+3", "3"),
         ("7/2", "3.5"),
         ("2.5*4", "10.0"),
     ],
@@ -41,6 +46,8 @@ def test_calculator_evaluates_four_operations(expression: str, expected: str) ->
         "True and False",
         "1|2",
         "2**3",
+        "~1",
+        "not 1",
     ],
 )
 def test_calculator_rejects_dangerous_expressions(expression: str) -> None:
@@ -66,6 +73,23 @@ def test_calculator_returns_structured_errors(expression: str, error_code: str) 
     assert result.error_code == error_code
 
 
+def test_dangerous_open_has_no_side_effect(tmp_path: Path) -> None:
+    target = str(tmp_path) + "/created.txt"
+    result = calculate(f"open({target!r}, 'w')")
+
+    assert result.error_code == "unsafe_expression"
+    assert not (tmp_path / "created.txt").exists()
+
+
+async def test_registry_preserves_too_long_error() -> None:
+    result = await DEFAULT_REGISTRY.execute(
+        "calculator",
+        {"expression": "1+" * 100 + "1"},
+    )
+
+    assert result.error_code == "expression_too_long"
+
+
 def test_calculator_is_registered_with_schema() -> None:
     spec = DEFAULT_REGISTRY.get("calculator")
     schema = spec.to_json_schema()
@@ -82,6 +106,39 @@ async def test_registry_executes_calculator() -> None:
     assert result.content == "14"
 
 
+def test_calculator_converts_unexpected_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(expression: str) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(calculator_module, "_evaluate_expression", boom)
+    result = calculate("1")
+
+    assert result.error_code == "evaluation_error"
+
+
+def test_calculator_converts_parse_recursion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(expression: str, mode: str) -> object:
+        raise RecursionError
+
+    monkeypatch.setattr("agent_mini.tools.builtin.calculator.ast.parse", boom)
+    result = calculate("1")
+
+    assert result.error_code == "expression_too_deep"
+
+
+def test_calculator_rejects_non_number_operation_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(calculator_module._BINARY_OPS, ast.Add, lambda a, b: "x")
+    result = calculate("1+1")
+
+    assert result.error_code == "type_error"
+
+
 def test_calculator_rejects_too_long_expression() -> None:
     result = calculate("1+" * 100 + "1")
 
@@ -94,7 +151,8 @@ def test_calculator_rejects_too_deep_expression() -> None:
     assert result.error_code == "expression_too_deep"
 
 
-def test_calculator_rejects_overflow() -> None:
-    result = calculate("9" * 100)
+@pytest.mark.parametrize("expression", ["9" * 100, "1e309"])
+def test_calculator_rejects_overflow(expression: str) -> None:
+    result = calculate(expression)
 
     assert result.error_code == "number_overflow"
