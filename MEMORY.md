@@ -176,4 +176,4 @@
 
 - FastAPI /chat 字段、session UUID、/healthz 依赖状态；错误映射 400/408/429/502/500；脱敏。
 - Agent trace_id 贯穿 ToolContext/SystemDB；LIVE Key 缺失未运行。
-- 验收：334 passed、2 skipped；unit 198、contract 64、integration 72；覆盖率 94.87%。
+- 验收：338 passed、2 skipped；unit 198、contract 64、integration 76；覆盖率 94.91%。
