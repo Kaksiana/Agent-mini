@@ -19,6 +19,7 @@ from agent_mini.memory.base import (
 )
 from agent_mini.runtime.loop import LoopOptions, LoopPolicy, ToolExecutor, run_react_loop
 from agent_mini.runtime.result import AgentResult
+from agent_mini.systemdb.models import SystemDBStore
 from agent_mini.tools.registry import ToolContext
 
 MEMORY_WRITEBACK_TIMEOUT_SECONDS = 5.0
@@ -47,7 +48,19 @@ class Agent:
         self._context_builder: ContextBuilder | None = None
         self._system_prompt: str | None = None
         self._include_reasoning = True
+        self._system_db: SystemDBStore | None = None
+        self._system_timeout = MEMORY_WRITEBACK_TIMEOUT_SECONDS
         self._background: set[asyncio.Task[None]] = set()
+
+    def with_system_db(
+        self,
+        store: SystemDBStore,
+        timeout: float = MEMORY_WRITEBACK_TIMEOUT_SECONDS,
+    ) -> Agent:
+        """启用响应后异步系统库写入。"""
+        self._system_db = store
+        self._system_timeout = timeout
+        return self
 
     def with_context(
         self,
@@ -126,6 +139,12 @@ class Agent:
             task = asyncio.create_task(self._write_mongo(session_id, stored))
             self._background.add(task)
             task.add_done_callback(self._background.discard)
+        if session_id is not None and self._system_db is not None:
+            task = asyncio.create_task(
+                self._write_system(session_id, result, uuid4().hex)
+            )
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
         if session_id is not None:
             result = result.model_copy(update={"session_id": session_id})
         return result
@@ -192,6 +211,26 @@ class Agent:
             LOGGER.warning(
                 "memory.degraded",
                 extra={"event": "memory.degraded", "session_id": session_id},
+            )
+
+    async def _write_system(
+        self,
+        session_id: str,
+        result: AgentResult,
+        trace_id: str,
+    ) -> None:
+        store = self._system_db
+        if store is None:
+            return
+        try:
+            await asyncio.wait_for(
+                store.record_turn(session_id, result, 0, trace_id),
+                self._system_timeout,
+            )
+        except Exception:
+            LOGGER.warning(
+                "systemdb.degraded",
+                extra={"event": "systemdb.degraded", "session_id": session_id},
             )
 
     async def _write_mongo(self, session_id: str, stored: StoredRound) -> None:

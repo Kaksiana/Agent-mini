@@ -95,6 +95,8 @@ NON_PLACEHOLDER_MODULES = {
     "context/window.py",
     "context/token_counter.py",
     "memory/base.py",
+    "systemdb/models.py",
+    "systemdb/repository.py",
 }
 
 PLACEHOLDER_MODULES = [
@@ -127,10 +129,12 @@ def test_placeholder_modules_contain_only_docstring() -> None:
         assert any("\u4e00" <= char <= "\u9fff" for char in node.value.value), path
 
 
-def test_schema_sql_contains_only_comments() -> None:
-    """schema.sql 仅允许注释行。"""
-    lines = (PACKAGE_ROOT / "systemdb/schema.sql").read_text(encoding="utf-8").splitlines()
-    assert all(not line.strip() or line.lstrip().startswith("--") for line in lines)
+def test_schema_sql_has_five_idempotent_tables() -> None:
+    """schema.sql 包含五表且使用 IF NOT EXISTS。"""
+    schema = (PACKAGE_ROOT / "systemdb/schema.sql").read_text(encoding="utf-8")
+    for table in ("sessions", "models", "tools", "tool_invocations", "request_metrics"):
+        assert f"CREATE TABLE IF NOT EXISTS {table}" in schema
+    assert schema.count("CREATE TABLE IF NOT EXISTS") == 5
 
 
 def test_schema_sql_is_available_as_package_data() -> None:
