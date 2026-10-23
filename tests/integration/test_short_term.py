@@ -10,6 +10,7 @@ import pytest
 
 from agent_mini.llm import models as llm_models
 from agent_mini.llm.client import LLMClient
+from agent_mini.memory.base import StoredRound
 from agent_mini.memory.short_term import ShortTermMemory
 from agent_mini.runtime.agent import Agent
 
@@ -44,7 +45,7 @@ async def test_rounds_are_complete_and_ltrimmed(client: Any) -> None:
 
     rounds = await memory.get_recent_rounds("A", 2)
 
-    assert [round_[0].content for round_ in rounds] == ["r2", "r3"]
+    assert [round_.messages[0].content for round_ in rounds] == ["r2", "r3"]
 
 
 async def test_tool_pair_and_reasoning_are_preserved(client: Any) -> None:
@@ -54,10 +55,10 @@ async def test_tool_pair_and_reasoning_are_preserved(client: Any) -> None:
     await memory.append_round("A", messages, "r1")
     restored = (await memory.get_recent_rounds("A"))[0]
 
-    assert restored[1].tool_calls is not None
-    assert restored[1].tool_calls[0].id == "call_1"
-    assert restored[2].tool_call_id == "call_1"
-    assert restored[3].reasoning_content == "private"
+    assert restored.messages[1].tool_calls is not None
+    assert restored.messages[1].tool_calls[0].id == "call_1"
+    assert restored.messages[2].tool_call_id == "call_1"
+    assert restored.messages[3].reasoning_content == "private"
 
 
 async def test_ttl_expires_window(client: Any) -> None:
@@ -78,8 +79,8 @@ async def test_sessions_are_isolated(client: Any) -> None:
     a_rounds = await memory.get_recent_rounds("A")
     b_rounds = await memory.get_recent_rounds("B")
 
-    assert a_rounds[0][0].content == "a"
-    assert b_rounds[0][0].content == "b"
+    assert a_rounds[0].messages[0].content == "a"
+    assert b_rounds[0].messages[0].content == "b"
 
 
 class _BrokenClient:
@@ -116,7 +117,7 @@ async def test_corrupt_round_is_skipped(client: Any) -> None:
 
     rounds = await memory.get_recent_rounds("A")
 
-    assert [round_[0].content for round_ in rounds] == ["good"]
+    assert [round_.messages[0].content for round_ in rounds] == ["good"]
 
 
 def test_bind_request_preserves_sandbox_fields(tmp_path: Path) -> None:
@@ -170,7 +171,7 @@ class _OrderedStore:
         self,
         session_id: str,
         limit: int | None = None,
-    ) -> list[list[llm_models.Message]]:
+    ) -> list[StoredRound]:
         return []
 
 
@@ -217,7 +218,7 @@ class _HangingStore:
         self,
         session_id: str,
         limit: int | None = None,
-    ) -> list[list[llm_models.Message]]:
+    ) -> list[StoredRound]:
         return []
 
 

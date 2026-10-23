@@ -8,6 +8,7 @@ from typing import Any, cast
 from redis.asyncio import Redis
 
 from agent_mini.llm.models import Message
+from agent_mini.memory.base import StoredRound
 
 DEFAULT_MAX_ROUNDS = 10
 DEFAULT_TTL_SECONDS = 86_400
@@ -48,7 +49,8 @@ class ShortTermMemory:
         if not _valid_session(session_id):
             return False
         try:
-            payload = _encode_round(round_id, messages, truncated, termination_reason)
+            stored = StoredRound(round_id, tuple(messages), truncated, termination_reason)
+            payload = _encode_round(stored)
             key = self.key(session_id)
             pipeline = self._client.pipeline(transaction=True)
             pipeline.rpush(key, payload)
@@ -67,7 +69,7 @@ class ShortTermMemory:
         self,
         session_id: str,
         limit: int | None = None,
-    ) -> list[list[Message]]:
+    ) -> list[StoredRound]:
         """读取最近完整轮次；异常/解析失败降级为空。"""
         count = self._max_rounds if limit is None else limit
         if count <= 0 or not _valid_session(session_id):
@@ -83,7 +85,7 @@ class ShortTermMemory:
                 extra={"event": "memory.degraded", "session_id": session_id},
             )
             return []
-        rounds: list[list[Message]] = []
+        rounds: list[StoredRound] = []
         for item in raw:
             try:
                 rounds.append(_decode_round(item))
@@ -95,24 +97,25 @@ class ShortTermMemory:
         return rounds
 
 
-def _encode_round(
-    round_id: str,
-    messages: list[Message],
-    truncated: bool = False,
-    termination_reason: str | None = None,
-) -> str:
+def _encode_round(round_: StoredRound) -> str:
     payload = {
-        "round_id": round_id,
-        "truncated": truncated,
-        "termination_reason": termination_reason,
-        "messages": [message.model_dump(mode="json") for message in messages],
+        "round_id": round_.round_id,
+        "truncated": round_.truncated,
+        "termination_reason": round_.termination_reason,
+        "messages": [message.model_dump(mode="json") for message in round_.messages],
     }
     return json.dumps(payload, ensure_ascii=False)
 
 
-def _decode_round(raw: str | bytes) -> list[Message]:
+def _decode_round(raw: str | bytes) -> StoredRound:
     data: Any = json.loads(raw)
-    return [Message.model_validate(item) for item in data["messages"]]
+    messages = tuple(Message.model_validate(item) for item in data["messages"])
+    return StoredRound(
+        round_id=data["round_id"],
+        messages=messages,
+        truncated=bool(data.get("truncated", False)),
+        termination_reason=data.get("termination_reason"),
+    )
 
 
 def _valid_session(session_id: str) -> bool:

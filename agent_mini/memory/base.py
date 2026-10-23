@@ -1,8 +1,19 @@
-"""Memory 短时存储协议。"""
+"""Memory 短时存储协议与冻结轮次模型。"""
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from agent_mini.llm.models import Message
+
+
+@dataclass(frozen=True)
+class StoredRound:
+    """Redis 中一个完整轮次的公开结构。"""
+
+    round_id: str
+    messages: tuple[Message, ...]
+    truncated: bool = False
+    termination_reason: str | None = None
 
 
 class ShortTermStore(Protocol):
@@ -23,6 +34,6 @@ class ShortTermStore(Protocol):
         self,
         session_id: str,
         limit: int | None = None,
-    ) -> list[list[Message]]:
+    ) -> list[StoredRound]:
         """读取最近完整轮次，时间正序。"""
         ...
