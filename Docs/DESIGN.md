@@ -309,7 +309,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | 工具 | 实现要点 | 风险控制 |
   | --- | --- | --- |
   | calculator | `ast.parse(mode="eval")` 白名单 `Expression/BinOp/UnaryOp/Constant`，仅 `+ - * /`、取负/取正、括号；阈值 200 字符/20 层/1e12；错误码 `unsafe_expression`/`syntax_error`/`division_by_zero`/`type_error`/`expression_too_long`/`expression_too_deep`/`number_overflow` | 禁止 `eval/exec/compile/import`；bool 不算数值；危险节点拒绝（FR-TOOL-02） |
-  | time | `datetime.now(ZoneInfo(tz))`，默认取配置时区 | 非法时区返回参数错误（FR-TOOL-03） |
+  | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；`now_provider` 仅测试注入，不进入 Schema；输出 ISO8601 + 时区名 | 空串/大小写错误/不存在 IANA 返回 `invalid_timezone`（FR-TOOL-03） |
   | todo | 以会话为键的列表，存储复用 Memory 的 KV 能力 | 空列表返回空集合；不跨会话（FR-TOOL-04） |
   | read_file | 读文本，限制体积与编码 | 越界阻断、二进制拒绝（FR-TOOL-05） |
   | write_file | 写文本，默认不覆盖已有文件（需显式 `overwrite`） | 越界阻断、大小上限、原子写（临时文件 + `os.replace`）（FR-TOOL-06） |
@@ -556,3 +556,4 @@ AgentResult →
 | v0.16 | 2026-10-22 | S05 安全阀：max_steps/deadline/repeat、truncated/终止原因、固定文案、取消补齐、P2-05/P2-01 前置处理 | §3.2.0、§3.2.4；联动 TC-L1-016/029、TC-L4-008 |
 | v0.17 | 2026-10-22 | S06 工具注册：ToolResult/ToolContext/ToolRegistry/@tool、启停、pydantic Schema、严格参数与返回、Runtime adapter、深层只读 trace | §2.2、§3.2.3、§3.3；联动 FR-TOOL-01、TC-L1-007/008/009、ISSUE-032/033 |
 | v0.18 | 2026-10-23 | S07 calculator：AST 白名单、阈值/错误码、bool/危险节点拒绝 | §3.3；联动 FR-TOOL-02、TC-L1-001/002/003 |
+| v0.19 | 2026-10-23 | S08 time：默认 Asia/Shanghai、timezone/tz 兼容、now_provider、invalid_timezone | §3.3；联动 FR-TOOL-03、TC-L1-004/005、ISSUE-034 |

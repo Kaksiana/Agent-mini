@@ -1,4 +1,12 @@
-﻿# MEMORY <!-- omit in toc -->
+# MEMORY <!-- omit in toc -->
+
+## 2026-10-23 — S08 time
+
+- 新增 `TimeArgs(timezone)` 与 `@tool("time")`；默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`。
+- handler 兼容 `tz` 别名、`timezone` 优先；支持 `now_provider` 注入，不进入 Schema。
+- 非法/空/大小写错误时区返回 `invalid_timezone`；输出 ISO8601 + 时区名。
+- 验收：173 passed、覆盖率 95.94%；unit 109、contract 64；mypy 55 files 0 errors。
+- ISSUE-034：timezone/tz 参数名冲突已用兼容设计闭环。
 
 ## 2026-10-23 — S07 calculator
 

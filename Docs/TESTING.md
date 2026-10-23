@@ -1,4 +1,4 @@
-﻿# TESTING <!-- omit in toc -->
+# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -6,12 +6,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.11（S07 calculator） |
+| 版本 | v0.12（S08 time） |
 | 日期 | 2026-10-23 |
-| 状态 | 执行中（S00–S07 已实现） |
-| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 164（unit 100、contract 64） |
+| 状态 | 执行中（S00–S08 已实现） |
+| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 173（unit 109、contract 64） |
 
-> 本文件同时记录测试设计与执行状态。截至 S07，S00–S07 已实现 164 个 pytest 用例（最近全量 164 passed、覆盖率 95.81%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S08，S00–S08 已实现 173 个 pytest 用例（最近全量 173 passed、覆盖率 95.94%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -206,6 +206,15 @@
 | TC-L1-002 | Call/Name/Attribute/Subscript/Lambda/推导式/Compare/BoolOp/BitOp/Pow 均 unsafe_expression | 沙箱 S10 |
 | TC-L1-003 | `1/0`/`2+`/`"a"+1` 结构化错误；bool/超长/过深/溢出 | 进程级无副作用由集成验证 |
 | 注册 | `@tool("calculator")`、Schema required、Registry 执行 | 启停配置 S21 |
+
+#### 4.2.8 S08 覆盖边界
+
+| TC | S08 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L1-004 | 默认 Asia/Shanghai、固定 now_provider、+08:00 | 配置时区来源 S21 |
+| TC-L1-005 | `tz="UTC"` +00:00；`Mars/Base`/空串/`utc`/非字符串 invalid_timezone | 真实系统时钟由集成验证 |
+| 参数/Schema | 只公开 `timezone`；`tz` 为 handler 兼容别名 | 无 |
+| 确定性 | now_provider 注入不进入 Schema | 无 |
 
 ### 4.3 L3 集成测试
 

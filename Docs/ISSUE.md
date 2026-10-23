@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -416,6 +416,17 @@
 - 历史限制：S06 原始 Prompt 仍为摘要；不伪造历史红灯。
 - 状态：Resolved
 - 关联提交：`s06-report-fixes` change、代码/文档提交（见最终报告）
+
+### ISSUE-034 — S08 time 参数名 `timezone` 与 TC `tz` 不一致
+
+- 日期：2026-10-23
+- 现象：S08 Prompt 要求参数模型字段为 `timezone`；TESTING TC-L1-005 调用 `time(tz="UTC")`。
+- 根因：TC 使用简写 `tz`，Prompt 明确要求 `timezone`。
+- 解决方案：`TimeArgs` 只公开 `timezone`；handler 增加仅内部/直调兼容的 `tz` 关键字，`timezone` 优先；不把 `tz` 公开到 Schema。
+- 验证方式：`current_time(tz=...)` 与 `Registry.execute({"timezone": ...})` 双路径测试。
+- 验证结果：`tz` 直调与 `timezone` Registry 路径均通过；Schema 只含 `timezone`；大小写/空串/不存在时区均 `invalid_timezone`。
+- 状态：Resolved
+- 关联提交：S08 time change（见最终报告）
 
 ### S07 阶段问题记录（2026-10-23）
 

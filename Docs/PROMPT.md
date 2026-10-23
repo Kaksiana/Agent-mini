@@ -1,4 +1,4 @@
-﻿# PROMPT <!-- omit in toc -->
+# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1515,6 +1515,56 @@ S06 已完成工具注册机制（`ToolSpec` / `ToolRegistry` / `@tool` / `ToolR
 - 验证：154 passed；unit 90、contract 64；覆盖率 94.02%；ruff/format/mypy/OpenSpec/wheel/隔离 venv 通过。
 - 人工修正 / 决策：只记录评估结果，不修改实现、测试、OpenSpec、PLAN、ISSUE、README、MEMORY 或远程状态。
 - 关联提交：无（只读评估，未提交）。
+
+## 2026-10-23 12:33 — S08 time
+
+### 原始 Prompt
+
+```text
+【角色】
+你是 S08「Tool：time」执行 Agent，熟悉 Python `zoneinfo` / `datetime`、pydantic、pytest、OpenSpec、SuperPower SKILL，遵循 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+阶段定义、验收标准、测试项见 `Docs/PLAN.md` S08。
+工具接口契约见 `Docs/DESIGN.md` §3.3，S06 已完成注册机制（`ToolSpec` / `ToolRegistry` / `@tool` / `ToolResult`）。
+S07 已交付 calculator，本阶段参照其结构实现 time 工具。
+TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` FR-TOOL-03。
+【任务】
+按 PLAN S08 用 TDD 实现 time 工具（按时区返回当前时间），完成验收与收口。
+【约束】
+1. 开工前核对 S06 接口与 DESIGN §3.3 一致；核对 TC-L1-004/005 在 TESTING 中定义齐全；核对 S07 的实现风格与错误码命名约定。缺失或不一致 → 停，登记 ISSUE，不得自行补写。
+2. 只改 `agent_mini/tools/builtin/time_tool.py` 及测试；必要时最小改动 `tools/__init__.py` 导出，需说明理由。
+3. 不实现 S09–S12 其他工具、S10 沙箱、Runtime 或其他子包。
+4. 只使用标准库 `datetime` / `zoneinfo`；不引入 `pytz`、`dateutil` 等第三方库；不新增运行依赖。
+5. 参数模型：可选 `timezone` 字段，类型为 `str | None`；未传入时使用默认时区。默认时区的来源需在 change design 中明确（配置常量 / UTC / 系统本地时区），并在 DESIGN §3.3 或该 change 中登记；禁止散落魔法字符串。
+6. 非法时区（不存在的 IANA 名、非字符串、空串、大小写错误）转为 `ToolResult(ok=False, error_code=..., content=...)`，不抛异常；error_code 命名与 S07 保持一致风格，集中定义。
+7. 返回结构需包含时间戳（ISO 8601）与时区名；时间来源需支持测试注入（如注入 `clock` / `now_provider`），以便 TC-L1-004/005 可确定性断言；注入方式不得污染 Runtime 或其他工具。
+8. 用 OpenSpec 创建 `s08-tool-time` change，`validate --strict` 通过后 TDD；使用 SuperPower SKILL，不可用登记 ISSUE。
+9. TDD：TC 逐条先红后绿，红因为未实现相关，不得以收集错误冒充；红绿证据写入 `Docs/PROMPT.md`（逐字保存本轮 Prompt）。
+10. 遵循代码规范：行宽、单行单语句、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无魔法数字。
+11. 验收：`pytest -m unit`、`pytest -m contract`、全量 `pytest`（S00–S07 无回归）、覆盖率、`ruff check .`、`ruff format --check .`、`mypy agent_mini tests`、`openspec validate --all --strict`、wheel + 仓库外导入；复跑留证。
+12. 文档收口：PLAN 状态、DESIGN（如澄清默认时区来源或 error_code）、TESTING、ISSUE、MEMORY、PROMPT、README（如需要）；OpenSpec 归档；不改已归档 change。
+13. Commit 拆分：OpenSpec / 代码+测试 / 文档 / 归档；冲突或失败停止报告，不得强推。
+【输出格式】
+1. 开工前核对结论 + Prompt 逐字记录确认。
+2. TC 映射表：TC-L1-004/005（定义摘要 / 覆盖部分 / 用例文件）。
+3. 设计决策：默认时区来源、参数模型、error_code 列表、时间注入方式。
+4. 变更文件（代码/测试/文档/OpenSpec）。
+5. OpenSpec change 名、validate、归档结果。
+6. TDD 记录：每条 TC 红因、绿因。
+7. 验收结果：各命令结果、覆盖率。
+8. 验收证据：默认时区 / 指定时区 / 非法时区。
+9. 文档收口与 Git 状态。
+10. 异常与待确认（无则写「无」）。
+不输出代码或文档正文。
+```
+
+### TDD 与验收摘要
+
+- ISSUE-034：TC 的 `tz` 与 Prompt 的 `timezone` 冲突；`TimeArgs` 只公开 `timezone`，handler 兼容 `tz`。
+- 红阶段：占位 `current_time` 抛 `NotImplementedError` 或 registry 无 `time`，9 个用例全红。
+- 绿阶段：默认 Asia/Shanghai、UTC、非法时区、timezone 优先、Schema/Registry、now_provider 全绿。
+- 验收：173 passed、覆盖率 95.94%；unit 109、contract 64；mypy 55 files 0 errors。
+- 关联提交：`330b5a5`（OpenSpec 规划）、代码+测试/文档/归档提交见最终报告。
 
 
 
