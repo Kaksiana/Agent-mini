@@ -1753,6 +1753,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 红：Sandbox/read_file 未实现时测试失败；symlink 在 Windows 无权限时用 junction 复验。
 - 绿：`../`、多层 `../`、POSIX/Windows 绝对路径、junction 逃逸、NTFS 流、隐藏、超长、扩展名大小写均阻断；read_file 空/超限/二进制/解码/编码错误结构化。
 - 验收：214 passed、覆盖率 96.66%；unit 150、contract 64；mypy 59 files 0 errors。
-- 关联提交：OpenSpec 规划/代码+测试/文档/归档提交见最终报告。
+- 关联提交：`f71568f`（OpenSpec 规划）、`a278271`（代码+测试）、`f74cc68`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s10-tool-sandbox-readfile`；新建 `sandbox` 规格（2 项 Requirement）；`openspec validate --all --strict` 为 9 passed、0 failed。
 
 
