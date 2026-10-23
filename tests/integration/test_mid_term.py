@@ -162,12 +162,14 @@ class _SlowMidTerm:
     def __init__(self) -> None:
         self.started = asyncio.Event()
         self.release = asyncio.Event()
+        self.done = asyncio.Event()
         self.finished = False
 
     async def append_round(self, session_id: str, stored: StoredRound) -> bool:
         self.started.set()
         await self.release.wait()
         self.finished = True
+        self.done.set()
         return True
 
     async def drain(self) -> None:
@@ -337,5 +339,5 @@ async def test_agent_mongo_write_is_async() -> None:
     assert result.reply == "ok"
     assert mid.finished is False
     mid.release.set()
-    await asyncio.sleep(0.01)
+    await mid.done.wait()
     assert mid.finished is True
