@@ -496,6 +496,13 @@
 - 补 Agent→LLM 快照、超时、去重、reasoning 测试；骨架清单去重、EOF/空白修复。
 - 验收：305 passed、1 skipped；unit 198、contract 64、integration 43、unmarked 0；覆盖率 95.93%。
 
+### S16 阶段问题记录（2026-10-24）
+
+- 只持久化当前轮；fit 纳入 deadline；ContextTooLarge 补 trace/tool_traces。
+- trim_reason 累计、日志分项/超限事件、max_rounds 可配置。
+- 验收：314 passed、1 skipped；unit 198、contract 64、integration 52；覆盖率 95.74%。
+- S15 报告复验/Python3.11/S13 POSIX 仍 Open。
+
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
 
 - 日期：2026-10-23
