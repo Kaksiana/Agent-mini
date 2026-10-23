@@ -2157,3 +2157,17 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - S16 工具后超限 trace/不重放回归；M3 离线演示；README/PLAN/TESTING 同步。
 - 验收：316 passed、1 skipped；integration 54；覆盖率 95.94%。
 - 剩余：S13 POSIX Linux、Python3.11、独立报告复验。
+
+## 2026-10-24 00:36 — S17 MySQL 系统数据库
+
+### 原始 Prompt
+
+```text
+【角色】S17「系统数据库（MySQL）：系统信息与审计」执行 Agent：实现五表、仓储、启动 upsert、会话/审计/指标异步写入与降级。
+```
+
+### 执行摘要
+
+- schema.sql 五表幂等；仓储 SQLAlchemy Core + asyncmy；SQLite 测试替代。
+- Agent 异步 record_turn/drain；失败 systemdb.degraded。
+- 真实 MySQL 未启动，登记 ISSUE-043；验收 321 passed、1 skipped、覆盖率 95.07%。

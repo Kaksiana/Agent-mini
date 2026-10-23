@@ -1,4 +1,4 @@
-# DESIGN <!-- omit in toc -->
+﻿# DESIGN <!-- omit in toc -->
 
 > **Agent-mini 设计文档**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`（本文件所有设计点均可回溯到其中的 FR / NFR 编号）。
@@ -395,7 +395,7 @@ ame`(UK)、`version`、`description`、`params_schema`(JSON)、`enabled`、`crea
 - **初始化**：`systemdb/schema.sql` 为幂等 DDL；`SystemDBConfig.auto_create=true` 时启动执行，生产环境建议关闭并走手工迁移。
 - **驱动**：`SQLAlchemy Core` + `asyncmy`（异步、参数化查询，不引入 ORM，避免额外抽象）。
 
-## 4. 模块间依赖关系
+## 3.9.1 S17 实现补充\n\n- 系统库五表由 `schema.sql` 幂等创建；仓储使用 SQLAlchemy Core，SQLite 测试使用 metadata create_all。\n- upsert 不覆盖手工 `enabled`；session 重复 upsert 累加 `message_count`，状态固定 active。\n- Agent 响应后异步 `record_turn`，`drain` 限时等待；失败仅 `systemdb.degraded`。\n- `SystemDBConfig(dsn,pool_size,pool_timeout_seconds,auto_create)`；生产建议 auto_create=false。\n\n## 4. 模块间依赖关系
 
 ### 4.1 允许的依赖方向
 
@@ -579,3 +579,4 @@ S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
 | v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |
 | v0.30 | 2026-10-23 | S15 Context 拼接：ContextPayload、StoredRound 历史、tools_snapshot 复用、预算/降级 | §3.5；联动 FR-CTX-01/02、TC-L1-013/022/025、TC-L3-007 |
+
