@@ -90,24 +90,34 @@ async def search(query: str, limit: int = DEFAULT_RESULTS) -> ToolResult:
     """执行搜索并返回 JSON；未配置绝不伪造结果。"""
     if isinstance(_PROVIDER, NullProvider):
         return ToolResult(False, "搜索 provider 未配置", ERROR_NOT_CONFIGURED)
-    if not query.strip() or len(query) > MAX_QUERY_CHARS:
-        return ToolResult(False, "查询不能为空且不超过 200 字符", ERROR_INVALID_QUERY)
-    if limit < 1 or limit > MAX_RESULTS:
-        return ToolResult(False, "结果条数必须在 1..10", ERROR_INVALID_LIMIT)
+    invalid = _validate_arguments(query, limit)
+    if invalid is not None:
+        return invalid
     try:
         raw = await asyncio.wait_for(_PROVIDER.search(query, limit), SEARCH_TIMEOUT_SECONDS)
     except TimeoutError:
         return ToolResult(False, "搜索超时", ERROR_TIMEOUT)
     except Exception:
         return ToolResult(False, "搜索 provider 失败", ERROR_PROVIDER)
-    return _render(raw, limit)
+    name = getattr(_PROVIDER, "name", None)
+    if not isinstance(name, str):
+        return ToolResult(False, "provider 名称不合法", ERROR_RESULT_INVALID)
+    return _render(raw, limit, name)
 
 
-def _render(raw: object, limit: int) -> ToolResult:
+def _validate_arguments(query: str, limit: int) -> ToolResult | None:
+    if not query.strip() or len(query) > MAX_QUERY_CHARS:
+        return ToolResult(False, "查询不能为空且不超过 200 字符", ERROR_INVALID_QUERY)
+    if limit < 1 or limit > MAX_RESULTS:
+        return ToolResult(False, "结果条数必须在 1..10", ERROR_INVALID_LIMIT)
+    return None
+
+
+def _render(raw: object, limit: int, provider_name: str) -> ToolResult:
     if not isinstance(raw, Sequence):
         return ToolResult(False, "provider 返回结构不合法", ERROR_RESULT_INVALID)
     results = list(raw)
-    if any(not isinstance(item, SearchResult) for item in results):
+    if any(not _valid_result(item) for item in results):
         return ToolResult(False, "provider 返回结构不合法", ERROR_RESULT_INVALID)
     truncated = len(results) > limit
     selected = results[:limit]
@@ -125,8 +135,14 @@ def _render(raw: object, limit: int) -> ToolResult:
             }
         )
     body = {
-        "provider": _PROVIDER.name,
+        "provider": provider_name,
         "truncated": truncated,
         "results": payload,
     }
     return ToolResult(True, json.dumps(body, ensure_ascii=False))
+
+
+def _valid_result(item: object) -> bool:
+    return isinstance(item, SearchResult) and all(
+        isinstance(value, str) for value in (item.title, item.url, item.snippet, item.source)
+    )

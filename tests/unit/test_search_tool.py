@@ -7,6 +7,7 @@ from typing import cast
 import pytest
 
 from agent_mini.tools.builtin.search import (
+    SearchProvider,
     SearchResult,
     configure_search_provider,
     reset_search_provider,
@@ -111,6 +112,37 @@ async def test_malformed_provider_result_is_structured() -> None:
     result = await search("query")
 
     assert result.error_code == "provider_result_invalid"
+
+
+async def test_malformed_result_fields_are_structured() -> None:
+    bad = SearchResult("title", cast(str, 123), "snippet", "fake")
+    configure_search_provider(FakeProvider([bad]))
+
+    result = await search("query")
+
+    assert result.error_code == "provider_result_invalid"
+
+
+async def test_non_string_provider_name_is_structured() -> None:
+    class BadNameProvider:
+        name = 123
+
+        async def search(self, query: str, limit: int) -> Sequence[SearchResult]:
+            return []
+
+    configure_search_provider(cast(SearchProvider, BadNameProvider()))
+    result = await search("query")
+
+    assert result.error_code == "provider_result_invalid"
+
+
+async def test_registry_search_returns_not_configured() -> None:
+    from agent_mini.tools.registry import DEFAULT_REGISTRY
+
+    result = await DEFAULT_REGISTRY.execute("search", {"query": "今天天气"})
+
+    assert result.ok is False
+    assert result.error_code == "not_configured"
 
 
 async def test_results_and_snippet_are_truncated() -> None:

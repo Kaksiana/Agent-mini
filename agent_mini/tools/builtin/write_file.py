@@ -145,6 +145,7 @@ def _atomic_write(
         suffix=".tmp",
     )
     temp_path = Path(temporary)
+    committed = False
     try:
         _assert_inside(target.parent, root)
         _assert_inside(temp_path, root)
@@ -158,13 +159,18 @@ def _atomic_write(
         _assert_inside(target.parent, root)
         if overwrite:
             os.replace(temp_path, target)
+            committed = True
         else:
             try:
                 os.link(temp_path, target)
             except FileExistsError as exc:
                 raise _TargetExistsError from exc
+            committed = True
             temp_path.unlink(missing_ok=True)
+        _assert_inside(target, root)
     except Exception:
+        if committed:
+            target.unlink(missing_ok=True)
         if descriptor >= 0:
             os.close(descriptor)
         temp_path.unlink(missing_ok=True)

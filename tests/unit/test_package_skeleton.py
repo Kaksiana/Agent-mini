@@ -81,6 +81,7 @@ NON_PLACEHOLDER_MODULES = {
     "runtime/result.py",
     "tools/registry.py",
     "tools/sandbox.py",
+    "tools/builtin/__init__.py",
     "tools/builtin/calculator.py",
     "tools/builtin/time_tool.py",
     "tools/builtin/todo.py",
