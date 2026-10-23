@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -487,8 +487,14 @@
 - 新增 tiktoken>=0.12,<0.13；不引入 transformers/sentencepiece/openai；测试注入假 encoder，不依赖模型下载。
 - ContextBuilder 只拼接/计数，不裁剪；S16 才做整轮丢弃、双触发与 ContextTooLarge。
 - ContextPayload 仅 S15 字段；tools_snapshot 原引用复用。
-- 验收：301 passed、1 skipped；unit 198、contract 64、integration 39；覆盖率 95.42%。
+- 验收：305 passed、1 skipped；unit 198、contract 64、integration 43；覆盖率 95.93%。
 - 当前环境无 Python 3.11；S13 ISSUE-040/041 仍 Open。
+
+### S15 报告修复记录（2026-10-23）
+
+- Agent 接入 ContextBuilder；tools_snapshot 不可变 tuple；Memory 读取超时；round_id 同源/跨源去重；reasoning 计数开关。
+- 补 Agent→LLM 快照、超时、去重、reasoning 测试；骨架清单去重、EOF/空白修复。
+- 验收：305 passed、1 skipped；unit 198、contract 64、integration 43、unmarked 0；覆盖率 95.93%。
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
 
@@ -561,23 +567,3 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

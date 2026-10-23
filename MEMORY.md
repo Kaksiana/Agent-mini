@@ -1,4 +1,4 @@
-﻿# MEMORY <!-- omit in toc -->
+# MEMORY <!-- omit in toc -->
 
 ## 2026-10-23 — S13 Redis 短时窗口
 
@@ -156,4 +156,4 @@
 - TokenCounter：cl100k_base、规范 JSON、256 协议开销、10% 余量、字符降级并保留 Schema。
 - ContextBuilder：system→工具摘要→中期摘要→StoredRound 历史→当前 user；不做裁剪。
 - 依赖 tiktoken>=0.12,<0.13；测试注入假 encoder，不依赖在线下载。
-- 验收：301 passed、1 skipped；unit 198、contract 64、integration 39；覆盖率 95.42%。
+- 验收：305 passed、1 skipped；unit 198、contract 64、integration 43；覆盖率 95.93%。

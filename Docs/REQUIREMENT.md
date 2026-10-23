@@ -1,4 +1,4 @@
-﻿# REQUIREMENT <!-- omit in toc -->
+# REQUIREMENT <!-- omit in toc -->
 
 > **Agent-mini 需求基线**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 本文件是整个项目的需求唯一来源；设计、测试、计划文档均以此为基准，变更需回溯同步。

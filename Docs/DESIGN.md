@@ -1,4 +1,4 @@
-﻿# DESIGN <!-- omit in toc -->
+# DESIGN <!-- omit in toc -->
 
 > **Agent-mini 设计文档**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`（本文件所有设计点均可回溯到其中的 FR / NFR 编号）。
@@ -343,7 +343,7 @@ ot_configured`；provider 异常 `provider_error`、超时 `provider_timeout`、
   - **预算** = `model.max_context_tokens` − `max_output_tokens`（默认 1024）− **安全余量 10%**。
   - **每次出站前**调用 `Context.fit`：首次拼接、每批工具结果回灌后及裁剪后都重新统计实际请求，比较 `estimated_input_tokens ≤ budget`。响应 `usage` 仅用于观测对账，不参与预算判断。本地 tokenizer 与供应商不同源，10% 余量降低超限风险，不宣称数学上保证服务端 token 永不超限。
   - **降级**：`tiktoken` 不可用时对同样的规范 JSON 文本退回字符比例估算（ASCII 约 0.3、非 ASCII 约 0.6 token/字符，各项向上取整），保留结构开销与 10% 余量，并记录 `token_counter.degraded`。
-- **S15 实现**：`ContextPayload(messages, tools_snapshot, message_tokens, tool_schema_tokens, protocol_overhead_tokens, estimated_input_tokens, budget)`；`ContextBuilder` 只拼接不裁剪；`tools_snapshot` 原引用保存并计数；历史从 ShortTermStore/MidTermStore 读取 StoredRound，按 round_id 去重；`DEFAULT_MAX_OUTPUT_TOKENS=1024`、`DEFAULT_PROTOCOL_OVERHEAD_TOKENS=256`、`SAFETY_MARGIN_RATIO=0.10`；JSON `ensure_ascii=False, sort_keys=True, separators=(",",":")`。
+- **S15 实现**：`ContextPayload(messages, tools_snapshot, message_tokens, tool_schema_tokens, protocol_overhead_tokens, estimated_input_tokens, budget)`；`ContextBuilder` 只拼接不裁剪；`tools_snapshot` 规范化为不可变 tuple 后保存并计数；历史从 ShortTermStore/MidTermStore 读取 StoredRound，按 round_id 去重；读取超时默认 1s，超时 `context.degraded`；Agent 通过 `with_context` 接入出站链路；`DEFAULT_MAX_OUTPUT_TOKENS=1024`、`DEFAULT_PROTOCOL_OVERHEAD_TOKENS=256`、`SAFETY_MARGIN_RATIO=0.10`；JSON `ensure_ascii=False, sort_keys=True, separators=(",",":")`。
 - **压缩策略 = 双触发的整轮滑动窗口**：
   - 「一轮」= 一条 `user` 消息 + 其后的 `assistant` 回复 + 其间所有 `assistant(tool_calls)/tool` 往返，作为**不可拆分的整体**；
   - **触发条件（任一成立）**：轮次数 > K（默认 10） **或** 估算 token > 预算；
@@ -579,10 +579,3 @@ S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
 | v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |
 | v0.30 | 2026-10-23 | S15 Context 拼接：ContextPayload、StoredRound 历史、tools_snapshot 复用、预算/降级 | §3.5；联动 FR-CTX-01/02、TC-L1-013/022/025、TC-L3-007 |
-
-
-
-
-
-
-

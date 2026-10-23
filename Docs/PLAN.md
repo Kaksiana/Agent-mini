@@ -1,4 +1,4 @@
-﻿# PLAN <!-- omit in toc -->
+# PLAN <!-- omit in toc -->
 
 > **Agent-mini 执行计划**。规则见 `AGENT.md` §8（阶段执行粒度）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`。
@@ -351,35 +351,7 @@
 | S12 | 已完成 | 2026-10-23 | search：SearchProvider/NullProvider、not_configured、provider 异常/超时/截断；M2 S06–S12 收口；263 passed、覆盖率 97.04% |
 | S13 | 已完成（POSIX 验证豁免） | 2026-10-23 | Redis 窗口/StoredRound/安全阀回写/上下文隔离；279 passed、覆盖率 95.76%；POSIX 用例 Windows skip，见 ISSUE-040 |
 | S14 | 已完成（修复） | 2026-10-23 | MongoDB：StoredRound 共享 ID、索引键校验、session 统一校验、MidTermStore/drain/close、异步写回；294 passed、覆盖率 95.79% |
-| S15 | 已完成 | 2026-10-23 | Context 拼接/TokenCounter：顺序、快照复用、预算 13376、Schema 计数、降级；301 passed、覆盖率 95.42% |
+| S15 | 已完成（修复） | 2026-10-23 | Context 出站接入、不可变快照、读取超时、去重、thinking 口径；305 passed、覆盖率 95.93% |
 | S16–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

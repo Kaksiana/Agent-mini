@@ -1,4 +1,4 @@
-﻿# PROMPT <!-- omit in toc -->
+# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -2083,7 +2083,32 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - ContextPayload/TokenCounter/ContextBuilder；system→工具摘要→中期摘要→StoredRound 历史→当前 user。
 - 预算 16000-1024-1600=13376；协议开销 256；tiktoken 不可用字符降级仍统计 Schema。
 - tools_snapshot 原引用复用；不实现 S16 裁剪。
-- 验收：301 passed、1 skipped；unit 198、contract 64、integration 39；覆盖率 95.42%。
+- 验收：305 passed、1 skipped；unit 198、contract 64、integration 43；覆盖率 95.93%。
 
 - OpenSpec 归档：`s15-context-builder` 归档为 `2026-10-23-s15-context-builder`；新建 `context-builder`（2 Requirement）；`openspec validate --all --strict` 15 passed。
 - 关联提交：`1caec9d`（change）、`1c015b0`（代码+测试+依赖）、`210c98c`（文档）、归档提交见最终报告。
+
+## 2026-10-23 23:21 — S15 代码产出独立评估
+
+### 原始 Prompt
+
+```text
+【评估】S15代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S15 Context 拼接、token 预算、Memory 读取、真实出站衔接、测试与工程门禁，判断是否可进入 S16。
+- 产出：新增 `Docs/S15-report.md`；识别 0 项 P0、3 项 P1、5 项 P2、1 项 P3，结论为 S15 暂不可进入 S16。
+- 验证：305 passed、1 skipped；总覆盖率 95.24%，builder 90%、token_counter 96%；mypy/OpenSpec/wheel/依赖审计通过；Ruff lint/format 与 diff-check 未通过。
+- 边界抽查：复现可变 tools_snapshot 令计数失效、同源 round_id 重复、thinking 序列化口径不同、Memory 读取无内部超时；确认 Runtime 尚未接入 ContextBuilder。
+- 人工修正 / 决策：保持只读评估边界，不修改实现、测试、OpenSpec 或远程状态；修复等待后续指令。
+- 关联提交：评估基准 `4a84b1f`；本轮未提交、未推送。
+
+
+## 2026-10-23 23:29 — 修复 S15 报告
+
+- ContextBuilder 接入 Agent 出站；一次 schemas()，同一 tuple snapshot 传给 loop/LLM。
+- tools_snapshot 不可变；Memory 读取 1s 超时；round_id 去重；reasoning 计数开关。
+- 补 Agent→LLM 快照/超时/去重/reasoning 测试；骨架清单去重、EOF/空白修复。
+- 验收：305 passed、1 skipped；unit 198、contract 64、integration 43；覆盖率 95.93%。
