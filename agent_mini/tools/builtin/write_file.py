@@ -1,10 +1,13 @@
 """S11 write_file：沙箱内原子写与覆盖保护。"""
 
 import codecs
+import ctypes
 import json
 import logging
 import os
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -142,63 +145,130 @@ def _atomic_write(
     root: Path,
     overwrite: bool,
 ) -> None:
-    _assert_no_reparse(target.parent, root)
-    descriptor, temporary = tempfile.mkstemp(
-        dir=target.parent,
-        prefix=".write-",
-        suffix=".tmp",
-    )
-    temp_path = Path(temporary)
-    committed = False
+    with _locked_parent(target.parent, root):
+        descriptor, temporary = tempfile.mkstemp(
+            dir=target.parent,
+            prefix=".write-",
+            suffix=".tmp",
+        )
+        temp_path = Path(temporary)
+        try:
+            _publish_temp(descriptor, temp_path, target, data, (mode, overwrite))
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            raise
+
+
+def _publish_temp(
+    descriptor: int,
+    temp_path: Path,
+    target: Path,
+    data: bytes,
+    options: tuple[int | None, bool],
+) -> None:
+    mode, overwrite = options
+    if temp_path.parent.resolve() != target.parent.resolve():
+        os.close(descriptor)
+        raise SandboxViolation("path_escape", "临时文件目录不一致")
     try:
-        _assert_inside(target.parent, root)
-        _assert_inside(temp_path, root)
         with os.fdopen(descriptor, "wb") as handle:
-            descriptor = -1
             handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
-        if mode is not None:
-            os.chmod(temp_path, mode)
-        _assert_inside(target.parent, root)
-        _assert_no_reparse(target.parent, root)
-        if overwrite:
-            os.replace(temp_path, target)
-            committed = True
-        else:
-            try:
-                os.link(temp_path, target)
-            except FileExistsError as exc:
-                raise _TargetExistsError from exc
-            committed = True
-            temp_path.unlink(missing_ok=True)
-        _assert_inside(target, root)
     except Exception:
-        if committed:
-            LOGGER.warning(
-                "write_file.committed_outside",
-                extra={"event": "write_file.committed_outside"},
-            )
-        if descriptor >= 0:
+        with suppress(OSError):
             os.close(descriptor)
-        temp_path.unlink(missing_ok=True)
         raise
+    if mode is not None:
+        os.chmod(temp_path, mode)
+    if overwrite:
+        os.replace(temp_path, target)
+        return
+    try:
+        os.link(temp_path, target)
+    except FileExistsError as exc:
+        raise _TargetExistsError from exc
+    temp_path.unlink(missing_ok=True)
 
 
-def _assert_inside(path: Path, root: Path) -> None:
-    if not path.resolve().is_relative_to(root.resolve()):
-        raise SandboxViolation("path_escape", "路径在写入期间越界")
+@contextmanager
+def _locked_parent(parent: Path, root: Path) -> Generator[None, None, None]:
+    """锁 root→parent 目录链；Windows 不共享 DELETE，阻止替换。"""
+    if os.name != "nt":
+        yield
+        return
+    handles: list[int] = []
+    try:
+        chain = [root, *[root / part for part in parent.relative_to(root).parts]]
+        for current in chain:
+            handle = _open_dir_handle(current)
+            handles.append(handle)
+            _validate_handle(handle, current)
+        yield
+    finally:
+        for handle in reversed(handles):
+            ctypes.windll.kernel32.CloseHandle(handle)
 
 
-def _assert_no_reparse(path: Path, root: Path) -> None:
-    current = path
-    while current != root and current != current.parent:
-        try:
-            attributes = current.lstat().st_file_attributes
-        except AttributeError:
-            attributes = 0
-        except OSError as exc:
-            raise SandboxViolation("path_escape", "父目录不可信") from exc
-        if current.is_symlink() or attributes & FILE_ATTRIBUTE_REPARSE_POINT:
-            raise SandboxViolation("path_escape", "父目录包含重解析点")
-        current = current.parent
+def _open_dir_handle(path: Path) -> int:
+    kernel32 = ctypes.windll.kernel32
+    kernel32.CreateFileW.restype = ctypes.c_void_p
+    kernel32.CreateFileW.argtypes = [
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ]
+    handle = kernel32.CreateFileW(
+        str(path),
+        0x80,
+        3,
+        None,
+        3,
+        0x02000000 | 0x00200000,
+        None,
+    )
+    if not handle or handle == ctypes.c_void_p(-1).value:
+        raise SandboxViolation("path_escape", "无法锁定父目录")
+    return int(handle)
+
+
+def _validate_handle(handle: int, expected: Path) -> None:
+    kernel32 = ctypes.windll.kernel32
+    kernel32.GetFinalPathNameByHandleW.restype = ctypes.c_uint32
+    kernel32.GetFinalPathNameByHandleW.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ]
+    buffer = ctypes.create_unicode_buffer(32_768)
+    length = kernel32.GetFinalPathNameByHandleW(handle, buffer, 32_768, 0)
+    if length == 0:
+        raise SandboxViolation("path_escape", "无法校验父目录")
+    final = buffer.value.removeprefix("\\\\?\\")
+    if os.path.normcase(final) != os.path.normcase(str(expected)):
+        raise SandboxViolation("path_escape", "父目录路径不一致")
+    info = _FileAttributeTagInfo()
+    kernel32.GetFileInformationByHandleEx.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+    ]
+    if not kernel32.GetFileInformationByHandleEx(
+        handle,
+        9,
+        ctypes.byref(info),
+        ctypes.sizeof(info),
+    ):
+        raise SandboxViolation("path_escape", "无法读取目录属性")
+    if info.attributes & FILE_ATTRIBUTE_REPARSE_POINT:
+        raise SandboxViolation("path_escape", "父目录包含重解析点")
+
+
+class _FileAttributeTagInfo(ctypes.Structure):
+    _fields_ = [("attributes", ctypes.c_uint32), ("tag", ctypes.c_uint32)]
