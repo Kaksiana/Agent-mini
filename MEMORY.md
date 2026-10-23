@@ -5,13 +5,13 @@
 - ShortTermMemory：完整轮次 JSON List、LTRIM 最近 10 轮、TTL 86400s，key 含 session_id。
 - Agent.run 增量 session_id；AgentResult.session_id；loop 后、返回前 await 写回；Redis/序列化失败 memory.degraded 跳过。
 - redis>=7.4,<8 运行依赖；fakeredis>=2.23,<3 dev。
-- 验收：278 passed、覆盖率 95.76%；unit 198、contract 64、integration 16、unmarked 0；mypy 65 files 0 errors。
+- 验收：279 passed、覆盖率 95.76%；unit 198、contract 64、integration 17、unmarked 0；mypy 65 files 0 errors。
 
 ## 2026-10-23 — S12 search 与 M2
 
 - 新增 SearchProvider Protocol/SearchResult/NullProvider；默认 NullProvider，模块级 configure_search_provider 注入。
 - 未配置 not_configured，绝不伪造结果；5s 超时；异常/超时/畸形结构化；结果/摘要截断。
-- M2（S06–S12）收口；验收 263 passed、覆盖率 97.04%；unit 198、contract 64、integration 16、unmarked 0；mypy 63 files 0 errors。
+- M2（S06–S12）收口；验收 263 passed、覆盖率 97.04%；unit 198、contract 64、integration 17、unmarked 0；mypy 63 files 0 errors。
 - ISSUE-039：TC-L3-006 实际为 calculator 集成，search 独立 E2E 留后续。
 
 ## 2026-10-23 — S11 write_file
@@ -131,3 +131,12 @@
 
 
 
+
+
+## 2026-10-23 — S13 收尾
+
+- POSIX write_file 改为 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；Windows 目录句柄锁定保留；POSIX 用例当前 Windows skip（ISSUE-040）。
+- 新增冻结 StoredRound；Redis 读写经模型。
+- 新增 TC-L3-015（Agent→Registry→search），关闭 ISSUE-039；TC-L3-006 保留 calculator。
+- 279 passed、unit 198、contract 64、integration 17、unmarked 0；覆盖率 95.76%（ISSUE-041）。
+- 提交噪声 21780eb 已登记 ISSUE-042，未改写历史。

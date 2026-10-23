@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -471,7 +471,7 @@
 - 新增 redis>=7.4,<8 运行依赖、fakeredis>=2.23,<3 dev；无其他缓存库。
 - `Agent.run(user_input, session_id=None)` 增量兼容；`AgentResult.session_id` 可选；旧单参数调用不写 Redis。
 - ShortTermMemory JSON 完整轮次、LTRIM 10 轮、TTL 24h、跨会话 key；Redis/序列化失败 memory.degraded。
-- 验收：278 passed、覆盖率 95.76%；unit 198、contract 64、integration 16、unmarked 0；mypy 65 files 0 errors；OpenSpec/wheel 通过。
+- 验收：279 passed、覆盖率 95.76%；unit 198、contract 64、integration 17、unmarked 0；mypy 65 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞；TC-L3-014 Mongo/Context 部分留 S14/S16；TC-L3-011/012 留 S17/S18。
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
@@ -480,9 +480,31 @@
 - 现象：PLAN S12/FR-TOOL-08 引用 TC-L3-006，但该 TC 实际验证 mock LLM 触发 calculator，与 search 无关。
 - 根因：测试编号映射错误，search 缺少独立集成/E2E TC。
 - 解决方案：S12 以 TC-L1-021 为正式验收；TC-L3-006 保留 calculator 原语义；search 独立 E2E 留后续阶段新增，不自行补写 TC。
-- 验证结果：search provider 协议、not_configured、异常/超时/截断测试通过；TC-L3-006 不计入 search 覆盖。
-- 状态：Open（待后续新增 search E2E）
-- 关联提交：`s12-tool-search` change
+- 验证结果：新增 TC-L3-015（Agent→Registry→search），断言 `not_configured` 与 tool_trace；TC-L3-006 保留 calculator 原语义。
+- 状态：Resolved（2026-10-23）
+- 关联提交：`s12-tool-search`、`s13-closeout`
+
+### ISSUE-040 — POSIX 用例在当前 Windows 环境 skip
+
+- 日期：2026-10-23
+- 现象：`test_posix_parent_symlink_is_rejected` 在 Windows 标记 skip；本机无 Linux/WSL Python 3.11，无法实跑 POSIX dir_fd 路径。
+- 影响：代码已实现 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；POSIX 运行证据待 Linux CI。
+- 状态：Open（S14 前在 Linux 复跑；不伪造通过）
+- 关联：`s13-closeout`
+
+### ISSUE-041 — 覆盖率低于 97.04%
+
+- 日期：2026-10-23
+- 现象：S13 收尾后总覆盖率 95.76%，低于 S12 的 97.04%；主要为 POSIX-only/平台错误分支。
+- 处理：POSIX-only 代码以 pragma 排除；其余分支目标 S14 补测。
+- 状态：Open（S14 前补测或维持豁免）
+
+### ISSUE-042 — 21780eb 提交粒度偏差
+
+- 日期：2026-10-23
+- 现象：`21780eb`（OpenSpec 计划提交）意外包含 `tests/unit/test_short_term.py` → `tests/integration/` rename。
+- 处理：历史不改写；登记粒度偏差，后续按 change/代码/测试/文档拆分。
+- 状态：Resolved（记录性）
 
 ### S11 阶段问题记录（2026-10-23）
 
@@ -523,6 +545,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 

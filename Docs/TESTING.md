@@ -1,4 +1,4 @@
-﻿# TESTING <!-- omit in toc -->
+# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -9,9 +9,9 @@
 | 版本 | v0.17（S13 Redis 短时窗口） |
 | 日期 | 2026-10-23 |
 | 状态 | 执行中（S00–S13 已实现） |
-| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 278（unit 198、contract 64、integration 16、unmarked 0） |
+| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 279（unit 198、contract 64、integration 17、unmarked 0） |
 
-> 本文件同时记录测试设计与执行状态。截至 S13，S00–S13 已实现 278 个 pytest 用例（最近全量 278 passed、覆盖率 95.76%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S13，S00–S13 已实现 279 个 pytest 用例（最近全量 279 passed、覆盖率 95.76%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -283,6 +283,7 @@
 | TC-L3-012 | Mongo 与 MySQL 均抛连接异常 | 发起一次请求 | 响应正常返回 200；日志含 `memory.degraded` / `systemdb.degraded`；进程未退出 |
 | TC-L3-013 | 两个 session 各有独立 todo；工具执行上下文由服务端注入 session_id | A/B 分别 add/list/complete；构造模型参数试图把 A 的 session_id 改为 B | A 操作不影响 B；越权 session_id 参数被 Schema 拒绝；B 的待办与历史均不泄漏给 A |
 | TC-L3-014 | Redis/Mongo 存在含多批工具往返与私有 reasoning 的完整轮次，窗口 K=2 | 写入 3 轮并按原 session 恢复；运行 Context 裁剪和公共关键词检索 | 仅最旧完整轮被移除；消息保留 tool_call_id 与必需 reasoning；无孤立 tool；公开检索不返回私有 reasoning；B session 无法读取 A 状态 |
+| TC-L3-015 | 未配置 search provider；Agent 注入 RegistryExecutor | Agent.run 触发 search tool_call 后进入最终回复 | tool_traces 含 1 条 search、error_code=not_configured；无伪造结果；TC-L3-006 仍为 calculator |
 
 ### 4.4 L4 端到端测试
 
@@ -437,6 +438,8 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 | AC-21 | TC-L3-011、TC-L3-012 |
 | AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 | AC-23 | TC-LIVE-001、TC-LIVE-002 |
+
+
 
 
 

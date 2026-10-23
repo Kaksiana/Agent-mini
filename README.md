@@ -1,6 +1,6 @@
 ﻿# Agent-mini
 
-Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00–S13：工程基线、单轮模型接入、错误分类/退避重试、单轮直答、ReAct 工具循环、安全阀、工具注册/Schema、calculator、time、todo、沙箱 read_file/write_file 与 search，以及 Redis 短时会话窗口；包含 `ToolRegistry`、pydantic Schema、`RegistryExecutor`、安全工具、未配置显式报错的 SearchProvider 与响应前同步写回，不包含 MongoDB/Context/HTTP 接口。
+Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00–S13（POSIX 用例待 Linux 复跑）：工程基线、单轮模型接入、错误分类/退避重试、单轮直答、ReAct 工具循环、安全阀、工具注册/Schema、calculator、time、todo、沙箱 read_file/write_file 与 search，以及 Redis 短时会话窗口；包含 `ToolRegistry`、pydantic Schema、`RegistryExecutor`、安全工具、未配置显式报错的 SearchProvider 与响应前同步写回，不包含 MongoDB/Context/HTTP 接口。
 
 ## 环境要求
 
@@ -64,6 +64,7 @@ ruff check .
 ruff format --check .
 mypy agent_mini tests
 ```
+
 
 
 

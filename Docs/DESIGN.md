@@ -1,4 +1,4 @@
-# DESIGN <!-- omit in toc -->
+﻿# DESIGN <!-- omit in toc -->
 
 > **Agent-mini 设计文档**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`（本文件所有设计点均可回溯到其中的 FR / NFR 编号）。
@@ -469,7 +469,7 @@ AgentResult →
   ├─ [响应后·异步] Mongo:  insert_many（对话正文，失败仅告警）
   └─ [响应后·异步] MySQL:  UPSERT sessions / INSERT tool_invocations、request_metrics（失败仅告警）
 
-S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且注入 ShortTermMemory 时，在 loop 返回后、Agent.run 返回前 `await append_round`。key `agent_mini:short_term:{session_id}:rounds`；元素 JSON `{round_id,messages}`，禁止 pickle；`DEFAULT_MAX_ROUNDS=10`、`DEFAULT_TTL_SECONDS=86400`，每次写回刷新 TTL；Redis/序列化异常记录 `memory.degraded` 并跳过，不阻断对话。
+S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且注入 ShortTermMemory 时，在 loop 返回后、Agent.run 返回前 `await append_round`。key `agent_mini:short_term:{session_id}:rounds`；元素为冻结 `StoredRound(round_id,messages,truncated,termination_reason)` 的 JSON，禁止 pickle；`DEFAULT_MAX_ROUNDS=10`、`DEFAULT_TTL_SECONDS=86400`，每次写回刷新 TTL；Redis/序列化异常记录 `memory.degraded` 并跳过，不阻断对话。write_file POSIX 用 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；Windows 用目录句柄锁定。
 ```
 
 ## 6. 不依赖现有 Agent 框架的说明
@@ -571,3 +571,4 @@ S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且
 | v0.26 | 2026-10-23 | S11 报告修复：os.link 原子不覆盖、parent/temp containment、COM/LPT 全量 | §3.3；联动 S11-report、s11-report-fixes |
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
 | v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |
+
