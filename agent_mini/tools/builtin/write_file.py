@@ -2,6 +2,7 @@
 
 import codecs
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -20,6 +21,8 @@ ERROR_WRITE = "file_write_error"
 ERROR_INVALID_OVERWRITE = "invalid_overwrite"
 ERROR_INVALID_CONTENT = "invalid_content"
 DEFAULT_ENCODING = "utf-8"
+FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+LOGGER = logging.getLogger("agent_mini.tools.write_file")
 
 
 class WriteFileArgs(BaseModel):
@@ -139,6 +142,7 @@ def _atomic_write(
     root: Path,
     overwrite: bool,
 ) -> None:
+    _assert_no_reparse(target.parent, root)
     descriptor, temporary = tempfile.mkstemp(
         dir=target.parent,
         prefix=".write-",
@@ -157,6 +161,7 @@ def _atomic_write(
         if mode is not None:
             os.chmod(temp_path, mode)
         _assert_inside(target.parent, root)
+        _assert_no_reparse(target.parent, root)
         if overwrite:
             os.replace(temp_path, target)
             committed = True
@@ -170,7 +175,10 @@ def _atomic_write(
         _assert_inside(target, root)
     except Exception:
         if committed:
-            target.unlink(missing_ok=True)
+            LOGGER.warning(
+                "write_file.committed_outside",
+                extra={"event": "write_file.committed_outside"},
+            )
         if descriptor >= 0:
             os.close(descriptor)
         temp_path.unlink(missing_ok=True)
@@ -180,3 +188,17 @@ def _atomic_write(
 def _assert_inside(path: Path, root: Path) -> None:
     if not path.resolve().is_relative_to(root.resolve()):
         raise SandboxViolation("path_escape", "路径在写入期间越界")
+
+
+def _assert_no_reparse(path: Path, root: Path) -> None:
+    current = path
+    while current != root and current != current.parent:
+        try:
+            attributes = current.lstat().st_file_attributes
+        except AttributeError:
+            attributes = 0
+        except OSError as exc:
+            raise SandboxViolation("path_escape", "父目录不可信") from exc
+        if current.is_symlink() or attributes & FILE_ATTRIBUTE_REPARSE_POINT:
+            raise SandboxViolation("path_escape", "父目录包含重解析点")
+        current = current.parent

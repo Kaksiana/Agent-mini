@@ -10,6 +10,7 @@ import pytest
 from agent_mini.tools.builtin.read_file import read_file
 from agent_mini.tools.builtin.write_file import write_file
 from agent_mini.tools.registry import ToolContext
+from agent_mini.tools.sandbox import Sandbox
 
 pytestmark = pytest.mark.unit
 
@@ -125,6 +126,30 @@ def test_symlink_target_escape_is_blocked(tmp_path: Path) -> None:
 
     assert result.error_code == "path_escape"
     assert secret.read_text() == "secret"
+
+
+def test_parent_reparse_after_resolve_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = root / "link"
+    try:
+        os.symlink(outside, link, target_is_directory=True)
+    except OSError:
+        import subprocess
+
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)], check=True)
+    target = link / "a.txt"
+    monkeypatch.setattr(Sandbox, "resolve", lambda self, path: target)
+
+    result = write_file("a.txt", "x", context=_context(root))
+
+    assert result.error_code == "path_escape"
+    assert not (outside / "a.txt").exists()
 
 
 def test_replace_failure_leaves_no_residue(
