@@ -1860,3 +1860,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 未配置 not_configured；参数/异常/超时/畸形/截断结构化；空结果成功。
 - TC-L3-006 实际是 calculator 集成，登记 ISSUE-039；search 独立 E2E 留后续。
 - 验收：258 passed、覆盖率 96.99%；unit 194、contract 64；mypy 63 files 0 errors。
+
+- OpenSpec 归档：change 归档为 `2026-10-23-s12-tool-search`；新建 `search` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 12 passed、0 failed。
+- 关联提交：`3617c1e`（OpenSpec 规划）、`b7eb3c9`（代码+测试）、`5d2b7cb`（文档）、归档提交见最终报告。
