@@ -1,4 +1,4 @@
-# PLAN <!-- omit in toc -->
+﻿# PLAN <!-- omit in toc -->
 
 > **Agent-mini 执行计划**。规则见 `AGENT.md` §8（阶段执行粒度）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`。
@@ -355,6 +355,8 @@
 | S16 | 已完成 | 2026-10-23 | 双触发整轮裁剪、出站前复核、ContextTooLarge、分项/日志；316 passed、覆盖率 95.94% |
 | S17 | 已完成（SQLite 仓储验证） | 2026-10-24 | MySQL 五表/schema/仓储/upsert/session/audit/metrics/异步降级；323 passed、覆盖率 94.66%；真实 MySQL 未跑，ISSUE-043 |
 | S18 | 已完成（LIVE 未运行） | 2026-10-24 | FastAPI /chat、/healthz、错误映射、脱敏、trace_id、无状态；346 passed、覆盖率 94.86%；LIVE Key 缺失 |
-| S19–S21 | 未开始 | — | 后续阶段 |
+| S19 | 已完成 | 2026-10-24 | JSON 日志、固定字段、ContextVar trace、统一脱敏、S18 迁移；350 passed、覆盖率 94.91% |
+| S20–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+
