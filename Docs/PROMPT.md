@@ -1564,7 +1564,8 @@ TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` F
 - 红阶段：占位 `current_time` 抛 `NotImplementedError` 或 registry 无 `time`，9 个用例全红。
 - 绿阶段：默认 Asia/Shanghai、UTC、非法时区、timezone 优先、Schema/Registry、now_provider 全绿。
 - 验收：173 passed、覆盖率 95.94%；unit 109、contract 64；mypy 55 files 0 errors。
-- 关联提交：`330b5a5`（OpenSpec 规划）、代码+测试/文档/归档提交见最终报告。
+- 关联提交：`330b5a5`（OpenSpec 规划）、`c0c68e9`（代码+测试）、`63f1c22`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s08-tool-time`；新建 `time-tool` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 7 passed、0 failed。
 
 
 
