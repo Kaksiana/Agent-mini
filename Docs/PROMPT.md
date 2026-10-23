@@ -1653,7 +1653,8 @@ TC 定义见 `Docs/TESTING.md` TC-L1-006、TC-L3-013；TC-L4-009/010 在 S18 回
 - TC-L3-013：A/B 隔离、Registry 注入 context、伪造 session_id 拒绝、Schema 无 session_id 全绿。
 - 空列表、1-based 稳定 id、删除不重排、缺失 context/非法 action/index/内容为空均结构化错误。
 - 验收：187 passed、覆盖率 96.24%；unit 123、contract 64；mypy 57 files 0 errors。
-- 关联提交：OpenSpec 规划/代码+测试/文档/归档提交见最终报告。
+- 关联提交：`1c63de7`（OpenSpec 规划）、`e1dcb13`（代码+测试）、`7447ec9`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s09-tool-todo`；新建 `todo-tool` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 8 passed、0 failed。
 
 
 
