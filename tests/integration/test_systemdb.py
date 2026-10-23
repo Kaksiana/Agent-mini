@@ -111,6 +111,7 @@ async def test_degraded_on_broken_connection(
 class _Store:
     def __init__(self) -> None:
         self.called = False
+        self.duration_ms = -1
 
     async def record_turn(
         self,
@@ -120,6 +121,7 @@ class _Store:
         trace_id: str,
     ) -> bool:
         self.called = True
+        self.duration_ms = duration_ms
         return True
 
 
@@ -130,6 +132,7 @@ class _LLM:
         tools: list[Any] | None = None,
         **params: object,
     ) -> LLMResponse:
+        await __import__("asyncio").sleep(0.02)
         return LLMResponse(
             content="ok",
             finish_reason="stop",
@@ -146,3 +149,64 @@ async def test_agent_system_write_is_async() -> None:
 
     assert result.reply == "ok"
     assert store.called is True
+    assert store.duration_ms >= 10
+
+
+async def test_initialize_and_status_transitions(tmp_path: Path) -> None:
+    dsn = f"sqlite+aiosqlite:///{tmp_path / 'status.db'}"
+    repo = SystemDBRepository(SystemDBConfig(dsn=dsn, auto_create=True))
+    assert (
+        await repo.initialize(
+            [ModelRecord("m1", "p", "u", "m", 100)],
+            [ToolRecord("t1", "1", "d", {})],
+        )
+        is True
+    )
+    assert await repo.set_session_status("A", "idle") is False
+    assert await repo.upsert_session("A") is True
+    assert await repo.set_session_status("A", "idle") is True
+    assert await repo.upsert_session("A") is True
+    async with repo.engine.connect() as connection:
+        status = (
+            await connection.execute(text("SELECT status FROM sessions WHERE session_id='A'"))
+        ).scalar()
+    assert status == "idle"
+    assert await repo.set_session_status("A", "active") is True
+    await repo.close()
+
+
+async def test_created_at_is_stable_on_upsert(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    await repo.ensure_schema()
+    model = ModelRecord("m1", "p", "u", "m", 100)
+    await repo.upsert_models([model])
+    async with repo.engine.connect() as connection:
+        first = (
+            await connection.execute(text("SELECT created_at FROM models WHERE name='m1'"))
+        ).scalar()
+    await repo.upsert_models([model])
+    async with repo.engine.connect() as connection:
+        second = (
+            await connection.execute(text("SELECT created_at FROM models WHERE name='m1'"))
+        ).scalar()
+    await repo.close()
+    assert first == second
+
+
+@pytest.mark.skipif(
+    not __import__("os").environ.get("MYSQL_TEST_DSN"),
+    reason="MYSQL_TEST_DSN not configured (ISSUE-043)",
+)
+async def test_real_mysql_schema_when_configured() -> None:
+    repo = SystemDBRepository(
+        SystemDBConfig(dsn=__import__("os").environ["MYSQL_TEST_DSN"], auto_create=True)
+    )
+    assert await repo.ensure_schema() is True
+    assert await repo.ensure_schema() is True
+    async with repo.engine.connect() as connection:
+        rows = await connection.execute(
+            text("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
+        )
+        names = {row[0] for row in rows}
+    await repo.close()
+    assert {"sessions", "models", "tools", "tool_invocations", "request_metrics"} <= names

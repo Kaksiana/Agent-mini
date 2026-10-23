@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from time import monotonic
 from typing import cast
 from uuid import uuid4
 
@@ -112,6 +113,7 @@ class Agent:
         """运行单轮；响应前同步 Redis，响应后异步 Mongo。"""
         if session_id is not None and not valid_session_id(session_id):
             raise ValueError("session_id 非法")
+        started = monotonic()
         executor = self._executor_for(session_id)
         messages, tools_snapshot, context_fit = await self._build_context(
             user_input,
@@ -141,7 +143,12 @@ class Agent:
             task.add_done_callback(self._background.discard)
         if session_id is not None and self._system_db is not None:
             task = asyncio.create_task(
-                self._write_system(session_id, result, uuid4().hex)
+                self._write_system(
+                    session_id,
+                    result,
+                    uuid4().hex,
+                    int((monotonic() - started) * 1000),
+                )
             )
             self._background.add(task)
             task.add_done_callback(self._background.discard)
@@ -218,13 +225,14 @@ class Agent:
         session_id: str,
         result: AgentResult,
         trace_id: str,
+        duration_ms: int,
     ) -> None:
         store = self._system_db
         if store is None:
             return
         try:
             await asyncio.wait_for(
-                store.record_turn(session_id, result, 0, trace_id),
+                store.record_turn(session_id, result, duration_ms, trace_id),
                 self._system_timeout,
             )
         except Exception:

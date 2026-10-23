@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import cast
 
 from sqlalchemy import (
@@ -16,10 +17,11 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    text,
 )
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from sqlalchemy.sql import Executable
 
 from agent_mini.runtime.result import AgentResult
@@ -32,6 +34,13 @@ from agent_mini.systemdb.models import (
 )
 
 LOGGER = logging.getLogger("agent_mini.systemdb")
+SESSIONS_TABLE = "sessions"
+SESSION_STATUSES = frozenset({"active", "idle", "closed"})
+ALLOWED_TRANSITIONS = {
+    "active": frozenset({"idle", "closed"}),
+    "idle": frozenset({"active", "closed"}),
+    "closed": frozenset({"active"}),
+}
 
 
 class SystemDBRepository:
@@ -48,13 +57,56 @@ class SystemDBRepository:
         self._tables = self.metadata.tables
 
     async def ensure_schema(self) -> bool:
-        """幂等建表。"""
+        """幂等建表；MySQL 执行打包 schema.sql。"""
         try:
             async with self.engine.begin() as connection:
-                await connection.run_sync(self.metadata.create_all)
+                if self._is_sqlite():
+                    await connection.run_sync(self.metadata.create_all)
+                else:
+                    await self._create_mysql_schema(connection)
             return True
         except Exception:
             _degraded("ensure_schema")
+            return False
+
+    async def _create_mysql_schema(self, connection: AsyncConnection) -> None:
+        script = Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
+        for statement in script.split(";"):
+            if statement.strip():
+                await connection.execute(text(statement))
+
+    async def initialize(
+        self,
+        models: list[ModelRecord],
+        tools: list[ToolRecord],
+    ) -> bool:
+        """启动初始化：按 auto_create 建表并登记模型/工具。"""
+        if self._config.auto_create and not await self.ensure_schema():
+            return False
+        return await self.upsert_models(models) and await self.upsert_tools(tools)
+
+    async def set_session_status(self, session_id: str, status: str) -> bool:
+        """按允许转换表更新会话状态。"""
+        if status not in SESSION_STATUSES:
+            return False
+        try:
+            async with self.engine.begin() as connection:
+                table = self._tables[SESSIONS_TABLE]
+                current = (
+                    await connection.execute(
+                        table.select()
+                        .with_only_columns(table.c.status)
+                        .where(table.c.session_id == session_id)
+                    )
+                ).scalar()
+                if current not in ALLOWED_TRANSITIONS or status not in ALLOWED_TRANSITIONS[current]:
+                    return False
+                await connection.execute(
+                    table.update().where(table.c.session_id == session_id).values(status=status)
+                )
+            return True
+        except Exception:
+            _degraded("set_session_status")
             return False
 
     async def upsert_models(self, records: list[ModelRecord]) -> bool:
@@ -200,14 +252,18 @@ class SystemDBRepository:
                 .values(**values)
                 .on_conflict_do_update(
                     index_elements=["name"],
-                    set_={key: values[key] for key in values if key != "enabled"},
+                    set_={
+                        key: values[key] for key in values if key not in {"enabled", "created_at"}
+                    },
                 ),
             )
         return cast(
             Executable,
             mysql_insert(table)
             .values(**values)
-            .on_duplicate_key_update(**{key: values[key] for key in values if key != "enabled"}),
+            .on_duplicate_key_update(
+                **{key: values[key] for key in values if key not in {"enabled", "created_at"}}
+            ),
         )
 
     def _tool_upsert(self, record: ToolRecord) -> Executable:
@@ -229,14 +285,18 @@ class SystemDBRepository:
                 .values(**values)
                 .on_conflict_do_update(
                     index_elements=["name"],
-                    set_={key: values[key] for key in values if key != "enabled"},
+                    set_={
+                        key: values[key] for key in values if key not in {"enabled", "created_at"}
+                    },
                 ),
             )
         return cast(
             Executable,
             mysql_insert(table)
             .values(**values)
-            .on_duplicate_key_update(**{key: values[key] for key in values if key != "enabled"}),
+            .on_duplicate_key_update(
+                **{key: values[key] for key in values if key not in {"enabled", "created_at"}}
+            ),
         )
 
     def _session_upsert(self, session_id: str, now: datetime) -> Executable:
@@ -258,7 +318,6 @@ class SystemDBRepository:
                     index_elements=["session_id"],
                     set_={
                         "last_active_at": now,
-                        "status": "active",
                         "message_count": table.c.message_count + 1,
                     },
                 ),
@@ -269,7 +328,6 @@ class SystemDBRepository:
             .values(**values)
             .on_duplicate_key_update(
                 last_active_at=now,
-                status="active",
                 message_count=table.c.message_count + 1,
             ),
         )
