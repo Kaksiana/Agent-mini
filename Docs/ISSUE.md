@@ -1,4 +1,4 @@
-# ISSUE <!-- omit in toc -->
+﻿# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -421,7 +421,7 @@
 
 - calculator 实现：AST 白名单、阈值 200/20/1e12、7 个错误码；注册到默认 ToolRegistry。
 - TDD：23 个 calculator 用例在占位实现下全部失败；实现后 25 个 calculator 测试全绿。
-- 验收：154 passed、覆盖率 94.02%；unit 90、contract 64；mypy 53 files 0 errors；OpenSpec/wheel 通过。
+- 验收：164 passed、覆盖率 95.81%；unit 100、contract 64；mypy 53 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞问题；具体其他工具、沙箱、Memory/Context、HTTP 未实现。
 
 ### S05 阶段问题记录（2026-10-22）
@@ -431,6 +431,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 
