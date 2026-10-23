@@ -5,7 +5,7 @@ import json
 import math
 import re
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
@@ -41,6 +41,14 @@ _SECRET_KEY_VALUE = re.compile(
 )
 _SECRET_BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 _SECRET_SK = re.compile(r"\bsk-[A-Za-z0-9_-]{4,}\b")
+
+
+@dataclass(frozen=True)
+class LoopOptions:
+    """一次循环的工具快照与出站前复核回调。"""
+
+    tools_snapshot: Sequence[ToolSchema] | None = None
+    context_fit: Callable[[list[Message]], Awaitable[list[Message]]] | None = None
 
 
 @dataclass(frozen=True)
@@ -102,12 +110,15 @@ async def run_react_loop(
     messages: list[Message],
     tool_executor: ToolExecutor | None,
     policy: LoopPolicy | None = None,
-    tools_snapshot: Sequence[ToolSchema] | None = None,
+    options: LoopOptions | None = None,
 ) -> AgentResult:
     """运行至最终文本；安全阀终止时返回 truncated 结果而不抛异常。"""
     active_policy = policy if policy is not None else LoopPolicy()
+    active_options = options if options is not None else LoopOptions()
     deadline = _deadline_at(active_policy)
-    tools = list(tools_snapshot) if tools_snapshot is not None else None
+    tools = (
+        list(active_options.tools_snapshot) if active_options.tools_snapshot is not None else None
+    )
     if tools is None and tool_executor is not None:
         tools = tool_executor.schemas()
     state = _LoopState()
@@ -116,6 +127,8 @@ async def run_react_loop(
         if remaining <= 0:
             return _truncated_result(state, "deadline")
         state.step += 1
+        if active_options.context_fit is not None:
+            messages[:] = await active_options.context_fit(messages)
         try:
             response = await _request(llm_client, messages, tools, remaining)
         except TimeoutError:

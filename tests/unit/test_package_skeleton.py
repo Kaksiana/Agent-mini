@@ -56,6 +56,7 @@ DESIGN_FILES = [
     "memory/mid_term.py",
     "context/__init__.py",
     "context/builder.py",
+    "context/window.py",
     "context/token_counter.py",
     "context/window.py",
     "systemdb/__init__.py",
@@ -91,6 +92,7 @@ NON_PLACEHOLDER_MODULES = {
     "memory/short_term.py",
     "memory/mid_term.py",
     "context/builder.py",
+    "context/window.py",
     "context/token_counter.py",
     "memory/base.py",
 }

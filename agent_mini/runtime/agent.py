@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import cast
 from uuid import uuid4
 
@@ -16,7 +17,7 @@ from agent_mini.memory.base import (
     StoredRound,
     valid_session_id,
 )
-from agent_mini.runtime.loop import LoopPolicy, ToolExecutor, run_react_loop
+from agent_mini.runtime.loop import LoopOptions, LoopPolicy, ToolExecutor, run_react_loop
 from agent_mini.runtime.result import AgentResult
 from agent_mini.tools.registry import ToolContext
 
@@ -99,7 +100,7 @@ class Agent:
         if session_id is not None and not valid_session_id(session_id):
             raise ValueError("session_id 非法")
         executor = self._executor_for(session_id)
-        messages, tools_snapshot = await self._build_context(
+        messages, tools_snapshot, context_fit = await self._build_context(
             user_input,
             session_id,
             executor,
@@ -109,7 +110,7 @@ class Agent:
             messages,
             executor,
             self._policy,
-            tools_snapshot,
+            LoopOptions(tools_snapshot, context_fit),
         )
         if result.truncated:
             messages.append(Message(role="assistant", content=result.reply))
@@ -134,23 +135,31 @@ class Agent:
         user_input: str,
         session_id: str | None,
         executor: ToolExecutor | None,
-    ) -> tuple[list[Message], tuple[ToolSchema, ...] | None]:
+    ) -> tuple[
+        list[Message],
+        tuple[ToolSchema, ...] | None,
+        Callable[[list[Message]], Awaitable[list[Message]]] | None,
+    ]:
         builder = self._context_builder
         if builder is None:
-            return [Message(role="user", content=user_input)], None
-        tools_snapshot = executor.schemas() if executor is not None else []
-        payload = await builder.build(
-            BuildRequest(
-                user_input=user_input,
-                tools_snapshot=tools_snapshot,
-                session_id=session_id,
-                short_term=self._short_term,
-                mid_term=self._mid_term,
-                system_prompt=self._system_prompt,
-                include_reasoning=self._include_reasoning,
-            )
+            return [Message(role="user", content=user_input)], None, None
+        tools_snapshot = tuple(executor.schemas() if executor is not None else ())
+        request = BuildRequest(
+            user_input=user_input,
+            tools_snapshot=tools_snapshot,
+            session_id=session_id,
+            short_term=self._short_term,
+            mid_term=self._mid_term,
+            system_prompt=self._system_prompt,
+            include_reasoning=self._include_reasoning,
         )
-        return list(payload.messages), payload.tools_snapshot
+        payload = await builder.build(request)
+
+        async def fit(messages: list[Message]) -> list[Message]:
+            updated = await builder.fit(request, messages)
+            return list(updated.messages)
+
+        return list(payload.messages), payload.tools_snapshot, fit
 
     def _executor_for(self, session_id: str | None) -> ToolExecutor | None:
         if session_id is None or self._tool_executor is None:
