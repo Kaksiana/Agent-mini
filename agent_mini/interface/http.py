@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import inspect
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -29,6 +30,13 @@ class ChatRequest(BaseModel):
 
     session_id: str | None = Field(default=None, min_length=1, max_length=128)
     message: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
+
+    @field_validator("session_id")
+    @classmethod
+    def _session_not_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("session_id 不能为空白")
+        return value
 
     @field_validator("message")
     @classmethod
@@ -61,18 +69,23 @@ class ChatResponse(BaseModel):
 
 def create_app(
     agent: Agent,
-    health_checks: dict[str, Callable[[], bool]] | None = None,
+    health_checks: dict[str, Callable[[], bool | Awaitable[bool]]] | None = None,
 ) -> FastAPI:
     """创建无状态 FastAPI 应用。"""
     app = FastAPI(title="agent-mini")
     checks = health_checks or {}
+    app.state.health_checks = checks
+    close = getattr(agent, "close", None)
+    if callable(close):
+        app.add_event_handler("shutdown", close)
 
     @app.post("/chat", response_model=ChatResponse)
-    async def chat(request: ChatRequest) -> ChatResponse:
+    async def chat(payload: ChatRequest, request: Request) -> ChatResponse:
         trace_id = uuid4().hex
-        session_id = request.session_id or str(uuid4())
+        request.state.trace_id = trace_id
+        session_id = payload.session_id or str(uuid4())
         result = await agent.run(
-            request.message,
+            payload.message,
             session_id=session_id,
             trace_id=trace_id,
         )
@@ -84,7 +97,10 @@ def create_app(
         healthy = True
         for name, check in checks.items():
             try:
-                dependencies[name] = "ok" if check() else "unavailable"
+                value = check()
+                if inspect.isawaitable(value):
+                    value = await value
+                dependencies[name] = "ok" if value else "unavailable"
             except Exception:
                 dependencies[name] = "unavailable"
             healthy = healthy and dependencies[name] == "ok"
@@ -98,36 +114,36 @@ def create_app(
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        return _error("INVALID_REQUEST", "请求参数不合法", 400)
+        return _error("INVALID_REQUEST", "请求参数不合法", 400, request)
 
     @app.exception_handler(ContextTooLarge)
     def context_too_large(
         request: Request,
         exc: ContextTooLarge,
     ) -> JSONResponse:
-        return _error("CONTEXT_TOO_LARGE", "上下文超过预算", 400)
+        return _error("CONTEXT_TOO_LARGE", "上下文超过预算", 400, request)
 
     @app.exception_handler(LLMTimeoutError)
     def llm_timeout(
         request: Request,
         exc: LLMTimeoutError,
     ) -> JSONResponse:
-        return _error("LLM_TIMEOUT", "模型调用超时", 408)
+        return _error("LLM_TIMEOUT", "模型调用超时", 408, request)
 
     @app.exception_handler(LLMRateLimitError)
     def llm_rate_limit(
         request: Request,
         exc: LLMRateLimitError,
     ) -> JSONResponse:
-        return _error("LLM_RATE_LIMITED", "模型限流", 429)
+        return _error("LLM_RATE_LIMITED", "模型限流", 429, request)
 
     @app.exception_handler(LLMError)
     def llm_error(request: Request, exc: LLMError) -> JSONResponse:
-        return _error(exc.code, "模型不可用", 502)
+        return _error(exc.code, "模型不可用", 502, request)
 
     @app.exception_handler(Exception)
     def internal_error(request: Request, exc: Exception) -> JSONResponse:
-        return _error("INTERNAL_ERROR", "内部错误", 500)
+        return _error("INTERNAL_ERROR", "内部错误", 500, request)
 
     return app
 
@@ -151,13 +167,19 @@ def _to_response(result: AgentResult, session_id: str, trace_id: str) -> ChatRes
     )
 
 
-def _error(code: str, message: str, status: int) -> JSONResponse:
+def _error(
+    code: str,
+    message: str,
+    status: int,
+    request: Request | None = None,
+) -> JSONResponse:
+    trace_id = getattr(request.state, "trace_id", None) if request is not None else None
     return JSONResponse(
         status_code=status,
         content={
             "code": code,
             "message": _redact(message),
-            "trace_id": uuid4().hex,
+            "trace_id": trace_id or uuid4().hex,
         },
     )
 

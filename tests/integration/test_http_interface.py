@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 import httpx
@@ -167,3 +168,63 @@ async def test_truncated_result_returns_200() -> None:
 
     assert response.status_code == 200
     assert response.json()["truncated"] is True
+
+
+async def test_error_trace_id_matches_request() -> None:
+    class Broken:
+        def __init__(self) -> None:
+            self.trace = ""
+
+        async def run(self, *args: object, **kwargs: object) -> AgentResult:
+            self.trace = str(kwargs.get("trace_id", ""))
+            raise RuntimeError("boom")
+
+    broken = Broken()
+    response = await _post(_app(broken), {"message": "hi"})
+
+    assert response.status_code == 500
+    assert response.json()["trace_id"] == broken.trace
+
+
+async def test_blank_session_is_400() -> None:
+    response = await _post(_app(_Agent()), {"session_id": " ", "message": "hi"})
+    assert response.status_code == 400
+
+
+async def test_json_secret_is_redacted() -> None:
+    secret = "sk-json1234567890"
+    agent = _Agent(
+        AgentResult(
+            reply=f'{{"api_key": "{secret}", "Authorization": "Bearer abc"}}',
+            steps=1,
+            usage=Usage(),
+            trace=(),
+            trace_id="t",
+        )
+    )
+    response = await _post(_app(agent), {"message": "hi"})
+
+    assert secret not in response.text
+    assert "Bearer abc" not in response.text
+
+
+async def test_async_health_and_shutdown() -> None:
+    class ClosableAgent(_Agent):
+        def __init__(self) -> None:
+            super().__init__()
+            self.closed = False
+
+        async def close(self) -> None:
+            self.closed = True
+
+    async def ok() -> bool:
+        await asyncio.sleep(0)
+        return True
+
+    agent = ClosableAgent()
+    app = create_app(cast(Any, agent), {"redis": ok})
+    transport = httpx.ASGITransport(app=cast(Any, app), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/healthz")
+    assert response.json()["status"] == "ok"
+    assert app.router.on_shutdown
