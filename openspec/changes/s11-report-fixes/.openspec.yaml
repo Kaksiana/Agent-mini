@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-23
+goal: S11 报告修复：父目录竞态、原子不覆盖、设备名与 TC 映射
