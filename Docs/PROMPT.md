@@ -1,4 +1,4 @@
-﻿# PROMPT <!-- omit in toc -->
+# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1792,3 +1792,5 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 读取：最多 limit+1，stat 后增长也 file_too_large；file_not_found 与 file_read_error 区分。
 - 测试：移除 skip；补组合路径/增长/编码/OSError；新 change 承接。
 - 验收：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors。
+- 关联提交：`731b5e4`（OpenSpec 规划）、`350b644`（代码+测试）、`eb22379`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s10-report-fixes`；read-file 1 项、sandbox 增至 4 项 Requirement；`openspec validate --all --strict` 为 10 passed、0 failed。
