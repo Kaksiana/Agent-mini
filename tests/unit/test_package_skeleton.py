@@ -98,6 +98,7 @@ NON_PLACEHOLDER_MODULES = {
     "systemdb/models.py",
     "systemdb/repository.py",
     "interface/http.py",
+    "observability/logging.py",
 }
 
 PLACEHOLDER_MODULES = [

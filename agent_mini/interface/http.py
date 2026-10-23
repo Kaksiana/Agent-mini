@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import inspect
 import os
-import re
 from collections.abc import Awaitable, Callable
+from time import monotonic
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -17,6 +17,7 @@ from agent_mini.context.window import ContextTooLarge
 from agent_mini.llm.client import HttpLLMClient
 from agent_mini.llm.errors import LLMError, LLMRateLimitError, LLMTimeoutError
 from agent_mini.llm.models import ModelConfig
+from agent_mini.observability.logging import configure_logging, redact_text, set_trace_context
 from agent_mini.runtime.agent import Agent
 from agent_mini.runtime.registry_adapter import RegistryExecutor
 from agent_mini.runtime.result import AgentResult
@@ -28,11 +29,6 @@ DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-chat"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 _ = _builtin
-_SECRET_PATTERNS = (
-    re.compile(r"(?i)\b(authorization|api[_-]?key|password|cookie)\b\s*[:=]\s*\S+"),
-    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+"),
-    re.compile(r"\bsk-[A-Za-z0-9_-]{4,}\b"),
-)
 
 
 class ChatRequest(BaseModel):
@@ -99,6 +95,7 @@ def create_app(
     health_checks: dict[str, Callable[[], bool | Awaitable[bool]]] | None = None,
 ) -> FastAPI:
     """创建无状态 FastAPI 应用。"""
+    configure_logging()
     app = FastAPI(title="agent-mini")
     checks = health_checks or {}
     app.state.health_checks = checks
@@ -108,13 +105,23 @@ def create_app(
 
     @app.post("/chat", response_model=ChatResponse)
     async def chat(payload: ChatRequest, request: Request) -> ChatResponse:
+        started = monotonic()
         trace_id = uuid4().hex
         request.state.trace_id = trace_id
         session_id = payload.session_id or str(uuid4())
+        set_trace_context(trace_id, session_id)
         result = await agent.run(
             payload.message,
             session_id=session_id,
             trace_id=trace_id,
+        )
+        configure_logging().info(
+            "http.chat",
+            extra={
+                "event": "http.chat",
+                "step": result.steps,
+                "duration_ms": int((monotonic() - started) * 1000),
+            },
         )
         return _to_response(result, session_id, trace_id)
 
@@ -178,7 +185,7 @@ def create_app(
 def _to_response(result: AgentResult, session_id: str, trace_id: str) -> ChatResponse:
     return ChatResponse(
         session_id=session_id,
-        reply=_redact(result.reply),
+        reply=redact_text(result.reply),
         steps=result.steps,
         tool_calls=result.tool_calls,
         usage=UsageResponse(
@@ -205,14 +212,7 @@ def _error(
         status_code=status,
         content={
             "code": code,
-            "message": _redact(message),
+            "message": redact_text(message),
             "trace_id": trace_id or uuid4().hex,
         },
     )
-
-
-def _redact(value: str) -> str:
-    result = value
-    for pattern in _SECRET_PATTERNS:
-        result = pattern.sub("***", result)
-    return result
