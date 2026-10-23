@@ -1,4 +1,12 @@
-﻿# MEMORY <!-- omit in toc -->
+# MEMORY <!-- omit in toc -->
+
+## 2026-10-23 — S07 calculator
+
+- 新增 `CalculatorArgs` 与 `@tool("calculator")`；`ast.parse(mode="eval")` 白名单 Expression/BinOp/UnaryOp/Constant。
+- 仅 `+ - * /`、取负/取正、括号；拒绝调用/属性/下标/Name/Lambda/推导式/比较/布尔/位运算/幂。
+- 错误码：unsafe_expression、syntax_error、division_by_zero、type_error、expression_too_long、expression_too_deep、number_overflow。
+- 阈值：200 字符、20 层 AST、1e12；bool 拒绝。
+- 验收：154 passed、覆盖率 94.02%；unit 90、contract 64；mypy 53 files 0 errors。
 
 ## 2026-10-22 — S06 工具注册与 Schema
 

@@ -1449,5 +1449,55 @@ S03 阶段遗留的语义债务包括：`LLMProtocolError` 当前同时承担"�
 - 关联提交：`67aceed`（代码+测试）、`63c167f`（文档/change）、`9135649`（覆盖边界）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-22-s06-report-fixes`；tool-registry 主规格增至 8 项 Requirement；`openspec validate --all --strict` 为 5 passed、0 failed。
 
+## 2026-10-23 11:49 — S07 calculator
+
+### 原始 Prompt
+
+```text
+【角色】
+你是 S07「Tool：calculator」执行 Agent，熟悉 Python `ast` 白名单求值、pydantic、pytest、OpenSpec、SuperPower SKILL，遵循 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+阶段定义、验收标准、测试项见 `Docs/PLAN.md` S07。
+工具接口契约见 `Docs/DESIGN.md` §3.3。
+TC 定义见 `Docs/TESTING.md` TC-L1-001/002/003，需求见 `Docs/REQUIREMENT.md` FR-TOOL-02。
+S06 已完成工具注册机制（`ToolSpec` / `ToolRegistry` / `@tool` / `ToolResult`）。
+【任务】
+按 PLAN S07 用 TDD 实现 calculator 工具（`ast` 白名单求值），完成验收与收口。
+【约束】
+1. 开工前核对 S06 注册表接口与 DESIGN §3.3 一致；核对 TC-L1-001/002/003 在 TESTING 中定义齐全。缺失或不一致 → 停，登记 ISSUE，不得自行补写。
+2. 只改 `agent_mini/tools/builtin/calculator.py` 及测试；必要时最小改动 `tools/__init__.py` 导出，需说明理由。
+3. 不实现 S08–S12 其他工具、S10 沙箱、Runtime 或其他子包；不引入第三方表达式库；禁止 `eval` / `exec` / `compile` 执行任意代码。
+4. 白名单至少 `Expression / BinOp / UnaryOp / Constant`，覆盖四则、取负、括号；`ast.parse(mode="eval")`。拒绝属性、下标、调用、Name、Lambda、推导式、比较、布尔、位运算。
+5. 除零、语法错误、不支持节点、超长表达式、嵌套过深一律转为 `ToolResult(ok=False, error_code=..., content=...)`，不抛异常；error_code 集中定义，禁止散落字符串。
+6. `int` / `float` 保留精度语义；`bool` 不算数值；超大指数/乘法需上界约束，阈值提取为具名常量并在 change design 中定义。
+7. 用 OpenSpec 创建 `s07-tool-calculator` change，`validate --strict` 通过后 TDD；使用 SuperPower SKILL，不可用登记 ISSUE。
+8. TDD：TC 逐条先红后绿，红因为未实现相关，不得以收集错误冒充；红绿证据写入 `Docs/PROMPT.md`（逐字保存本轮 Prompt）。
+9. 遵循代码规范：行宽、单行单语句、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无魔法数字。
+10. 验收：`pytest -m unit`、`pytest -m contract`、全量 `pytest`（S00–S06 无回归）、覆盖率、`ruff check .`、`ruff format --check .`、`mypy agent_mini tests`、`openspec validate --all --strict`、wheel + 仓库外导入；复跑留证。
+11. 文档收口：PLAN 状态、DESIGN（若澄清 error_code 或阈值）、TESTING、ISSUE、MEMORY、PROMPT、README（如需要）；OpenSpec 归档；不改已归档 change。
+12. Commit 拆分：OpenSpec / 代码+测试 / 文档 / 归档；冲突或失败停止报告，不得强推。
+【输出格式】
+1. 开工前核对结论 + Prompt 逐字记录确认。
+2. TC 映射表：TC-L1-001/002/003（定义摘要 / 覆盖部分 / 用例文件）。
+3. 设计决策：白名单节点、拒绝节点类别、error_code 列表、数值上界常量。
+4. 变更文件（代码/测试/文档/OpenSpec）。
+5. OpenSpec change 名、validate、归档结果。
+6. TDD 记录：每条 TC 红因、绿因。
+7. 验收结果：各命令结果、覆盖率。
+8. 验收证据：正确求值 / 危险表达式被拒 / 除零与语法错误结构化返回。
+9. 文档收口与 Git 状态。
+10. 异常与待确认（无则写「无」）。
+不输出代码或文档正文。
+```
+
+### TDD 与验收摘要
+
+- TC-L1-001：占位实现下 5 个正确求值用例全部 NotImplementedError；实现后 20/7/-1/3.5/10.0 全绿。
+- TC-L1-002：11 个危险表达式全部红；实现后均 unsafe_expression。
+- TC-L1-003：`1/0`、`2+`、`"a"+1`、`True` 全部红；实现后分别 division_by_zero、syntax_error、type_error、type_error。
+- 边界：超长/过深/溢出先红后绿；注册与 Registry 执行 2 个用例通过。
+- 验收：154 passed、覆盖率 94.02%；unit 90、contract 64；mypy 53 files 0 errors。
+- 关联提交：`813f447`（OpenSpec 规划）、代码+测试/文档/归档提交见最终报告。
+
 
 

@@ -6,12 +6,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.10（S06 工具注册与 Schema） |
-| 日期 | 2026-10-22 |
-| 状态 | 执行中（S00–S06 已实现） |
-| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 129（unit 65、contract 64） |
+| 版本 | v0.11（S07 calculator） |
+| 日期 | 2026-10-23 |
+| 状态 | 执行中（S00–S07 已实现） |
+| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 154（unit 90、contract 64） |
 
-> 本文件同时记录测试设计与执行状态。截至 S06，S00–S06 已实现 129 个 pytest 用例（最近全量 129 passed、覆盖率 95.25%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S07，S00–S07 已实现 154 个 pytest 用例（最近全量 154 passed、覆盖率 94.02%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -197,6 +197,15 @@
 | FR-TOOL-01 启停 | enabled_key 过滤 schemas/execute、禁用错误 | 配置加载/DI S21 |
 | 执行边界 | 额外参数、unknown_tool、非 ToolResult、handler 异常、同步 to_thread | 具体工具错误语义 S07–S12 |
 | 集成回填 | RegistryExecutor 驱动 Agent，call_id 配对保持 | 真实工具闭环 S07–S12 |
+
+#### 4.2.7 S07 覆盖边界
+
+| TC | S07 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L1-001 | `(2+3)*4=20`、`1+2*3`、`-3+2`、除法/浮点精度 | 真实模型触发 AC-02 由 S18 验收 |
+| TC-L1-002 | Call/Name/Attribute/Subscript/Lambda/推导式/Compare/BoolOp/BitOp/Pow 均 unsafe_expression | 沙箱 S10 |
+| TC-L1-003 | `1/0`/`2+`/`"a"+1` 结构化错误；bool/超长/过深/溢出 | 进程级无副作用由集成验证 |
+| 注册 | `@tool("calculator")`、Schema required、Registry 执行 | 启停配置 S21 |
 
 ### 4.3 L3 集成测试
 

@@ -417,6 +417,13 @@
 - 状态：Resolved
 - 关联提交：`s06-report-fixes` change、代码/文档提交（见最终报告）
 
+### S07 阶段问题记录（2026-10-23）
+
+- calculator 实现：AST 白名单、阈值 200/20/1e12、7 个错误码；注册到默认 ToolRegistry。
+- TDD：23 个 calculator 用例在占位实现下全部失败；实现后 25 个 calculator 测试全绿。
+- 验收：154 passed、覆盖率 94.02%；unit 90、contract 64；mypy 53 files 0 errors；OpenSpec/wheel 通过。
+- 无新增阻塞问题；具体其他工具、沙箱、Memory/Context、HTTP 未实现。
+
 ### S05 阶段问题记录（2026-10-22）
 
 - 前置：`LoopPolicy` 参数化提交 `1a9bdb3`，默认不限制；S04 行为不变、99 passed。
