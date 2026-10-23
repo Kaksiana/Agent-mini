@@ -1842,3 +1842,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - P0-02：overwrite=false 改用 os.link 原子发布，EEXIST→file_exists；overwrite=true 才 replace。
 - P1：补全 COM1–9/LPT1–9；TC-L4-002 从文件需求移除，文件 E2E 留 S18；统一 247/183/97.06%。
 - 验收：247 passed、覆盖率 97.06%；unit 183、contract 64；mypy 61 files 0 errors。
+
+- OpenSpec 归档：change 归档为 `2026-10-23-s11-report-fixes`；write-file 增至 4 项 Requirement；`openspec validate --all --strict` 为 11 passed、0 failed。
+- 关联提交：`84a5add`（OpenSpec 规划）、`41065ae`（代码+测试）、`31a8344`（文档）、归档提交见最终报告。
