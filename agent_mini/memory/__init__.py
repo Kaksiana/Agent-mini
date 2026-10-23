@@ -1,1 +1,1 @@
-"""Memory 子包占位，待 S13–S14 落地。"""
+"""Memory 子包：S13 Redis 短时窗口与 S14 MongoDB 中期存储。"""

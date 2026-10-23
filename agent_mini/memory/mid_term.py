@@ -10,11 +10,12 @@ from typing import Protocol, cast
 from pymongo import AsyncMongoClient
 
 from agent_mini.llm.models import Message
-from agent_mini.memory.base import StoredRound
+from agent_mini.memory.base import MidTermStore, StoredRound, valid_session_id
 
 COLLECTION_NAME = "conversation_rounds"
 DATABASE_NAME = "agent_mini"
 INDEX_NAME = "session_created_desc"
+INDEX_KEYS = (("session_id", 1), ("created_at", -1))
 DEFAULT_SEARCH_LIMIT = 20
 SERVER_SELECTION_TIMEOUT_MS = 2_000
 LOGGER = logging.getLogger("agent_mini.memory")
@@ -37,7 +38,7 @@ class _AsyncCollection(Protocol):
     def find(self, query: dict[str, object]) -> _AsyncCursor: ...
 
 
-class MidTermMemory:
+class MidTermMemory(MidTermStore):
     """按 session 存储完整轮次，提供时间倒序/关键词检索。"""
 
     def __init__(self, collection: _AsyncCollection) -> None:
@@ -62,9 +63,17 @@ class MidTermMemory:
         try:
             existing = await self._collection.index_information()
             if INDEX_NAME in existing:
+                current = existing[INDEX_NAME]
+                keys = cast(dict[str, object], current).get("key")
+                if tuple(cast(list[tuple[str, int]], keys)) != INDEX_KEYS:
+                    LOGGER.warning(
+                        "memory.index_conflict",
+                        extra={"event": "memory.index_conflict", "index": INDEX_NAME},
+                    )
+                    return False
                 return True
             await self._collection.create_index(
-                [("session_id", 1), ("created_at", -1)],
+                list(INDEX_KEYS),
                 name=INDEX_NAME,
             )
             return True
@@ -79,6 +88,9 @@ class MidTermMemory:
         created_at: datetime | None = None,
     ) -> bool:
         """响应后异步写入；失败只告警。"""
+        if not valid_session_id(session_id):
+            _degraded("invalid_session")
+            return False
         try:
             document = {
                 "session_id": session_id,
@@ -102,7 +114,7 @@ class MidTermMemory:
         include_private: bool = False,
     ) -> list[StoredRound]:
         """按 session 过滤、时间倒序返回；默认剥离 reasoning。"""
-        if not session_id.strip() or limit <= 0:
+        if not valid_session_id(session_id) or limit <= 0:
             return []
         query: dict[str, object] = {"session_id": session_id}
         if keyword:
@@ -114,6 +126,10 @@ class MidTermMemory:
         except Exception:
             _degraded("search_rounds")
             return []
+
+    async def drain(self) -> None:
+        """Mongo 写入由 Runtime 任务管理，本层无需额外等待。"""
+        return
 
 
 def _decode_document(document: dict[str, object], include_private: bool) -> StoredRound:

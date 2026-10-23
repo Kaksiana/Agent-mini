@@ -8,7 +8,7 @@ from typing import Any, cast
 from redis.asyncio import Redis
 
 from agent_mini.llm.models import Message
-from agent_mini.memory.base import StoredRound
+from agent_mini.memory.base import StoredRound, valid_session_id
 
 DEFAULT_MAX_ROUNDS = 10
 DEFAULT_TTL_SECONDS = 86_400
@@ -46,7 +46,7 @@ class ShortTermMemory:
         termination_reason: str | None = None,
     ) -> bool:
         """同步写回完整轮次；异常降级为 False。"""
-        if not _valid_session(session_id):
+        if not valid_session_id(session_id):
             return False
         try:
             stored = StoredRound(round_id, tuple(messages), truncated, termination_reason)
@@ -72,7 +72,7 @@ class ShortTermMemory:
     ) -> list[StoredRound]:
         """读取最近完整轮次；异常/解析失败降级为空。"""
         count = self._max_rounds if limit is None else limit
-        if count <= 0 or not _valid_session(session_id):
+        if count <= 0 or not valid_session_id(session_id):
             return []
         try:
             raw = await cast(
@@ -119,4 +119,4 @@ def _decode_round(raw: str | bytes) -> StoredRound:
 
 
 def _valid_session(session_id: str) -> bool:
-    return bool(session_id.strip()) and len(session_id) <= 128
+    return valid_session_id(session_id)

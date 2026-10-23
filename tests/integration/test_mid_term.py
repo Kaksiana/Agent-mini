@@ -170,6 +170,9 @@ class _SlowMidTerm:
         self.finished = True
         return True
 
+    async def drain(self) -> None:
+        return
+
 
 class _StubLLM:
     async def chat(
@@ -189,6 +192,122 @@ class _FailingMidTerm:
     async def append_round(self, session_id: str, stored: StoredRound) -> bool:
         raise ConnectionError("down")
 
+    async def drain(self) -> None:
+        return
+
+
+class _CapturedMid:
+    def __init__(self) -> None:
+        self.stored: StoredRound | None = None
+
+    async def append_round(self, session_id: str, stored: StoredRound) -> bool:
+        self.stored = stored
+        return True
+
+    async def drain(self) -> None:
+        return
+
+
+class _ShortCapture:
+    def __init__(self) -> None:
+        self.round_id: str | None = None
+
+    async def append_round(
+        self,
+        session_id: str,
+        messages: list[llm_models.Message],
+        round_id: str,
+        truncated: bool = False,
+        termination_reason: str | None = None,
+    ) -> bool:
+        self.round_id = round_id
+        return True
+
+    async def get_recent_rounds(
+        self,
+        session_id: str,
+        limit: int | None = None,
+    ) -> list[StoredRound]:
+        return []
+
+
+async def test_round_id_is_shared_across_stores() -> None:
+    short = _ShortCapture()
+    mid = _CapturedMid()
+    agent = Agent(cast(LLMClient, _StubLLM()), short_term=short).with_mid_term(mid, 1.0)
+
+    await agent.run("hi", session_id="A")
+    await agent.drain()
+
+    assert mid.stored is not None
+    assert short.round_id == mid.stored.round_id
+
+
+async def test_full_tool_round_raw_document(memory: MidTermMemory) -> None:
+    call = llm_models.ToolCall(id="call_1", name="echo", arguments={"x": 1})
+    messages = (
+        llm_models.Message(role="user", content="hello"),
+        llm_models.Message(role="assistant", content=None, tool_calls=[call]),
+        llm_models.Message(role="tool", content="ok", tool_call_id="call_1"),
+        llm_models.Message(role="assistant", content="done", reasoning_content="private"),
+    )
+    await memory.append_round("A", StoredRound("r1", messages, False, None))
+
+    document = cast(AsyncMongomock, memory._collection).raw.find_one({"session_id": "A"})
+
+    assert document is not None
+    assert document["round_id"] == "r1"
+    assert document["messages"][1]["tool_calls"][0]["id"] == "call_1"
+    assert document["messages"][2]["tool_call_id"] == "call_1"
+    assert document["messages"][3]["reasoning_content"] == "private"
+
+
+async def test_index_same_name_different_key_is_rejected(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    collection = cast(Collection, mongomock.MongoClient()["db"]["rounds"])
+    cast(Any, collection).create_index([("session_id", 1)], name=INDEX_NAME)
+    memory = MidTermMemory(AsyncMongomock(collection))
+
+    with caplog.at_level(logging.WARNING):
+        assert await memory.ensure_indexes() is False
+
+    assert "memory.index_conflict" in caplog.text
+
+
+async def test_invalid_session_is_rejected(memory: MidTermMemory) -> None:
+    assert await memory.append_round(" ", _round("x")) is False
+    assert await memory.search_rounds("") == []
+
+
+async def test_agent_rejects_invalid_session() -> None:
+    agent = Agent(cast(LLMClient, _StubLLM()))
+
+    with pytest.raises(ValueError):
+        await agent.run("hi", session_id="")
+
+
+class _TimedOutMid:
+    async def append_round(self, session_id: str, stored: StoredRound) -> bool:
+        await asyncio.sleep(0.05)
+        return True
+
+    async def drain(self) -> None:
+        return
+
+
+async def test_agent_mongo_timeout_degrades(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    agent = Agent(cast(LLMClient, _StubLLM())).with_mid_term(_TimedOutMid(), 0.001)
+
+    with caplog.at_level(logging.WARNING):
+        result = await agent.run("hi", session_id="A")
+        await agent.drain()
+
+    assert result.reply == "ok"
+    assert "memory.degraded" in caplog.text
+
 
 async def test_agent_mongo_failure_does_not_block(
     caplog: pytest.LogCaptureFixture,
@@ -200,7 +319,7 @@ async def test_agent_mongo_failure_does_not_block(
 
     with caplog.at_level(logging.WARNING):
         result = await agent.run("hi", session_id="A")
-        await asyncio.sleep(0.01)
+        await agent.drain()
 
     assert result.reply == "ok"
     assert "memory.degraded" in caplog.text

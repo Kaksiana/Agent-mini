@@ -5,6 +5,13 @@ from typing import Protocol
 
 from agent_mini.llm.models import Message
 
+MAX_SESSION_ID_LENGTH = 128
+
+
+def valid_session_id(session_id: str) -> bool:
+    """会话 ID 必须非空白且不超过 128 字符。"""
+    return bool(session_id.strip()) and len(session_id) <= MAX_SESSION_ID_LENGTH
+
 
 @dataclass(frozen=True)
 class StoredRound:
@@ -36,4 +43,20 @@ class ShortTermStore(Protocol):
         limit: int | None = None,
     ) -> list[StoredRound]:
         """读取最近完整轮次，时间正序。"""
+        ...
+
+
+class MidTermStore(Protocol):
+    """S14 中期存储最小接口，供 Runtime 依赖。"""
+
+    async def append_round(
+        self,
+        session_id: str,
+        round_: StoredRound,
+    ) -> bool:
+        """持久化一个完整轮次；失败返回 False。"""
+        ...
+
+    async def drain(self) -> None:
+        """等待内部待写任务完成。"""
         ...

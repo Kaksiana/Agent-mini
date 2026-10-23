@@ -9,8 +9,12 @@ from uuid import uuid4
 
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.models import Message
-from agent_mini.memory.base import ShortTermStore, StoredRound
-from agent_mini.memory.mid_term import MidTermMemory
+from agent_mini.memory.base import (
+    MidTermStore,
+    ShortTermStore,
+    StoredRound,
+    valid_session_id,
+)
 from agent_mini.runtime.loop import LoopPolicy, ToolExecutor, run_react_loop
 from agent_mini.runtime.result import AgentResult
 from agent_mini.tools.registry import ToolContext
@@ -36,15 +40,39 @@ class Agent:
         self._policy = policy
         self._short_term = short_term
         self._memory_timeout = memory_timeout
-        self._mid_term: MidTermMemory | None = None
+        self._mid_term: MidTermStore | None = None
         self._mongo_timeout = MEMORY_WRITEBACK_TIMEOUT_SECONDS
         self._background: set[asyncio.Task[None]] = set()
 
-    def with_mid_term(self, mid_term: MidTermMemory, timeout: float) -> Agent:
+    def with_mid_term(self, mid_term: MidTermStore, timeout: float) -> Agent:
         """启用响应后异步 Mongo 写回。"""
         self._mid_term = mid_term
         self._mongo_timeout = timeout
         return self
+
+    async def drain(self) -> None:
+        """限时等待所有后台 Mongo 写回完成。"""
+        if not self._background:
+            return
+        tasks = tuple(self._background)
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                self._mongo_timeout,
+            )
+        except TimeoutError:
+            LOGGER.warning(
+                "memory.degraded",
+                extra={
+                    "event": "memory.degraded",
+                    "operation": "drain",
+                    "remaining": len(self._background),
+                },
+            )
+
+    async def close(self) -> None:
+        """关闭前排空后台写入。"""
+        await self.drain()
 
     async def run(
         self,
@@ -52,6 +80,8 @@ class Agent:
         session_id: str | None = None,
     ) -> AgentResult:
         """运行单轮；响应前同步 Redis，响应后异步 Mongo。"""
+        if session_id is not None and not valid_session_id(session_id):
+            raise ValueError("session_id 非法")
         messages = [Message(role="user", content=user_input)]
         executor = self._executor_for(session_id)
         result = await run_react_loop(
@@ -62,15 +92,15 @@ class Agent:
         )
         if result.truncated:
             messages.append(Message(role="assistant", content=result.reply))
+        stored = StoredRound(
+            uuid4().hex,
+            tuple(messages),
+            result.truncated,
+            result.termination_reason,
+        )
         if session_id is not None and self._short_term is not None:
-            await self._write_back(session_id, messages, result)
+            await self._write_back(session_id, stored)
         if session_id is not None and self._mid_term is not None:
-            stored = StoredRound(
-                uuid4().hex,
-                tuple(messages),
-                result.truncated,
-                result.termination_reason,
-            )
             task = asyncio.create_task(self._write_mongo(session_id, stored))
             self._background.add(task)
             task.add_done_callback(self._background.discard)
@@ -90,12 +120,7 @@ class Agent:
         context = ToolContext(session_id=session_id, trace_id=uuid4().hex)
         return cast(ToolExecutor, with_context(context))
 
-    async def _write_back(
-        self,
-        session_id: str,
-        messages: list[Message],
-        result: AgentResult,
-    ) -> None:
+    async def _write_back(self, session_id: str, stored: StoredRound) -> None:
         store = self._short_term
         if store is None:
             return
@@ -103,10 +128,10 @@ class Agent:
             await asyncio.wait_for(
                 store.append_round(
                     session_id,
-                    messages,
-                    uuid4().hex,
-                    result.truncated,
-                    result.termination_reason,
+                    list(stored.messages),
+                    stored.round_id,
+                    stored.truncated,
+                    stored.termination_reason,
                 ),
                 self._memory_timeout,
             )
