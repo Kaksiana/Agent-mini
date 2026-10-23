@@ -45,6 +45,7 @@ DESIGN_FILES = [
     "tools/sandbox.py",
     "tools/builtin/__init__.py",
     "tools/builtin/calculator.py",
+    "tools/builtin/time_tool.py",
     "memory/__init__.py",
     "memory/short_term.py",
     "memory/mid_term.py",
@@ -76,6 +77,7 @@ NON_PLACEHOLDER_MODULES = {
     "runtime/result.py",
     "tools/registry.py",
     "tools/builtin/calculator.py",
+    "tools/builtin/time_tool.py",
 }
 
 PLACEHOLDER_MODULES = [
