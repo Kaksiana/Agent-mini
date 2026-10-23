@@ -11,6 +11,9 @@ ERROR_INVALID = "invalid_path"
 ERROR_HIDDEN = "hidden_path"
 ERROR_EXTENSION = "extension_not_allowed"
 ERROR_TOO_LONG = "path_too_long"
+WINDOWS_RESERVED = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3"}
+)
 
 
 class SandboxViolationError(Exception):
@@ -44,9 +47,13 @@ class Sandbox:
             raise SandboxViolation(ERROR_INVALID, "路径包含非法字符")
         if len(rel_path) > MAX_PATH_CHARS:
             raise SandboxViolation(ERROR_TOO_LONG, "路径过长")
-        parts = PurePosixPath(rel_path).parts
-        if any(part.startswith(".") and part not in {".", ".."} for part in parts):
+        windows_parts = PureWindowsPath(rel_path).parts
+        if any(part == ".." for part in windows_parts):
+            raise SandboxViolation(ERROR_ESCAPE, "不允许上级目录")
+        if any(part.startswith(".") and part not in {".", ".."} for part in windows_parts):
             raise SandboxViolation(ERROR_HIDDEN, "不允许隐藏路径")
+        if any(part.split(".", 1)[0].upper() in WINDOWS_RESERVED for part in windows_parts):
+            raise SandboxViolation(ERROR_INVALID, "不允许 Windows 保留设备名")
         candidate = (self.root / rel_path).resolve()
         if not candidate.is_relative_to(self.root):
             raise SandboxViolation(ERROR_ESCAPE, "路径越界")

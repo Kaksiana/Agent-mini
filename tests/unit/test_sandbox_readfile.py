@@ -29,6 +29,9 @@ def _write(root: Path, name: str, data: bytes) -> Path:
     [
         ("../../etc/passwd", "path_escape"),
         ("a/../../../x.txt", "path_escape"),
+        ("a/../b.txt", "path_escape"),
+        ("dir\\.hidden.txt", "hidden_path"),
+        ("NUL.txt", "invalid_path"),
         ("/etc/passwd", "absolute_path"),
         ("C:\\Windows\\win.ini", "absolute_path"),
         ("", "invalid_path"),
@@ -63,7 +66,7 @@ def test_sandbox_blocks_symlink_escape(tmp_path: Path) -> None:
         os.symlink(outside, link, target_is_directory=True)
     except OSError:
         if os.name != "nt":
-            pytest.skip("symlink unavailable")
+            raise
         subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(link), str(outside)],
             check=True,
@@ -89,7 +92,7 @@ def test_sandbox_blocks_junction_chain(tmp_path: Path) -> None:
         os.symlink(first, second, target_is_directory=True)
     except OSError:
         if os.name != "nt":
-            pytest.skip("symlink unavailable")
+            raise
         subprocess.run(["cmd", "/c", "mklink", "/J", str(first), str(outside)], check=True)
         subprocess.run(["cmd", "/c", "mklink", "/J", str(second), str(first)], check=True)
 
@@ -170,13 +173,68 @@ def test_read_file_read_error_is_structured(
     target = tmp_path / "a.txt"
     target.write_text("x")
 
-    def boom(self: Path) -> bytes:
+    def boom(self: Path, mode: str = "rb") -> object:
         raise OSError
 
-    monkeypatch.setattr(Path, "read_bytes", boom)
+    monkeypatch.setattr(Path, "open", boom)
+    result = read_file("a.txt", context=_context(tmp_path))
+
+    assert result.error_code == "file_read_error"
+
+
+def test_read_file_stat_oserror_is_file_read_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "a.txt").write_text("x")
+
+    def boom(self: Path) -> object:
+        raise OSError
+
+    monkeypatch.setattr(Path, "stat", boom)
+    result = read_file("a.txt", context=_context(tmp_path))
+
+    assert result.error_code == "file_read_error"
+
+
+def test_read_file_open_missing_after_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "a.txt").write_text("x")
+
+    def boom(self: Path, mode: str = "rb") -> object:
+        raise FileNotFoundError
+
+    monkeypatch.setattr(Path, "open", boom)
     result = read_file("a.txt", context=_context(tmp_path))
 
     assert result.error_code == "file_not_found"
+
+
+def test_read_file_bounded_when_file_grows_after_stat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "a.txt"
+    target.write_bytes(b"a" * 2048)
+
+    class SmallStat:
+        st_size = 1
+
+    monkeypatch.setattr(Path, "stat", lambda self: SmallStat())
+    result = read_file("a.txt", context=_context(tmp_path, 1024))
+
+    assert result.error_code == "file_too_large"
+
+
+@pytest.mark.parametrize("encoding", ["base64", "hex", ""])
+def test_read_file_rejects_non_text_codec(tmp_path: Path, encoding: str) -> None:
+    (tmp_path / "a.txt").write_text("x")
+
+    result = read_file("a.txt", encoding=encoding, context=_context(tmp_path))
+
+    assert result.error_code == "invalid_encoding"
 
 
 def test_read_file_path_escape(tmp_path: Path) -> None:
