@@ -1497,7 +1497,8 @@ S06 已完成工具注册机制（`ToolSpec` / `ToolRegistry` / `@tool` / `ToolR
 - TC-L1-003：`1/0`、`2+`、`"a"+1`、`True` 全部红；实现后分别 division_by_zero、syntax_error、type_error、type_error。
 - 边界：超长/过深/溢出先红后绿；注册与 Registry 执行 2 个用例通过。
 - 验收：154 passed、覆盖率 94.02%；unit 90、contract 64；mypy 53 files 0 errors。
-- 关联提交：`813f447`（OpenSpec 规划）、代码+测试/文档/归档提交见最终报告。
+- 关联提交：`813f447`（OpenSpec 规划）、`a54a065`（代码+测试）、`5918e56`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s07-tool-calculator`；新建 `calculator` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 6 passed、0 failed。
 
 
 
