@@ -1915,3 +1915,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 写回在 loop 返回后、Agent.run 返回前 await；工具配对/reasoning 持久化。
 - 依赖：redis>=7.4,<8；fakeredis>=2.23,<3 dev。
 - 验收：270 passed、覆盖率 97.09%；unit 204、contract 64；mypy 65 files 0 errors。
+
+- OpenSpec 归档：change 归档为 `2026-10-23-s13-memory-redis-shortterm`；新建 `short-term-memory` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 13 passed、0 failed。
+- 关联提交：`ea0e825`（代码+测试/依赖/change）、`ebd81c4`（文档）、归档提交见最终报告。
