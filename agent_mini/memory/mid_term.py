@@ -131,6 +131,19 @@ class MidTermMemory(MidTermStore):
         """Mongo 写入由 Runtime 任务管理，本层无需额外等待。"""
         return
 
+    async def get_rounds(
+        self,
+        session_id: str,
+        limit: int = 100,
+    ) -> list[StoredRound]:
+        """按时间正序读取并保留私有 reasoning。"""
+        rounds = await self.search_rounds(
+            session_id,
+            limit=limit,
+            include_private=True,
+        )
+        return list(reversed(rounds))
+
 
 def _decode_document(document: dict[str, object], include_private: bool) -> StoredRound:
     messages = []

@@ -60,3 +60,11 @@ class MidTermStore(Protocol):
     async def drain(self) -> None:
         """等待内部待写任务完成。"""
         ...
+
+    async def get_rounds(
+        self,
+        session_id: str,
+        limit: int = 100,
+    ) -> list[StoredRound]:
+        """读取会话轮次，时间正序，私有 reasoning 保留。"""
+        ...

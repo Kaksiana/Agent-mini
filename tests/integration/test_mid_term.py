@@ -209,6 +209,9 @@ class _CapturedMid:
     async def drain(self) -> None:
         return
 
+    async def get_rounds(self, session_id: str, limit: int = 100) -> list[StoredRound]:
+        return []
+
 
 class _ShortCapture:
     def __init__(self) -> None:
@@ -296,6 +299,13 @@ class _TimedOutMid:
 
     async def drain(self) -> None:
         return
+
+    async def get_rounds(
+        self,
+        session_id: str,
+        limit: int = 100,
+    ) -> list[StoredRound]:
+        return []
 
 
 async def test_agent_mongo_timeout_degrades(
