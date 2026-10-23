@@ -1,4 +1,4 @@
-﻿# TESTING <!-- omit in toc -->
+# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -9,7 +9,7 @@
 | 版本 | v0.21（S17 MySQL 系统数据库） |
 | 日期 | 2026-10-23 |
 | 状态 | 执行中（S00–S17 已实现） |
-| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 321（unit 198、contract 64、integration 59、unmarked 0） |
+| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 321（unit 198、contract 64、integration 61、unmarked 0） |
 
 > 本文件同时记录测试设计与执行状态。截至 S14，S00–S14 已实现 301 个 pytest 用例（最近全量 305 passed、1 skipped、覆盖率 95.93%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 

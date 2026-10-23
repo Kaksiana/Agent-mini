@@ -170,4 +170,4 @@
 - 五表 schema.sql 幂等；SystemDBRepository upsert models/tools（不覆盖 enabled）、sessions、tool_invocations、request_metrics。
 - Agent `with_system_db` 响应后异步 record_turn，`drain` 限时；失败 systemdb.degraded。
 - 测试：SQLite 异步仓储 + MySQL schema 静态；真实 MySQL 环境缺失（ISSUE-043）。
-- 验收：321 passed、1 skipped；unit 198、contract 64、integration 59；覆盖率 95.07%。
+- 验收：323 passed、1 skipped；unit 198、contract 64、integration 61；覆盖率 94.66%。

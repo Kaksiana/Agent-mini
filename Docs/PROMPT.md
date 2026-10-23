@@ -2170,4 +2170,27 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - schema.sql 五表幂等；仓储 SQLAlchemy Core + asyncmy；SQLite 测试替代。
 - Agent 异步 record_turn/drain；失败 systemdb.degraded。
-- 真实 MySQL 未启动，登记 ISSUE-043；验收 321 passed、1 skipped、覆盖率 95.07%。
+- 真实 MySQL 未启动，登记 ISSUE-043；验收 323 passed、1 skipped、覆盖率 94.66%。
+
+## 2026-10-24 01:10 — 独立评估 S17 代码产出
+
+### 原始 Prompt
+
+```text
+【评估】S17代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S17 MySQL 系统数据库代码、测试、文档、OpenSpec 与阶段门禁。
+- 关键约束：只读评估；除 `Docs/S17-report.md` 与本 Prompt 记录外，不修改实现、测试、OpenSpec 或远程状态。
+- 产出：新增 `Docs/S17-report.md`；结论为不通过，P0 0 项、P1 4 项、P2 5 项，暂不可进入 S18。
+- 关键发现：启动初始化/auto_create 未接入；会话缺 idle/closed；duration 固定为 0；声明的 MySQL 环境门控测试不存在；DDL 双真源漂移。
+- 验证：323 passed、1 skipped、总覆盖率 94.66%；repository.py 78.90%；mypy/OpenSpec/build 通过；Ruff format 与 diff-check 失败。
+- 人工修正 / 最终决策：未实施代码修复；保留真实 MySQL 缺失为开放风险，要求关闭 P1 后复评。
+- 关联提交：无；本轮未提交、未推送。
+
+## 2026-10-24 01:17 — 修复 S17 报告
+
+- 启动 initialize、状态转换、请求耗时、MySQL 门控、created_at 稳定与 schema 真源。
+- 验收：323 passed、2 skipped；integration 61（MySQL 1 skip）；覆盖率 94.66%。

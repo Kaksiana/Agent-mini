@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
