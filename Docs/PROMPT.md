@@ -1859,7 +1859,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 新增 SearchProvider/SearchResult/NullProvider、SearchArgs、@tool("search")；模块级 provider 注入。
 - 未配置 not_configured；参数/异常/超时/畸形/截断结构化；空结果成功。
 - TC-L3-006 实际是 calculator 集成，登记 ISSUE-039；search 独立 E2E 留后续。
-- 验收：263 passed、覆盖率 97.04%；unit 197、contract 64；mypy 63 files 0 errors。
+- 验收：263 passed、覆盖率 97.04%；unit 198、contract 64；mypy 63 files 0 errors。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s12-tool-search`；新建 `search` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 12 passed、0 failed。
 - 关联提交：`3617c1e`（OpenSpec 规划）、`b7eb3c9`（代码+测试）、`5d2b7cb`（文档）、归档提交见最终报告。
@@ -1895,7 +1895,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - provider name/SearchResult 四字段严格 str 校验；Registry search not_configured 测试。
 - write_file 发布后再次 containment，越界删除目标并 path_escape。
 - TC-L3-006 保留 calculator；search 正式 E2E 仍留 ISSUE-039。
-- 验收：263 passed、覆盖率 97.04%；unit 197、contract 64；mypy 64 files 0 errors。
+- 验收：263 passed、覆盖率 97.04%；unit 198、contract 64；mypy 64 files 0 errors。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s12-report-fixes`；search 增至 4 项 Requirement；`openspec validate --all --strict` 为 12 passed、0 failed。
 - 关联提交：`db181e7`（OpenSpec 规划）、`04e0f17`（代码+测试）、`9427741`（文档）、归档提交见最终报告。
@@ -1914,7 +1914,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - ShortTermMemory：JSON 完整轮次、LTRIM 10 轮、TTL 86400s、key 含 session_id、Redis 失败 memory.degraded。
 - 写回在 loop 返回后、Agent.run 返回前 await；工具配对/reasoning 持久化。
 - 依赖：redis>=7.4,<8；fakeredis>=2.23,<3 dev。
-- 验收：271 passed、覆盖率 96.51%；unit 197、contract 64；mypy 65 files 0 errors。
+- 验收：272 passed、覆盖率 96.18%；unit 198、contract 64；mypy 65 files 0 errors。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s13-memory-redis-shortterm`；新建 `short-term-memory` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 13 passed、0 failed。
 - 关联提交：`ea0e825`（代码+测试/依赖/change）、`ebd81c4`（文档）、归档提交见最终报告。
@@ -1931,7 +1931,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 目标：独立评估 S13 Redis 短时窗口、Runtime 写回、session_id、测试、OpenSpec、依赖与 S12 前置门禁。
 - 产出：新增 `Docs/S13-report.md`；识别 3 项 P0、6 项 P1、5 项 P2，结论为 S13 暂不可进入 S14。
-- 关键验证：271 passed、覆盖率 96.51%；ruff/format/mypy/OpenSpec/wheel/Python 3.11 通过；复现沙箱外原文件删除、Redis 无 TTL 部分写、Memory 异常/悬挂阻断响应、安全阀轮次不完整和 session 工具上下文断链。
+- 关键验证：272 passed、覆盖率 96.18%；ruff/format/mypy/OpenSpec/wheel/Python 3.11 通过；复现沙箱外原文件删除、Redis 无 TTL 部分写、Memory 异常/悬挂阻断响应、安全阀轮次不完整和 session 工具上下文断链。
 - 人工修正 / 决策：本轮只新增报告与 Prompt 记录，不修改实现、测试、OpenSpec、Issue、阶段状态或远程状态。
 - 关联提交：无（评估 Agent 不提交、不推送）。
 
@@ -1965,4 +1965,43 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - Agent 安全阀补 assistant 回复与 truncated 元数据；session_id 经 RegistryExecutor.with_context 注入。
 - S13 Redis 测试改为 integration；search provider name 异常纳入结构化错误。
 - write_file 发布窗口 P0-01 仍无法在 Windows 无目录句柄下完全闭环，已如实保留。
-- 验收：271 passed、覆盖率 96.51%；unit 197、contract 64、integration 8。
+- 验收：272 passed、覆盖率 96.18%；unit 198、contract 64、integration 8。
+
+## 2026-10-23 17:50 — 检验 S13 修复结果
+
+### 原始 Prompt
+
+```text
+【检验】检验修改结果
+```
+
+### 执行摘要
+
+- 目标：独立复验 `S13-report` 所列问题的修复状态与阶段门禁。
+- 关键约束：只更新同阶段报告与 Prompt 记录，不修改实现、测试、OpenSpec 或远程状态。
+- 产出：更新 `Docs/S13-report.md` §11；确认 P0-02/P0-03 关闭，P0-01 仍可复现，并发现 session 注入覆盖沙箱上下文的 P1 回归。
+- 验证：272 passed、覆盖率 96.18%；ruff/format/mypy/OpenSpec/wheel 通过；Python 3.11 因本机无 runtime 未复跑。
+- 人工修正 / 决策：S13 仍不可进入 S14；需先关闭报告列出的 P0/P1 门禁。
+- 关联提交：无（复验 Agent 不提交、不推送）。
+
+## 2026-10-23 17:50 — 继续 S13 修复复验
+
+### 原始 Prompt
+
+```text
+继续
+```
+
+### 执行摘要
+
+- 目标：继续完成边界探针、全量门禁、打包验证与报告落盘。
+- 产出：完成 `Docs/S13-report.md` §11 的修复状态矩阵、新增回归问题与门禁结论。
+- 人工修正 / 决策：保持评估边界，不实施修复、不提交、不推送。
+- 关联提交：无。
+
+
+### 2026-10-23 17:52 — S13 继续修复
+
+- 增加 write_file 父目录 reparse/junction 检测；移除发布后对外部 target 的补偿删除。
+- 保留 P0-01 残余：Windows 无目录句柄下仍非 OS 级原子。
+- 最终：272 passed、覆盖率 96.18%；unit 198、contract 64、integration 8、unmarked 2。

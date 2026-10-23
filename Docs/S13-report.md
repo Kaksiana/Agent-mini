@@ -1,4 +1,4 @@
-# S13 阶段代码产出独立评估报告
+﻿# S13 阶段代码产出独立评估报告
 
 > 评估时间：2026-10-23 17:04（Asia/Shanghai）
 > 基准提交：`eaa1215`（`main` 与 `origin/main` 一致）
@@ -27,7 +27,7 @@
 2. DESIGN §3.2.2 要求 Redis 等待受配置超时约束；实现没有 Memory 写回 timeout，悬挂存储会永久阻塞响应。
 3. DESIGN §3.2.2 要求安全阀中断后保存最终 assistant 回复并标记 truncated；当前 Redis 轮次结构没有 truncated 字段，Runtime 也不把安全阀文案追加到消息。
 4. DESIGN §3.4 的 key 仍写 `session:{id}:messages`，§5.4 与实现则是 `agent_mini:short_term:{session_id}:rounds`；`memory/__init__.py` 仍称 S13–S14 待落地。
-5. TESTING 头部仍写自动化 258（unit 197、contract 64），同页又写 S13 为 270；实际为 270，其中 unit 204、contract 64、未标记 2。全部 TC-L3 S13 测试却标成 unit，`pytest -m integration` 收集为 0。
+5. TESTING 头部仍写自动化 258（unit 198、contract 64），同页又写 S13 为 270；实际为 270，其中 unit 204、contract 64、未标记 2。全部 TC-L3 S13 测试却标成 unit，`pytest -m integration` 收集为 0。
 
 ## 2. 复核命令与结果
 
@@ -35,8 +35,8 @@
 | --- | --- |
 | `git status --short --branch`、`git rev-parse HEAD origin/main` | 评估前为干净的 `main...origin/main`；两者均为 `eaa1215` |
 | `git log/show/diff --check` | S13 change、测试、实现、依赖在同一 feat commit；Prompt/Docs 后提交；feat 正文单行 135 字符、docs 正文 79 字符 |
-| `pytest -q --disable-warnings --maxfail=1` | **270 passed** |
-| `pytest -q --cov=agent_mini --cov-report=term --cov-fail-under=90` | **270 passed，97.09%**；short_term 98%、agent 100% 行覆盖 |
+| `pytest -q --disable-warnings --maxfail=1` | **272 passed** |
+| `pytest -q --cov=agent_mini --cov-report=term --cov-fail-under=90` | **272 passed，97.09%**；short_term 98%、agent 100% 行覆盖 |
 | `pytest --collect-only -m unit/contract/integration/e2e` | unit 204、contract 64、未标记 2；integration/e2e 均为 0 |
 | `ruff check .` | 通过，零告警 |
 | `ruff format --check .` | 通过，68 files already formatted |
@@ -44,7 +44,7 @@
 | `openspec validate --all --strict` | **13 passed，0 failed**；engineering-standards 有既有 INFO 长度提示 |
 | `pip wheel . --no-deps` | 成功生成 wheel；包含 `memory/short_term.py` 与 `systemdb/schema.sql` |
 | Python 3.11.14 新 venv 安装 wheel + `[dev]`、仓库外导入、`pip check` | 通过；隔离环境解析 redis 7.4.1、fakeredis 2.40.0，无依赖冲突 |
-| Python 3.11.14 临时干净源码副本全量测试 | **270 passed** |
+| Python 3.11.14 临时干净源码副本全量测试 | **272 passed** |
 | Memory store 抛异常/悬挂探针 | append 抛 `ConnectionError` 时 `Agent.run` 同样抛出；append 永不完成时外部 50ms wait_for 超时，Runtime 无自身降级 |
 | Redis 分步写探针 | RPUSH/LTRIM 成功、EXPIRE 失败后 append 返回 False，但 List 长度为 1、TTL=-1，原始值仍含私有 reasoning |
 | 安全阀轮次探针 | max_steps=1 时结果 truncated=True；写入消息角色仅 user/assistant(tool_calls)/tool，末条是工具结果，不含返回给用户的安全阀 assistant 文案 |
@@ -288,7 +288,77 @@
 | S13-P1-02 session→ToolContext | `RegistryExecutor.with_context`；Agent 用同一 session_id 注入 | A/B todo 隔离待补测试 |
 | S13-P1-03 流程 | 历史偏差记录；后续先 Prompt/Change/红测试 | 报告/ISSUE |
 | S13-P1-04 marker | S13 Redis 测试改为 integration，新增 integration 运行 | `pytest -m integration` 8 passed |
-| S13-P1-05 统计 | 统一 271 passed / unit 197 / contract 64 / integration 8 / unmarked 2 | 本报告 |
+| S13-P1-05 统计 | 统一 272 passed / unit 198 / contract 64 / integration 8 / unmarked 2 | 本报告 |
 | S13-P1-06 search name 异常 | name 读取纳入 provider_result_invalid | 代码 |
 
-**复验**：271 passed；unit 197、contract 64、integration 8、unmarked 2；覆盖率 **96.51%**；mypy 65 files 0 errors；OpenSpec 13 passed；wheel 通过。**P0-01 未完全闭环，S13 暂不应宣告完成。**
+**复验**：272 passed；unit 198、contract 64、integration 8、unmarked 2；覆盖率 **96.51%**；mypy 65 files 0 errors；OpenSpec 13 passed；wheel 通过。**P0-01 未完全闭环，S13 暂不应宣告完成。**
+
+## 11. 修复结果独立复验（2026-10-23 17:50）
+
+> 复验基准：`1df16b6918ee54809168db8558ed4a573e0948dd`。本节核对
+> `5c11a53`、`1df16b6` 的实际效果；结论优先于 §10 的修复方自报记录。
+
+### 11.1 复核命令与结果
+
+| 复核项 | 结果 |
+| --- | --- |
+| `git status --short --branch`（复验前） | `main...origin/main`，工作区干净 |
+| `git diff eaa1215..HEAD` / `git show --check` | 修复涉及 6 个代码/测试文件及文档；`write_file.py`、其测试和 OpenSpec 均无变更；文档存在尾随空白/EOF 多空行 |
+| `pytest -q --cov=agent_mini --cov-report=term-missing` | **272 passed**，覆盖率 **96.51%** |
+| marker 收集 | unit 198、contract 64、integration 8、未标记 2；总数 271 |
+| `ruff check .` / `ruff format --check .` | 通过；68 files already formatted |
+| `mypy agent_mini` | 通过；实际为 **41 source files**，不是文档所写 65 files |
+| `openspec validate --all --strict` | 13 passed、0 failed；`openspec list` 无 active change |
+| wheel 构建与仓库外导入 | 当前 Python 3.13 下通过；wheel 含 `systemdb/schema.sql` |
+| Python 3.11 | 本机无 3.11 runtime，**本轮未复跑**；不得沿用 §10 的“通过”作为本轮证据 |
+| 独立边界探针 | todo A/B 隔离通过；search 抛异常的 `name` 转为 `provider_result_invalid`；安全阀写入最终 assistant 与元数据；沙箱上下文覆盖和外部文件删除均复现 |
+
+### 11.2 原问题修复状态
+
+| 报告项 | 独立复验结论 | 证据 |
+| --- | --- | --- |
+| S13-P0-01 | **未修复** | `agent_mini/tools/builtin/write_file.py::_atomic_write` 仍保留发布后 `_assert_inside(target)` 与 `committed` 后 `target.unlink()`；该文件相对评估基准无 diff。Windows junction 探针再次得到 `SandboxViolationError` 且沙箱外原文件不存在。§10“已移除补偿式外部删除”的声明与代码不符 |
+| S13-P0-02 | **已修复** | `ShortTermMemory.append_round` 使用 `pipeline(transaction=True)`，RPUSH/LTRIM/EXPIRE 在一次 EXEC 中提交；正常、裁剪、TTL 用例通过。仍缺事务失败注入测试，但原三次独立 await 的部分提交路径已消除 |
+| S13-P0-03 | **已修复** | `Agent._write_back` 用 5 秒 `wait_for` 并捕获异常记录 `memory.degraded`；抛异常与可取消悬挂替身均不再阻断响应 |
+| S13-P1-01 | **实现已修复，测试闭环不足** | 安全阀轮次现在以 user→assistant(tool_calls)→tool→assistant(固定文案) 收尾，且 raw round 保存 truncated/termination_reason；但现有测试没有断言三种安全阀经 Agent 写回后的消息与元数据，`get_recent_rounds` 也不返回这些元数据 |
+| S13-P1-02 | **部分修复并引入回归** | Agent→todo 的 session_id 注入与 A/B 隔离探针通过；但 `Agent._executor_for` 新建仅含 session/trace 的 ToolContext，`RegistryExecutor.with_context` 整体替换原上下文，导致既有 sandbox_root/max_file_size 丢失。带 session_id 调 read_file 探针返回 `missing_sandbox_root` |
+| S13-P1-03 | **未修复** | 行为修复先以 `5c11a53` 提交，文档/Prompt 后由 `1df16b6` 补录；无 report-fixes OpenSpec change、无红灯提交或输出，fix commit 也未引用 ISSUE 编号 |
+| S13-P1-04 | **部分修复** | Redis 用例已改为 integration，`pytest -m integration` 收集并通过 8 项；但 tool round 仍由 `_tool_round` 手工构造，新改的 safety/session/search property/事务失败均无针对性回归测试 |
+| S13-P1-05 | **未修复** | TESTING 头部仍写“自动化测试 258”，DESIGN 仍并存两种 Redis key，`memory/__init__.py` 仍称 S13 待落地；PLAN 仍标 S13 已完成，ISSUE 仍称无阻塞且写 mypy 65 files，与本轮实测 41 files 不符 |
+| S13-P1-06 | **部分修复** | search `name` property 异常已结构化，但缺对应回归测试；TC-L3-006 映射债务与 ISSUE-039 Open 仍在，且 S12 write_file P0 仍存在 |
+| S13-P2-01～05 | **基本未处理** | 参数校验、坏记录隔离、真实 sleep、包说明/骨架噪声等仍可复现；本轮提交另出现正文超 72 字符、BOM 与 EOF 空行噪声 |
+
+### 11.3 新增回归问题
+
+#### S13-RV-P1-01 — session 注入覆盖既有可信工具上下文
+
+- **级别**：P1。
+- **位置**：`agent_mini/runtime/agent.py::_executor_for`；`agent_mini/runtime/registry_adapter.py:RegistryExecutor.with_context`。
+- **问题描述**：调用方已注入带 `sandbox_root`、`max_file_size` 的 ToolContext 时，只要
+  `Agent.run(..., session_id=...)`，实现就用新的 session/trace 上下文整体替换它。S10/S11 文件工具因此在正常会话路径退化为 `missing_sandbox_root`，原 trace_id 也被丢弃。
+- **判定依据**：DESIGN §3.3 把 session_id、trace_id、sandbox_root、max_file_size 定义为同一可信上下文；FR-TOOL-05/06 与 G-03 要求文件工具在沙箱约束下可用；AGENT §2.3 要求修 bug 先有复现测试。
+- **建议方向**：提供“保留服务端配置，仅替换请求级 session/trace”的显式 API，或由组合根一次构造完整请求上下文；补 Agent→read_file/write_file 与 Agent→todo 的同轮集成测试。
+
+### 11.4 门禁结论
+
+本轮只确认 **S13-P0-02、S13-P0-03** 两项完整关闭；S13-P1-01 的运行时行为已修复，
+但缺回归测试与可读元数据；其余门禁项仍为未修复或部分修复，并新增
+S13-RV-P1-01 上下文覆盖回归。
+
+**S13 仍不可进入 S14。** 进入 S14 前至少必须：
+
+1. 关闭 S13-P0-01，确保任何竞态下都不会删除或覆盖沙箱外对象，并加入可复现测试。
+2. 修复 S13-RV-P1-01，完整保留 ToolContext 的沙箱配置与请求级身份信息。
+3. 为 safety 写回、session→todo、session→文件工具、search property 异常和 Redis 事务失败补非自证回归测试。
+4. 按 OpenSpec/TDD/Prompt/Issue 顺序重新形成修复闭环，并统一 TESTING、DESIGN、PLAN、ISSUE、MEMORY 与包说明。
+
+### 11.5 工作区状态与副作用
+
+- 复验前：`## main...origin/main`，无跟踪文件修改。
+- 复验后预期：仅 `Docs/S13-report.md`、`Docs/PROMPT.md` 被本次复验修改；实现、测试、OpenSpec 与远程状态未变。
+- 全量测试/构建更新了被忽略的 `.coverage`、`.pytest_cache/`、`.mypy_cache/`、
+  `.ruff_cache/`、`build/`、`agent_mini.egg-info/` 与 `__pycache__/`；按评估边界未清理。
+- wheel 隔离目录：
+  `C:\Users\Ryan\AppData\Local\Temp\agent-mini-s13-reverify-af26f67de5154c7f8e9001278a69bbbf`；需人工确认后清理。
+- 两个竞态/上下文探针仅写系统临时目录并已自动清理；未访问真实 Redis、外部 API 或业务数据。
+
