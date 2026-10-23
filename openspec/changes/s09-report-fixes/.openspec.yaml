@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-23
+goal: S09 报告修复：Schema、Registry 错误码、严格 index、TC 断言与快照
