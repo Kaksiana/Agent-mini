@@ -127,7 +127,7 @@ class ToolRegistry:
             return invalid
         validated = spec.params_model.model_validate(arguments or {})
         try:
-            raw = await _invoke(spec.handler, validated.model_dump())
+            raw = await _invoke(spec.handler, validated.model_dump(), context)
         except Exception:
             return ToolResult(False, "工具执行失败", TOOL_ERROR_EXECUTION)
         if not isinstance(raw, ToolResult):
@@ -159,7 +159,13 @@ def _validate_arguments(
     return None
 
 
-async def _invoke(handler: Callable[..., Any], arguments: dict[str, object]) -> object:
+async def _invoke(
+    handler: Callable[..., Any],
+    arguments: dict[str, object],
+    context: ToolContext | None,
+) -> object:
+    if "context" in inspect.signature(handler).parameters:
+        arguments = {**arguments, "context": context}
     if inspect.iscoroutinefunction(handler):
         return await handler(**arguments)
     return await asyncio.to_thread(lambda: handler(**arguments))
