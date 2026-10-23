@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 import re
 from collections.abc import Awaitable, Callable
 from uuid import uuid4
@@ -13,11 +14,20 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from agent_mini.context.window import ContextTooLarge
+from agent_mini.llm.client import HttpLLMClient
 from agent_mini.llm.errors import LLMError, LLMRateLimitError, LLMTimeoutError
+from agent_mini.llm.models import ModelConfig
 from agent_mini.runtime.agent import Agent
+from agent_mini.runtime.registry_adapter import RegistryExecutor
 from agent_mini.runtime.result import AgentResult
+from agent_mini.tools import builtin as _builtin
+from agent_mini.tools.registry import DEFAULT_REGISTRY
 
 MAX_MESSAGE_CHARS = 32_000
+DEFAULT_BASE_URL = "https://api.deepseek.com"
+DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_TIMEOUT_SECONDS = 60.0
+_ = _builtin
 _SECRET_PATTERNS = (
     re.compile(r"(?i)\b(authorization|api[_-]?key|password|cookie)\b\s*[:=]\s*\S+"),
     re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+"),
@@ -65,6 +75,23 @@ class ChatResponse(BaseModel):
     trace: list[dict[str, object]]
     trace_id: str
     truncated: bool
+
+
+def create_app_from_env() -> FastAPI:
+    """从环境构造可运行应用；缺 Key 启动失败。"""
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise RuntimeError("DEEPSEEK_API_KEY 未配置")
+    config = ModelConfig(
+        base_url=os.environ.get("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL),
+        model=os.environ.get("DEEPSEEK_MODEL", DEFAULT_MODEL),
+        timeout=float(os.environ.get("DEEPSEEK_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)),
+    )
+    agent = Agent(
+        HttpLLMClient(config, api_key),
+        tool_executor=RegistryExecutor(DEFAULT_REGISTRY),
+    )
+    return create_app(agent)
 
 
 def create_app(

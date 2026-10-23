@@ -11,7 +11,7 @@ import pytest
 import agent_mini.tools.builtin as builtin
 from agent_mini.context.builder import ContextBuilder
 from agent_mini.context.token_counter import TokenCounter
-from agent_mini.interface.http import create_app
+from agent_mini.interface.http import create_app, create_app_from_env
 from agent_mini.llm.models import LLMResponse, Message, ToolCall, Usage
 from agent_mini.memory.base import StoredRound
 from agent_mini.runtime.agent import Agent
@@ -186,3 +186,25 @@ async def test_concurrent_sessions() -> None:
         )
     assert all(response.status_code == 200 for response in responses)
     assert len(short.data) == 10
+
+
+def test_env_factory_requires_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
+        create_app_from_env()
+
+
+async def test_three_llm_tool_chain_http() -> None:
+    llm = _Scripted(
+        [
+            _tool_call("c1", "calculator", {"expression": "2+2"}),
+            _tool_call("c2", "todo", {"action": "add", "content": "4"}),
+            _final("done"),
+        ]
+    )
+    app = create_app(_agent(llm), {})
+    async with _client(app) as client:
+        response = await client.post("/chat", json={"session_id": "A", "message": "calc+todo"})
+    assert response.status_code == 200
+    assert len(llm.calls) == 3
+    assert response.json()["tool_calls"] == 2
