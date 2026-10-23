@@ -2025,3 +2025,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - TC-L3-015 search Agent 集成；ISSUE-039 Resolved。
 - StoredRound 冻结模型接入 Redis 读写。
 - 279 passed、覆盖率 95.76%；unmarked=0；OpenSpec 归档。
+
+- OpenSpec 归档：`s13-closeout` 归档为 `2026-10-23-s13-closeout`；short-term-memory +1 Requirement；`openspec validate --all --strict` 13 passed。
+- 关联提交：`7e67aca`（change）、`8c37fd2`（POSIX）、`1915da6`（search TC）、`1d0ea96`（StoredRound）、`f027273`（文档）、归档提交见最终报告。

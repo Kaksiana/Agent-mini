@@ -1,4 +1,4 @@
-# ISSUE <!-- omit in toc -->
+﻿# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -488,7 +488,7 @@
 
 - 日期：2026-10-23
 - 现象：`test_posix_parent_symlink_is_rejected` 在 Windows 标记 skip；本机无 Linux/WSL Python 3.11，无法实跑 POSIX dir_fd 路径。
-- 影响：代码已实现 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；POSIX 运行证据待 Linux CI。
+- 影响：代码已实现 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；POSIX 运行证据待 Linux CI；当前机器无 Python 3.11。
 - 状态：Open（S14 前在 Linux 复跑；不伪造通过）
 - 关联：`s13-closeout`
 
@@ -545,6 +545,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 
