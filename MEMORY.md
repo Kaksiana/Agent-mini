@@ -149,3 +149,11 @@
 - 依赖 pymongo>=4.9,<5；mongomock>=4.3,<5 dev。
 - 验收：294 passed、1 skipped；unit 198、contract 64、integration 32；覆盖率 95.79%。
 
+
+## 2026-10-23 — S15 Context 拼接与预算
+
+- ContextPayload：messages/tools_snapshot/message_tokens/tool_schema_tokens/protocol_overhead_tokens/estimated_input_tokens/budget。
+- TokenCounter：cl100k_base、规范 JSON、256 协议开销、10% 余量、字符降级并保留 Schema。
+- ContextBuilder：system→工具摘要→中期摘要→StoredRound 历史→当前 user；不做裁剪。
+- 依赖 tiktoken>=0.12,<0.13；测试注入假 encoder，不依赖在线下载。
+- 验收：301 passed、1 skipped；unit 198、contract 64、integration 39；覆盖率 95.42%。

@@ -2069,3 +2069,18 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - base 增加 MidTermStore Protocol；session 校验统一；索引 key 校验；MidTermMemory/drain。
 - 文档统一 conversation_rounds 一轮一文档；补 raw/full tool round/timeout/invalid session/index conflict 测试。
 - 验收：294 passed、1 skipped；unit 198、contract 64、integration 32、unmarked 0；覆盖率 95.79%。
+
+## 2026-10-23 22:47 — S15 Context 拼接与预算
+
+### 原始 Prompt
+
+```text
+【角色】S15「Context：管线拼接与 token 预算」执行 Agent：按 PLAN S15 用 TDD 实现拼接、计数与预算，完成验收与收口。
+```
+
+### 执行摘要
+
+- ContextPayload/TokenCounter/ContextBuilder；system→工具摘要→中期摘要→StoredRound 历史→当前 user。
+- 预算 16000-1024-1600=13376；协议开销 256；tiktoken 不可用字符降级仍统计 Schema。
+- tools_snapshot 原引用复用；不实现 S16 裁剪。
+- 验收：301 passed、1 skipped；unit 198、contract 64、integration 39；覆盖率 95.42%。

@@ -282,7 +282,8 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 
 - **工具结果的消息格式**：必须成对写入 `assistant(tool_calls)` 与 `tool(tool_call_id)`，否则模型会报协议错误（对应 FR-RT-04）。
 - **安全阀**：`max_steps`（默认 8）、`deadline`（默认 120s，自 `Agent.run` 启动计时）、`repeat_threshold`（同一 `(name,args)` 连续 3 次即中断）。这些参数与 `truncated` 在 S05 接入；S04 循环只负责工具往返与正常收敛，不实现强制终止。
-- **重复判定**：按工具执行顺序维护最近签名；`name` + 规范化 JSON arguments（键排序）相同且连续达到 `repeat_threshold` 时中断，遇到不同签名即重置计数。
+- **重复判定**：按工具执行顺序维护最近签名；
+ame` + 规范化 JSON arguments（键排序）相同且连续达到 `repeat_threshold` 时中断，遇到不同签名即重置计数。
 - **Deadline 与取消**：每次 LLM 请求前和每个工具执行前检查剩余时间；LLM 请求与单次工具执行使用 `asyncio.wait_for(remaining)` 取消，超时结果转为 `error_code=deadline`，不再请求模型。
 - **终止文案**：`max_steps` = “已达到最大步数限制，已停止。”；`deadline` = “已达到截止时间限制，已停止。”；`repeat` = “检测到重复工具调用，已停止。”。
 - **终止语义**：正常收敛返回模型内容且 `truncated=false`；触达安全阀返回固定提示、`truncated=true` 与 `termination_reason`（对应 FR-RT-05、AC-10）。中断发生在工具批次中间时，为本批未执行/未完成调用补齐同 `call_id` 的取消或超时 tool 结果，保持协议配对。
@@ -311,12 +312,15 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 
   | 工具 | 实现要点 | 风险控制 |
   | --- | --- | --- |
-  | calculator | `ast.parse(mode="eval")` 白名单 `Expression/BinOp/UnaryOp/Constant`，仅 `+ - * /`、取负/取正、括号；阈值 200 字符/20 层/1e12；错误码 `unsafe_expression`/`syntax_error`/`division_by_zero`/`type_error`/`expression_too_long`/`expression_too_deep`/`number_overflow` | 禁止 `eval/exec/compile/import`；bool 不算数值；危险节点拒绝（FR-TOOL-02） |
-  | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；模型 before validator 将非字符串转字符串，保证 Registry 返回 `invalid_timezone`；Schema 仅含 `timezone`，描述不暴露 tz；`now_provider` 仅测试注入，不进入 Schema | 空串/大小写错误/不存在 IANA/非字符串返回 `invalid_timezone`（FR-TOOL-03） |
+  | calculator | `ast.parse(mode="eval")` 白名单 `Expression/BinOp/UnaryOp/Constant`，仅 `+ - * /`、取负/取正、括号；阈值 200 字符/20 层/1e12；错误码 `unsafe_expression`/`syntax_error`/`division_by_zero`/`type_error`/`expression_too_long`/`expression_too_deep`/
+umber_overflow` | 禁止 `eval/exec/compile/import`；bool 不算数值；危险节点拒绝（FR-TOOL-02） |
+  | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；模型 before validator 将非字符串转字符串，保证 Registry 返回 `invalid_timezone`；Schema 仅含 `timezone`，描述不暴露 tz；
+ow_provider` 仅测试注入，不进入 Schema | 空串/大小写错误/不存在 IANA/非字符串返回 `invalid_timezone`（FR-TOOL-03） |
   | todo | 以 `ToolContext.session_id` 为键的 `MemoryTodoStore`（可 `configure_todo_store` 注入，S13 替换 Memory KV）；1-based 稳定 id，complete/delete 不重排，返回 frozen 快照；add/list/complete/delete；index 严格 int | 空列表返回空 items；不跨会话；重启丢失、非线程安全；完整 Schema 不含 session_id；非法 action 返回 invalid_action（FR-TOOL-04） |
   | read_file | `ToolContext.sandbox_root` 提供根；`Sandbox.resolve` 四步校验；大小≤max_file_size；有界读取 `limit+1`；NUL 二进制拒绝；仅文本 codec（空编码/非文本拒绝）；返回 JSON `{content,size,encoding}`；空文件正常、换行保留；错误码 absolute_path/path_escape/invalid_path/hidden_path/extension_not_allowed/path_too_long/file_not_found/file_too_large/binary_file/decode_error/invalid_encoding/file_read_error/missing_sandbox_root | 越界阻断、二进制拒绝、大小/编码限制、错误码区分（FR-TOOL-05） |
   | write_file | 复用 `Sandbox.resolve`；父目录必须存在；默认不覆盖，`overwrite=false` 用同目录临时文件 + `os.link` 原子发布（EEXIST→file_exists），`overwrite=true` 才 `os.replace`；temp/parent 在创建后和发布前复核 root；失败 unlink；保留既有权限；空内容合法；返回 `{path,size,overwritten}` | 越界阻断、大小/编码上限、失败无残留；父目录竞态采用多次 containment 复核，仍不宣称完全原子（FR-TOOL-06） |
-  | search | `async SearchProvider.search(query, limit)` + `SearchResult(title,url,snippet,source)`；默认 `NullProvider`，模块级 `configure_search_provider` 注入；5s 超时；limit 1..10；摘要 500 字符；结果 JSON provider/truncated/results | 未配置 `not_configured`；provider 异常 `provider_error`、超时 `provider_timeout`、畸形 `provider_result_invalid`；**禁止伪造结果**（FR-TOOL-08） |
+  | search | `async SearchProvider.search(query, limit)` + `SearchResult(title,url,snippet,source)`；默认 `NullProvider`，模块级 `configure_search_provider` 注入；5s 超时；limit 1..10；摘要 500 字符；结果 JSON provider/truncated/results | 未配置 
+ot_configured`；provider 异常 `provider_error`、超时 `provider_timeout`、畸形 `provider_result_invalid`；**禁止伪造结果**（FR-TOOL-08） |
 
 ### 3.4 Memory 记忆
 
@@ -339,6 +343,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   - **预算** = `model.max_context_tokens` − `max_output_tokens`（默认 1024）− **安全余量 10%**。
   - **每次出站前**调用 `Context.fit`：首次拼接、每批工具结果回灌后及裁剪后都重新统计实际请求，比较 `estimated_input_tokens ≤ budget`。响应 `usage` 仅用于观测对账，不参与预算判断。本地 tokenizer 与供应商不同源，10% 余量降低超限风险，不宣称数学上保证服务端 token 永不超限。
   - **降级**：`tiktoken` 不可用时对同样的规范 JSON 文本退回字符比例估算（ASCII 约 0.3、非 ASCII 约 0.6 token/字符，各项向上取整），保留结构开销与 10% 余量，并记录 `token_counter.degraded`。
+- **S15 实现**：`ContextPayload(messages, tools_snapshot, message_tokens, tool_schema_tokens, protocol_overhead_tokens, estimated_input_tokens, budget)`；`ContextBuilder` 只拼接不裁剪；`tools_snapshot` 原引用保存并计数；历史从 ShortTermStore/MidTermStore 读取 StoredRound，按 round_id 去重；`DEFAULT_MAX_OUTPUT_TOKENS=1024`、`DEFAULT_PROTOCOL_OVERHEAD_TOKENS=256`、`SAFETY_MARGIN_RATIO=0.10`；JSON `ensure_ascii=False, sort_keys=True, separators=(",",":")`。
 - **压缩策略 = 双触发的整轮滑动窗口**：
   - 「一轮」= 一条 `user` 消息 + 其后的 `assistant` 回复 + 其间所有 `assistant(tool_calls)/tool` 往返，作为**不可拆分的整体**；
   - **触发条件（任一成立）**：轮次数 > K（默认 10） **或** 估算 token > 预算；
@@ -377,8 +382,10 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | 表 | 关键字段 | 用途 |
   | --- | --- | --- |
   | `sessions` | `session_id`(PK)、`status`(active/idle/closed)、`created_at`、`last_active_at`、`message_count`、`meta`(JSON) | 会话管理：登记、活跃度、状态流转 |
-  | `models` | `id`、`name`(UK)、`provider`、`base_url`、`model`、`max_context_tokens`、`enabled`、`created_at`、`updated_at` | 系统模型登记：可用模型与上下文上限 |
-  | `tools` | `id`、`name`(UK)、`version`、`description`、`params_schema`(JSON)、`enabled`、`created_at`、`updated_at` | 工具登记：名称、描述、参数 Schema、启停 |
+  | `models` | `id`、
+ame`(UK)、`provider`、`base_url`、`model`、`max_context_tokens`、`enabled`、`created_at`、`updated_at` | 系统模型登记：可用模型与上下文上限 |
+  | `tools` | `id`、
+ame`(UK)、`version`、`description`、`params_schema`(JSON)、`enabled`、`created_at`、`updated_at` | 工具登记：名称、描述、参数 Schema、启停 |
   | `tool_invocations` | `id`、`session_id`、`trace_id`、`tool_name`、`ok`、`error_code`、`duration_ms`、`created_at` | 工具调用审计 |
   | `request_metrics` | `id`、`trace_id`、`session_id`、`steps`、`tool_calls`、`prompt_tokens`、`completion_tokens`、`duration_ms`、`created_at` | 请求级指标落库 |
 
@@ -571,6 +578,11 @@ S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且
 | v0.26 | 2026-10-23 | S11 报告修复：os.link 原子不覆盖、parent/temp containment、COM/LPT 全量 | §3.3；联动 S11-report、s11-report-fixes |
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
 | v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |
+| v0.30 | 2026-10-23 | S15 Context 拼接：ContextPayload、StoredRound 历史、tools_snapshot 复用、预算/降级 | §3.5；联动 FR-CTX-01/02、TC-L1-013/022/025、TC-L3-007 |
+
+
+
+
 
 
 
