@@ -1,15 +1,26 @@
 """S06 ToolRegistry 到 S04 ToolExecutor 的适配器。"""
 
+from __future__ import annotations
+
 from agent_mini.llm.models import ToolCall, ToolSchema
-from agent_mini.tools.registry import ToolRegistry, ToolResult
+from agent_mini.tools.registry import ToolContext, ToolRegistry, ToolResult
 
 
 class RegistryExecutor:
     """把注册表适配为 Runtime 的 ToolExecutor Protocol。"""
 
-    def __init__(self, registry: ToolRegistry) -> None:
-        """保存注册表实例。"""
+    def __init__(
+        self,
+        registry: ToolRegistry,
+        context: ToolContext | None = None,
+    ) -> None:
+        """保存注册表与可选可信上下文。"""
         self._registry = registry
+        self._context = context
+
+    def with_context(self, context: ToolContext) -> RegistryExecutor:
+        """返回带请求级可信上下文的新适配器。"""
+        return RegistryExecutor(self._registry, context)
 
     def schemas(self) -> list[ToolSchema]:
         """返回注册表当前的 OpenAI tools Schema。"""
@@ -17,4 +28,4 @@ class RegistryExecutor:
 
     async def execute(self, call: ToolCall) -> ToolResult:
         """执行一次 ToolCall；call 绑定由 Runtime 保持。"""
-        return await self._registry.execute(call.name, call.arguments)
+        return await self._registry.execute(call.name, call.arguments, self._context)

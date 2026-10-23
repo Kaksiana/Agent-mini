@@ -37,14 +37,18 @@ class ShortTermMemory:
         session_id: str,
         messages: list[Message],
         round_id: str,
+        truncated: bool = False,
+        termination_reason: str | None = None,
     ) -> bool:
         """同步写回完整轮次；异常降级为 False。"""
         try:
-            payload = _encode_round(round_id, messages)
+            payload = _encode_round(round_id, messages, truncated, termination_reason)
             key = self.key(session_id)
-            await cast(Awaitable[int], self._client.rpush(key, payload))
-            await cast(Awaitable[str], self._client.ltrim(key, -self._max_rounds, -1))
-            await cast(Awaitable[bool], self._client.expire(key, self._ttl_seconds))
+            pipeline = self._client.pipeline(transaction=True)
+            pipeline.rpush(key, payload)
+            pipeline.ltrim(key, -self._max_rounds, -1)
+            pipeline.expire(key, self._ttl_seconds)
+            await cast(Awaitable[Any], pipeline.execute())
             return True
         except Exception:
             LOGGER.warning(
@@ -76,9 +80,16 @@ class ShortTermMemory:
             return []
 
 
-def _encode_round(round_id: str, messages: list[Message]) -> str:
+def _encode_round(
+    round_id: str,
+    messages: list[Message],
+    truncated: bool = False,
+    termination_reason: str | None = None,
+) -> str:
     payload = {
         "round_id": round_id,
+        "truncated": truncated,
+        "termination_reason": termination_reason,
         "messages": [message.model_dump(mode="json") for message in messages],
     }
     return json.dumps(payload, ensure_ascii=False)

@@ -99,10 +99,20 @@ async def search(query: str, limit: int = DEFAULT_RESULTS) -> ToolResult:
         return ToolResult(False, "搜索超时", ERROR_TIMEOUT)
     except Exception:
         return ToolResult(False, "搜索 provider 失败", ERROR_PROVIDER)
-    name = getattr(_PROVIDER, "name", None)
+    name = _provider_name()
+    if isinstance(name, ToolResult):
+        return name
+    return _render(raw, limit, name)
+
+
+def _provider_name() -> str | ToolResult:
+    try:
+        name = getattr(_PROVIDER, "name", None)
+    except Exception:
+        return ToolResult(False, "provider 名称读取失败", ERROR_RESULT_INVALID)
     if not isinstance(name, str):
         return ToolResult(False, "provider 名称不合法", ERROR_RESULT_INVALID)
-    return _render(raw, limit, name)
+    return name
 
 
 def _validate_arguments(query: str, limit: int) -> ToolResult | None:

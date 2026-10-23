@@ -12,7 +12,7 @@ from agent_mini.llm.client import LLMClient
 from agent_mini.memory.short_term import ShortTermMemory
 from agent_mini.runtime.agent import Agent
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.integration
 
 
 def _user(text: str) -> llm_models.Message:
@@ -94,6 +94,9 @@ class _BrokenClient:
     async def lrange(self, *args: object) -> list[str]:
         raise ConnectionError("down")
 
+    async def eval(self, *args: object) -> None:
+        raise ConnectionError("down")
+
 
 async def test_redis_failure_degrades_without_raise(
     caplog: pytest.LogCaptureFixture,
@@ -119,6 +122,8 @@ class _OrderedStore:
         session_id: str,
         messages: list[llm_models.Message],
         round_id: str,
+        truncated: bool = False,
+        termination_reason: str | None = None,
     ) -> bool:
         self.written = True
         self.messages = messages
@@ -151,6 +156,42 @@ async def test_agent_degrades_when_memory_fails(
 ) -> None:
     memory = ShortTermMemory(cast(Any, _BrokenClient()))
     agent = Agent(cast(LLMClient, _StubLLM()), short_term=memory)
+
+    with caplog.at_level(logging.WARNING):
+        result = await agent.run("hi", session_id="A")
+
+    assert result.reply == "ok"
+    assert "memory.degraded" in caplog.text
+
+
+class _HangingStore:
+    async def append_round(
+        self,
+        session_id: str,
+        messages: list[llm_models.Message],
+        round_id: str,
+        truncated: bool = False,
+        termination_reason: str | None = None,
+    ) -> bool:
+        await asyncio.sleep(10)
+        return True
+
+    async def get_recent_rounds(
+        self,
+        session_id: str,
+        limit: int | None = None,
+    ) -> list[list[llm_models.Message]]:
+        return []
+
+
+async def test_agent_timeout_degrades(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import agent_mini.runtime.agent as agent_module
+
+    monkeypatch.setattr(agent_module, "MEMORY_WRITEBACK_TIMEOUT_SECONDS", 0.01)
+    agent = Agent(cast(LLMClient, _StubLLM()), short_term=_HangingStore())
 
     with caplog.at_level(logging.WARNING):
         result = await agent.run("hi", session_id="A")

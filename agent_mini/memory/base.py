@@ -13,6 +13,8 @@ class ShortTermStore(Protocol):
         session_id: str,
         messages: list[Message],
         round_id: str,
+        truncated: bool = False,
+        termination_reason: str | None = None,
     ) -> bool:
         """写回一个完整轮次；失败返回 False。"""
         ...
