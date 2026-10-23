@@ -466,6 +466,16 @@
 - 状态：Resolved
 - 关联提交：`s11-report-fixes` change（见最终报告）
 
+### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
+
+- 日期：2026-10-23
+- 现象：PLAN S12/FR-TOOL-08 引用 TC-L3-006，但该 TC 实际验证 mock LLM 触发 calculator，与 search 无关。
+- 根因：测试编号映射错误，search 缺少独立集成/E2E TC。
+- 解决方案：S12 以 TC-L1-021 为正式验收；TC-L3-006 保留 calculator 原语义；search 独立 E2E 留后续阶段新增，不自行补写 TC。
+- 验证结果：search provider 协议、not_configured、异常/超时/截断测试通过；TC-L3-006 不计入 search 覆盖。
+- 状态：Open（待后续新增 search E2E）
+- 关联提交：`s12-tool-search` change
+
 ### S11 阶段问题记录（2026-10-23）
 
 - 实现：write_file 复用 Sandbox；父目录必须存在；默认不覆盖，overwrite=true 才替换。

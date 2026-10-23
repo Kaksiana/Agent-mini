@@ -1845,3 +1845,18 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s11-report-fixes`；write-file 增至 4 项 Requirement；`openspec validate --all --strict` 为 11 passed、0 failed。
 - 关联提交：`84a5add`（OpenSpec 规划）、`41065ae`（代码+测试）、`31a8344`（文档）、归档提交见最终报告。
+
+## 2026-10-23 15:09 — S12 search
+
+### 原始 Prompt
+
+```text
+【角色】S12「Tool：search」执行 Agent；按 PLAN S12 用 TDD 实现 SearchProvider 协议 + NullProvider；未配置必须 not_configured，禁止伪造结果；完成验收与 M2 收口。
+```
+
+### 执行摘要
+
+- 新增 SearchProvider/SearchResult/NullProvider、SearchArgs、@tool("search")；模块级 provider 注入。
+- 未配置 not_configured；参数/异常/超时/畸形/截断结构化；空结果成功。
+- TC-L3-006 实际是 calculator 集成，登记 ISSUE-039；search 独立 E2E 留后续。
+- 验收：258 passed、覆盖率 96.99%；unit 194、contract 64；mypy 63 files 0 errors。

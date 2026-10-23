@@ -315,7 +315,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | todo | 以 `ToolContext.session_id` 为键的 `MemoryTodoStore`（可 `configure_todo_store` 注入，S13 替换 Memory KV）；1-based 稳定 id，complete/delete 不重排，返回 frozen 快照；add/list/complete/delete；index 严格 int | 空列表返回空 items；不跨会话；重启丢失、非线程安全；完整 Schema 不含 session_id；非法 action 返回 invalid_action（FR-TOOL-04） |
   | read_file | `ToolContext.sandbox_root` 提供根；`Sandbox.resolve` 四步校验；大小≤max_file_size；有界读取 `limit+1`；NUL 二进制拒绝；仅文本 codec（空编码/非文本拒绝）；返回 JSON `{content,size,encoding}`；空文件正常、换行保留；错误码 absolute_path/path_escape/invalid_path/hidden_path/extension_not_allowed/path_too_long/file_not_found/file_too_large/binary_file/decode_error/invalid_encoding/file_read_error/missing_sandbox_root | 越界阻断、二进制拒绝、大小/编码限制、错误码区分（FR-TOOL-05） |
   | write_file | 复用 `Sandbox.resolve`；父目录必须存在；默认不覆盖，`overwrite=false` 用同目录临时文件 + `os.link` 原子发布（EEXIST→file_exists），`overwrite=true` 才 `os.replace`；temp/parent 在创建后和发布前复核 root；失败 unlink；保留既有权限；空内容合法；返回 `{path,size,overwritten}` | 越界阻断、大小/编码上限、失败无残留；父目录竞态采用多次 containment 复核，仍不宣称完全原子（FR-TOOL-06） |
-  | search | `SearchProvider` 协议 + `NullProvider`（未配置时返回 `not_configured`） | **禁止伪造搜索结果**（FR-TOOL-08） |
+  | search | `async SearchProvider.search(query, limit)` + `SearchResult(title,url,snippet,source)`；默认 `NullProvider`，模块级 `configure_search_provider` 注入；5s 超时；limit 1..10；摘要 500 字符；结果 JSON provider/truncated/results | 未配置 `not_configured`；provider 异常 `provider_error`、超时 `provider_timeout`、畸形 `provider_result_invalid`；**禁止伪造结果**（FR-TOOL-08） |
 
 ### 3.4 Memory 记忆
 
@@ -566,3 +566,4 @@ AgentResult →
 | v0.24 | 2026-10-23 | S10 报告修复：Windows 反斜杠/设备名、任意 `..`、文本 codec、有界读取、file_read_error | §3.3；联动 S10-report、s10-report-fixes |
 | v0.25 | 2026-10-23 | S11 write_file：沙箱复用、同目录原子写、覆盖保护、失败清理、权限/并发假设 | §3.3；联动 FR-TOOL-06、TC-L1-012 写分支、TC-L4-002 |
 | v0.26 | 2026-10-23 | S11 报告修复：os.link 原子不覆盖、parent/temp containment、COM/LPT 全量 | §3.3；联动 S11-report、s11-report-fixes |
+| v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |

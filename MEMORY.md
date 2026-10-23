@@ -1,5 +1,12 @@
 ﻿# MEMORY <!-- omit in toc -->
 
+## 2026-10-23 — S12 search 与 M2
+
+- 新增 SearchProvider Protocol/SearchResult/NullProvider；默认 NullProvider，模块级 configure_search_provider 注入。
+- 未配置 not_configured，绝不伪造结果；5s 超时；异常/超时/畸形结构化；结果/摘要截断。
+- M2（S06–S12）收口；验收 258 passed、覆盖率 96.99%；unit 194、contract 64；mypy 63 files 0 errors。
+- ISSUE-039：TC-L3-006 实际为 calculator 集成，search 独立 E2E 留后续。
+
 ## 2026-10-23 — S11 write_file
 
 - 复用 S10 Sandbox；父目录必须存在，默认不覆盖，overwrite=true 才替换。
@@ -100,6 +107,7 @@
 - 每次 LLM 出站前，统一计数实际 messages、完整 tools Schema 与协议开销；计数/发送复用 tools_snapshot。保留最多 K 个历史完整轮次，最小集合仍超预算时本地 CONTEXT_TOO_LARGE/400，不继续请求模型。
 - Redis 按完整轮次保留；todo 的 session_id 由可信执行上下文注入，模型不能覆盖。新增双窗口、工具追问和真实 API 验收用例，功能用例共 75 个，另有 1 个工程 smoke。
 - 真实 API 001/002 是交付门禁；启用思考模式时还需 003。密钥只从 DEEPSEEK_API_KEY 读取，文档仅保留脱敏占位；本轮未保存或验证用户提供的密钥。
+
 
 
 
