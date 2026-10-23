@@ -1896,3 +1896,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - write_file 发布后再次 containment，越界删除目标并 path_escape。
 - TC-L3-006 保留 calculator；search 正式 E2E 仍留 ISSUE-039。
 - 验收：263 passed、覆盖率 97.04%；unit 197、contract 64；mypy 64 files 0 errors。
+
+- OpenSpec 归档：change 归档为 `2026-10-23-s12-report-fixes`；search 增至 4 项 Requirement；`openspec validate --all --strict` 为 12 passed、0 failed。
+- 关联提交：`db181e7`（OpenSpec 规划）、`04e0f17`（代码+测试）、`9427741`（文档）、归档提交见最终报告。
