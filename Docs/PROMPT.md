@@ -1,4 +1,4 @@
-# PROMPT <!-- omit in toc -->
+﻿# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1752,8 +1752,9 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 红：Sandbox/read_file 未实现时测试失败；symlink 在 Windows 无权限时用 junction 复验。
 - 绿：`../`、多层 `../`、POSIX/Windows 绝对路径、junction 逃逸、NTFS 流、隐藏、超长、扩展名大小写均阻断；read_file 空/超限/二进制/解码/编码错误结构化。
-- 验收：214 passed、覆盖率 96.66%；unit 150、contract 64；mypy 59 files 0 errors。
+- 验收：215 passed、覆盖率 96.66%；unit 151、contract 64；mypy 59 files 0 errors。
 - 关联提交：`f71568f`（OpenSpec 规划）、`a278271`（代码+测试）、`f74cc68`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s10-tool-sandbox-readfile`；新建 `sandbox` 规格（2 项 Requirement）；`openspec validate --all --strict` 为 9 passed、0 failed。
+
 
 

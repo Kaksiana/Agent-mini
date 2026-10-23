@@ -76,6 +76,29 @@ def test_sandbox_blocks_symlink_escape(tmp_path: Path) -> None:
     assert exc.value.error_code == "path_escape"
 
 
+def test_sandbox_blocks_junction_chain(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.txt").write_text("secret")
+    first = root / "first"
+    second = root / "second"
+    try:
+        os.symlink(outside, first, target_is_directory=True)
+        os.symlink(first, second, target_is_directory=True)
+    except OSError:
+        if os.name != "nt":
+            pytest.skip("symlink unavailable")
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(first), str(outside)], check=True)
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(second), str(first)], check=True)
+
+    with pytest.raises(SandboxViolation) as exc:
+        Sandbox(root).resolve("second/secret.txt")
+
+    assert exc.value.error_code == "path_escape"
+
+
 def test_read_file_empty_file_is_ok(tmp_path: Path) -> None:
     (tmp_path / "empty.txt").write_bytes(b"")
 
