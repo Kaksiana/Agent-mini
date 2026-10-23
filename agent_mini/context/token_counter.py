@@ -53,11 +53,14 @@ class TokenCounter:
         self,
         messages: Sequence[Message],
         tools_snapshot: Sequence[ToolSchema],
+        include_reasoning: bool = True,
     ) -> TokenCounts:
         """统计 messages 与完整 tools Schema，加入协议开销。"""
         if not messages and not tools_snapshot:
             return TokenCounts(0, 0, 0, 0)
-        message_payload = [message.to_provider(include_reasoning=True) for message in messages]
+        message_payload = [
+            message.to_provider(include_reasoning=include_reasoning) for message in messages
+        ]
         tool_payload = [tool.to_provider() for tool in tools_snapshot]
         message_tokens = self._count_json(message_payload)
         tool_tokens = self._count_json(tool_payload)

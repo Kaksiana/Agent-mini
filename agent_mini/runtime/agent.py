@@ -7,8 +7,9 @@ import logging
 from typing import cast
 from uuid import uuid4
 
+from agent_mini.context.builder import BuildRequest, ContextBuilder
 from agent_mini.llm.client import LLMClient
-from agent_mini.llm.models import Message
+from agent_mini.llm.models import Message, ToolSchema
 from agent_mini.memory.base import (
     MidTermStore,
     ShortTermStore,
@@ -42,7 +43,22 @@ class Agent:
         self._memory_timeout = memory_timeout
         self._mid_term: MidTermStore | None = None
         self._mongo_timeout = MEMORY_WRITEBACK_TIMEOUT_SECONDS
+        self._context_builder: ContextBuilder | None = None
+        self._system_prompt: str | None = None
+        self._include_reasoning = True
         self._background: set[asyncio.Task[None]] = set()
+
+    def with_context(
+        self,
+        builder: ContextBuilder,
+        system_prompt: str | None = None,
+        include_reasoning: bool = True,
+    ) -> Agent:
+        """启用 Context 组装与同一快照出站。"""
+        self._context_builder = builder
+        self._system_prompt = system_prompt
+        self._include_reasoning = include_reasoning
+        return self
 
     def with_mid_term(self, mid_term: MidTermStore, timeout: float) -> Agent:
         """启用响应后异步 Mongo 写回。"""
@@ -82,13 +98,18 @@ class Agent:
         """运行单轮；响应前同步 Redis，响应后异步 Mongo。"""
         if session_id is not None and not valid_session_id(session_id):
             raise ValueError("session_id 非法")
-        messages = [Message(role="user", content=user_input)]
         executor = self._executor_for(session_id)
+        messages, tools_snapshot = await self._build_context(
+            user_input,
+            session_id,
+            executor,
+        )
         result = await run_react_loop(
             self._llm_client,
             messages,
             executor,
             self._policy,
+            tools_snapshot,
         )
         if result.truncated:
             messages.append(Message(role="assistant", content=result.reply))
@@ -107,6 +128,29 @@ class Agent:
         if session_id is not None:
             result = result.model_copy(update={"session_id": session_id})
         return result
+
+    async def _build_context(
+        self,
+        user_input: str,
+        session_id: str | None,
+        executor: ToolExecutor | None,
+    ) -> tuple[list[Message], tuple[ToolSchema, ...] | None]:
+        builder = self._context_builder
+        if builder is None:
+            return [Message(role="user", content=user_input)], None
+        tools_snapshot = executor.schemas() if executor is not None else []
+        payload = await builder.build(
+            BuildRequest(
+                user_input=user_input,
+                tools_snapshot=tools_snapshot,
+                session_id=session_id,
+                short_term=self._short_term,
+                mid_term=self._mid_term,
+                system_prompt=self._system_prompt,
+                include_reasoning=self._include_reasoning,
+            )
+        )
+        return list(payload.messages), payload.tools_snapshot
 
     def _executor_for(self, session_id: str | None) -> ToolExecutor | None:
         if session_id is None or self._tool_executor is None:

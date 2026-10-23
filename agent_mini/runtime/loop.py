@@ -5,7 +5,7 @@ import json
 import math
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
@@ -102,11 +102,14 @@ async def run_react_loop(
     messages: list[Message],
     tool_executor: ToolExecutor | None,
     policy: LoopPolicy | None = None,
+    tools_snapshot: Sequence[ToolSchema] | None = None,
 ) -> AgentResult:
     """运行至最终文本；安全阀终止时返回 truncated 结果而不抛异常。"""
     active_policy = policy if policy is not None else LoopPolicy()
     deadline = _deadline_at(active_policy)
-    tools = tool_executor.schemas() if tool_executor is not None else None
+    tools = list(tools_snapshot) if tools_snapshot is not None else None
+    if tools is None and tool_executor is not None:
+        tools = tool_executor.schemas()
     state = _LoopState()
     while True:
         remaining = _remaining(deadline, active_policy.clock)

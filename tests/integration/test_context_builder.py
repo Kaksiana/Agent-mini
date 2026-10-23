@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, cast
 
@@ -13,8 +14,9 @@ from agent_mini.context.token_counter import (
     TokenCounter,
     canonical_json,
 )
-from agent_mini.llm.models import Message, ToolSchema
+from agent_mini.llm.models import LLMResponse, Message, ToolCall, ToolSchema, Usage
 from agent_mini.memory.base import StoredRound
+from agent_mini.tools.registry import ToolResult
 
 pytestmark = pytest.mark.integration
 
@@ -26,11 +28,20 @@ class FakeEncoder:
 
 class RecordingCounter:
     def __init__(self) -> None:
-        self.received: list[ToolSchema] | None = None
+        self.received: tuple[ToolSchema, ...] | None = None
 
-    def count_request(self, messages: list[Message], tools: list[ToolSchema]) -> Any:
+    def count_request(
+        self,
+        messages: list[Message],
+        tools: tuple[ToolSchema, ...],
+        include_reasoning: bool = True,
+    ) -> Any:
         self.received = tools
-        return TokenCounter(FakeEncoder()).count_request(messages, tools)
+        return TokenCounter(FakeEncoder()).count_request(
+            messages,
+            tools,
+            include_reasoning,
+        )
 
 
 class FakeShort:
@@ -123,8 +134,9 @@ async def test_tools_snapshot_identity_and_budget() -> None:
 
     payload = await builder.build(BuildRequest("hi", tools))
 
-    assert payload.tools_snapshot is tools
-    assert counter.received is tools
+    assert isinstance(payload.tools_snapshot, tuple)
+    assert payload.tools_snapshot == tuple(tools)
+    assert counter.received is payload.tools_snapshot
     assert payload.budget == 13_376
     assert payload.estimated_input_tokens == (
         payload.message_tokens + payload.tool_schema_tokens + payload.protocol_overhead_tokens
@@ -160,6 +172,22 @@ def test_count_is_reproducible_and_sorted() -> None:
     )
 
 
+def test_reasoning_serialization_toggle() -> None:
+    counter = TokenCounter(FakeEncoder())
+    messages = [
+        Message(
+            role="assistant",
+            content="ok",
+            reasoning_content="very long private reasoning " * 20,
+        )
+    ]
+
+    with_reasoning = counter.count_request(messages, [])
+    without_reasoning = counter.count_request(messages, [], include_reasoning=False)
+
+    assert with_reasoning.message_tokens > without_reasoning.message_tokens
+
+
 def test_empty_messages_and_tools_are_zero() -> None:
     counts = TokenCounter(FakeEncoder()).count_request([], [])
 
@@ -188,6 +216,102 @@ def test_degraded_counter_still_counts_schema(
     assert counts.tool_schema_tokens > 0
     assert counts.estimated_input_tokens > 0
     assert "token_counter.degraded" in caplog.text
+
+
+class HangingShort:
+    async def append_round(self, *args: object, **kwargs: object) -> bool:
+        return True
+
+    async def get_recent_rounds(
+        self,
+        session_id: str,
+        limit: int | None = None,
+    ) -> list[StoredRound]:
+        await asyncio.sleep(10)
+        return []
+
+
+async def test_memory_read_timeout_degrades() -> None:
+    builder = ContextBuilder(
+        TokenCounter(FakeEncoder()),
+        16_000,
+        read_timeout_seconds=0.01,
+    )
+
+    payload = await builder.build(
+        BuildRequest("current", [], session_id="A", short_term=cast(Any, HangingShort()))
+    )
+
+    assert [message.content for message in payload.messages] == ["current"]
+
+
+async def test_duplicate_round_ids_are_removed() -> None:
+    duplicate = _round("same", "once")
+    mid = FakeMid([duplicate, duplicate])
+    short = FakeShort([duplicate])
+    builder = ContextBuilder(TokenCounter(FakeEncoder()), 16_000)
+
+    payload = await builder.build(
+        BuildRequest(
+            "current",
+            [],
+            session_id="A",
+            mid_term=cast(Any, mid),
+            short_term=cast(Any, short),
+        )
+    )
+
+    assert [message.content for message in payload.messages] == ["once", "ok", "current"]
+
+
+class FakeExecutor:
+    def __init__(self, tools: list[ToolSchema]) -> None:
+        self.core = tools
+
+    def schemas(self) -> list[ToolSchema]:
+        return self.core
+
+    async def execute(self, call: ToolCall) -> ToolResult:
+        return ToolResult(True, "ok", None)
+
+
+async def test_agent_uses_builder_snapshot_for_llm() -> None:
+    from agent_mini.runtime.agent import Agent
+
+    class AgentLLM:
+        def __init__(self) -> None:
+            self.tools: Any = None
+            self.messages: list[Message] | None = None
+
+        async def chat(
+            self,
+            messages: list[Message],
+            tools: Any = None,
+            **params: object,
+        ) -> LLMResponse:
+            self.tools = tools
+            self.messages = list(messages)
+            return LLMResponse(
+                content="ok",
+                finish_reason="stop",
+                usage=Usage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+            )
+
+    llm = AgentLLM()
+    tools = _tools()
+    builder = ContextBuilder(TokenCounter(FakeEncoder()), 16_000)
+    agent = Agent(cast(Any, llm), tool_executor=FakeExecutor(tools)).with_context(
+        builder,
+        system_prompt="system",
+    )
+
+    await agent.run("current", session_id="A")
+
+    assert isinstance(llm.tools, list)
+    assert llm.tools == tools
+    assert llm.messages is not None
+    assert llm.messages[0].content == "system"
+    assert llm.messages[-1].content == "current"
 
 
 async def test_mid_term_rounds_are_consumed() -> None:

@@ -1,4 +1,4 @@
-﻿"""S00 包骨架导入与结构测试。"""
+"""S00 包骨架导入与结构测试。"""
 
 import ast
 import importlib
@@ -50,20 +50,10 @@ DESIGN_FILES = [
     "tools/builtin/read_file.py",
     "tools/builtin/write_file.py",
     "tools/builtin/search.py",
-    "memory/short_term.py",
-    "memory/mid_term.py",
-    "context/builder.py",
-    "context/token_counter.py",
-    "memory/base.py",
     "memory/__init__.py",
+    "memory/base.py",
     "memory/short_term.py",
     "memory/mid_term.py",
-    "context/builder.py",
-    "context/token_counter.py",
-    "memory/mid_term.py",
-    "context/builder.py",
-    "context/token_counter.py",
-    "memory/base.py",
     "context/__init__.py",
     "context/builder.py",
     "context/token_counter.py",
@@ -145,4 +135,3 @@ def test_schema_sql_is_available_as_package_data() -> None:
     """schema.sql 应能通过包资源访问。"""
     schema = resources.files("agent_mini.systemdb").joinpath("schema.sql")
     assert schema.is_file()
-
