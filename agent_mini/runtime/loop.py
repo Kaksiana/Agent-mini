@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
+from agent_mini.context.window import ContextTooLarge
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.errors import LLMEmptyResponseError, LLMProtocolError
 from agent_mini.llm.models import LLMResponse, Message, ToolCall, ToolSchema, Usage
@@ -128,7 +129,22 @@ async def run_react_loop(
             return _truncated_result(state, "deadline")
         state.step += 1
         if active_options.context_fit is not None:
-            messages[:] = await active_options.context_fit(messages)
+            try:
+                fitted = await asyncio.wait_for(
+                    active_options.context_fit(messages),
+                    remaining,
+                )
+            except TimeoutError:
+                return _truncated_result(state, "deadline")
+            except ContextTooLarge as exc:
+                exc.steps = state.step
+                exc.trace = tuple(state.trace)
+                exc.tool_traces = tuple(state.tool_traces)
+                raise
+            messages[:] = fitted
+            remaining = _remaining(deadline, active_policy.clock)
+            if remaining <= 0:
+                return _truncated_result(state, "deadline")
         try:
             response = await _request(llm_client, messages, tools, remaining)
         except TimeoutError:

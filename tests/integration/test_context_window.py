@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 import pytest
@@ -62,7 +63,7 @@ def test_rounds_trigger_keeps_last_k_whole_rounds() -> None:
 
 
 def test_tokens_trigger_recounts_after_each_drop() -> None:
-    result = _fit([_round(index, width=40) for index in range(12)], 600)
+    result = _fit([_round(index, width=200) for index in range(8)], 600)
 
     assert result.trim_reason == "tokens"
     assert result.tokens_after <= 600
@@ -73,7 +74,7 @@ def test_tokens_trigger_recounts_after_each_drop() -> None:
 def test_both_trigger_reason_is_accurate() -> None:
     result = _fit([_round(index, width=80) for index in range(12)], 600)
 
-    assert result.trim_reason in {"both", "tokens"}
+    assert result.trim_reason == "both"
     assert result.tokens_after <= 600
 
 
@@ -123,6 +124,84 @@ async def test_too_large_does_not_call_llm() -> None:
     with pytest.raises(ContextTooLarge):
         await agent.run("current", session_id="A")
 
+    assert llm.calls == 0
+
+
+class _MemoryShort:
+    def __init__(self) -> None:
+        self.rounds: list[StoredRound] = []
+
+    async def append_round(
+        self,
+        session_id: str,
+        messages: list[Message],
+        round_id: str,
+        truncated: bool = False,
+        termination_reason: str | None = None,
+    ) -> bool:
+        self.rounds.append(StoredRound(round_id, tuple(messages), truncated, termination_reason))
+        return True
+
+    async def get_recent_rounds(
+        self,
+        session_id: str,
+        limit: int | None = None,
+    ) -> list[StoredRound]:
+        return list(self.rounds)
+
+
+async def test_three_turns_store_only_current_round() -> None:
+    store = _MemoryShort()
+    builder = ContextBuilder(TokenCounter(Encoder()), max_context_tokens=1_000_000)
+    agent = Agent(cast(Any, _LLM()), short_term=store).with_context(builder)
+
+    await agent.run("first", session_id="A")
+    await agent.run("second", session_id="A")
+    await agent.run("third", session_id="A")
+
+    assert len(store.rounds) == 3
+    for stored in store.rounds:
+        assert stored.messages[0].role == "user"
+        assert stored.messages[0].content in {"first", "second", "third"}
+        assert all(message.role != "system" for message in stored.messages)
+
+
+async def test_fit_is_bounded_by_deadline() -> None:
+    from agent_mini.runtime.loop import LoopPolicy
+
+    class HangingShort:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def append_round(self, *args: object, **kwargs: object) -> bool:
+            return True
+
+        async def get_recent_rounds(
+            self,
+            session_id: str,
+            limit: int | None = None,
+        ) -> list[StoredRound]:
+            self.calls += 1
+            if self.calls > 1:
+                await asyncio.sleep(1)
+            return []
+
+    llm = _LLM()
+    builder = ContextBuilder(
+        TokenCounter(Encoder()),
+        max_context_tokens=100_000,
+        read_timeout_seconds=0.5,
+    )
+    agent = Agent(
+        cast(Any, llm),
+        policy=LoopPolicy(deadline_seconds=0.01),
+        short_term=cast(Any, HangingShort()),
+    ).with_context(builder)
+
+    result = await agent.run("current", session_id="A")
+
+    assert result.truncated is True
+    assert result.termination_reason == "deadline"
     assert llm.calls == 0
 
 

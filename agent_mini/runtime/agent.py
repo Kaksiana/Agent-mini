@@ -116,7 +116,7 @@ class Agent:
             messages.append(Message(role="assistant", content=result.reply))
         stored = StoredRound(
             uuid4().hex,
-            tuple(messages),
+            tuple(_current_round_messages(messages)),
             result.truncated,
             result.termination_reason,
         )
@@ -208,3 +208,11 @@ class Agent:
                 "memory.degraded",
                 extra={"event": "memory.degraded", "session_id": session_id},
             )
+
+
+def _current_round_messages(messages: list[Message]) -> list[Message]:
+    """只保留最后一条 user 起的当前轮。"""
+    for index in range(len(messages) - 1, -1, -1):
+        if messages[index].role == "user":
+            return messages[index:]
+    return messages

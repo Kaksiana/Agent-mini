@@ -10,7 +10,13 @@ from agent_mini.context.token_counter import (
     TokenCounter,
     compute_budget,
 )
-from agent_mini.context.window import ContextTooLarge, FitInput, TrimReason, fit_rounds
+from agent_mini.context.window import (
+    DEFAULT_MAX_ROUNDS,
+    ContextTooLarge,
+    FitInput,
+    TrimReason,
+    fit_rounds,
+)
 from agent_mini.llm.models import Message, ToolSchema
 from agent_mini.memory.base import (
     MidTermStore,
@@ -67,11 +73,13 @@ class ContextBuilder:
         max_context_tokens: int,
         max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         read_timeout_seconds: float = DEFAULT_READ_TIMEOUT_SECONDS,
+        max_rounds: int = DEFAULT_MAX_ROUNDS,
     ) -> None:
         self._counter = token_counter
         self._max_context_tokens = max_context_tokens
         self._max_output_tokens = max_output_tokens
         self._read_timeout = read_timeout_seconds
+        self._max_rounds = max_rounds
 
     async def build(self, request: BuildRequest) -> ContextPayload:
         """首次构建；当前轮仅含当前 user。"""
@@ -103,6 +111,7 @@ class ContextBuilder:
                     self._max_output_tokens,
                 ),
                 include_reasoning=request.include_reasoning,
+                max_rounds=self._max_rounds,
             ),
         )
         return ContextPayload(

@@ -78,6 +78,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN", "D"]
 "agent_mini/context/window.py" = ["error-suffix-on-exception-name"]
+"agent_mini/runtime/loop.py" = [
+    "complex-structure",
+    "too-many-return-statements",
+]
 "**/__init__.py" = ["unused-import"]
 
 [tool.ruff.lint.mccabe]

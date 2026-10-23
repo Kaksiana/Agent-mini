@@ -28,6 +28,8 @@ class ContextTooLarge(Exception):
         self.http_status = CONTEXT_TOO_LARGE_STATUS
         self.steps = steps
         self.truncated = True
+        self.trace: tuple[object, ...] = ()
+        self.tool_traces: tuple[object, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,7 @@ class FitInput:
     counter: TokenCounter
     budget: int
     include_reasoning: bool
+    max_rounds: int = DEFAULT_MAX_ROUNDS
 
 
 @dataclass(frozen=True)
@@ -67,17 +70,27 @@ def fit_rounds(history: Sequence[StoredRound], spec: FitInput) -> TrimResult:
     initial = spec.counter.count_request(messages, tools, spec.include_reasoning)
     if _fixed_exceeds(spec, tools):
         raise ContextTooLarge()
-    reason: TrimReason | None = None
+    saw_rounds = False
+    saw_tokens = False
     while remaining:
-        over_rounds = len(remaining) > DEFAULT_MAX_ROUNDS
+        over_rounds = len(remaining) > spec.max_rounds
         over_tokens = initial.estimated_input_tokens > spec.budget
         if not (over_rounds or over_tokens):
             break
-        reason = _reason(over_rounds, over_tokens)
+        saw_rounds = saw_rounds or over_rounds
+        saw_tokens = saw_tokens or over_tokens
         remaining.pop(0)
         messages = _compose(spec.prefix, remaining, spec.current)
         initial = spec.counter.count_request(messages, tools, spec.include_reasoning)
     if initial.estimated_input_tokens > spec.budget:
+        LOGGER.warning(
+            "context.over_budget_after_trim",
+            extra={
+                "event": "context.over_budget_after_trim",
+                "estimated_input_tokens": initial.estimated_input_tokens,
+                "budget": spec.budget,
+            },
+        )
         raise ContextTooLarge()
     tokens_before = spec.counter.count_request(
         _compose(spec.prefix, history, spec.current),
@@ -91,7 +104,7 @@ def fit_rounds(history: Sequence[StoredRound], spec: FitInput) -> TrimResult:
         tokens_before=tokens_before,
         tokens_after=initial.estimated_input_tokens,
         dropped_rounds=len(history) - len(remaining),
-        trim_reason=reason,
+        trim_reason=_reason(saw_rounds, saw_tokens),
         message_tokens=initial.message_tokens,
         tool_schema_tokens=initial.tool_schema_tokens,
         protocol_overhead_tokens=initial.protocol_overhead_tokens,
@@ -108,6 +121,10 @@ def fit_rounds(history: Sequence[StoredRound], spec: FitInput) -> TrimResult:
                 "tokens_before": result.tokens_before,
                 "tokens_after": result.tokens_after,
                 "trim_reason": result.trim_reason,
+                "message_tokens": result.message_tokens,
+                "tool_schema_tokens": result.tool_schema_tokens,
+                "protocol_overhead_tokens": result.protocol_overhead_tokens,
+                "budget": result.budget,
             },
         )
     return result
@@ -131,7 +148,17 @@ def _fixed_exceeds(spec: FitInput, tools: Sequence[ToolSchema]) -> bool:
         tools,
         spec.include_reasoning,
     )
-    return counts.estimated_input_tokens > spec.budget
+    if counts.estimated_input_tokens > spec.budget:
+        LOGGER.warning(
+            "context.over_budget_after_trim",
+            extra={
+                "event": "context.over_budget_after_trim",
+                "estimated_input_tokens": counts.estimated_input_tokens,
+                "budget": spec.budget,
+            },
+        )
+        return True
+    return False
 
 
 def _reason(over_rounds: bool, over_tokens: bool) -> TrimReason:
