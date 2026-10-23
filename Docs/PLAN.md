@@ -349,9 +349,11 @@
 | S10 | 已完成 | 2026-10-23 | 沙箱四步校验 + read_file：.. / 绝对路径 / 符号链接阻断、大小/扩展名/隐藏/路径长度限制、结构化编码/二进制错误；224 passed、覆盖率 96.76% |
 | S11 | 已完成 | 2026-10-23 | write_file：复用沙箱、同目录临时文件+fsync+os.replace、默认不覆盖、失败无残留、read_file 往返；247 passed、覆盖率 97.06% |
 | S12 | 已完成 | 2026-10-23 | search：SearchProvider/NullProvider、not_configured、provider 异常/超时/截断；M2 S06–S12 收口；263 passed、覆盖率 97.04% |
-| S13–S21 | 未开始 | — | 后续阶段 |
+| S13 | 已完成 | 2026-10-23 | Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id 可选、响应前同步写回、降级；270 passed、覆盖率 97.09% |
+| S14–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+
 
 
 

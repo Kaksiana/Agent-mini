@@ -185,6 +185,7 @@ S03 只实现无工具的单轮闭环；构造器注入 `LLMClient`，不读取�
 | `tool_traces` | `tuple[ToolCallTrace, ...]` | 展平的公开工具记录；S04 新增 |
 | `truncated` | `bool` | 安全阀触发为 true；正常收敛 false；S05 新增 |
 | `termination_reason` | `Literal["max_steps","deadline","repeat"] \| None` | 安全阀原因；正常收敛 None；S05 新增 |
+| `session_id` | `str \| None` | 调用方传入的会话 ID；未传 None；S13 新增 |
 
 `AgentResult` MUST 为冻结模型，禁止下游静默修改。`session_id` 延后 S13；`reply` 语义保持不变（仅最终文本，安全阀时取固定提示文案）。
 
@@ -467,6 +468,8 @@ AgentResult →
   ├─ [响应前·同步] Redis:  RPUSH 完整轮次 + LTRIM(最近 K 轮) + EXPIRE(24h)
   ├─ [响应后·异步] Mongo:  insert_many（对话正文，失败仅告警）
   └─ [响应后·异步] MySQL:  UPSERT sessions / INSERT tool_invocations、request_metrics（失败仅告警）
+
+S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且注入 ShortTermMemory 时，在 loop 返回后、Agent.run 返回前 `await append_round`。key `agent_mini:short_term:{session_id}:rounds`；元素 JSON `{round_id,messages}`，禁止 pickle；`DEFAULT_MAX_ROUNDS=10`、`DEFAULT_TTL_SECONDS=86400`，每次写回刷新 TTL；Redis/序列化异常记录 `memory.degraded` 并跳过，不阻断对话。
 ```
 
 ## 6. 不依赖现有 Agent 框架的说明
@@ -567,3 +570,4 @@ AgentResult →
 | v0.25 | 2026-10-23 | S11 write_file：沙箱复用、同目录原子写、覆盖保护、失败清理、权限/并发假设 | §3.3；联动 FR-TOOL-06、TC-L1-012 写分支、TC-L4-002 |
 | v0.26 | 2026-10-23 | S11 报告修复：os.link 原子不覆盖、parent/temp containment、COM/LPT 全量 | §3.3；联动 S11-report、s11-report-fixes |
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
+| v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |

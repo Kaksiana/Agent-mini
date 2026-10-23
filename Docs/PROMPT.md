@@ -1899,3 +1899,19 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s12-report-fixes`；search 增至 4 项 Requirement；`openspec validate --all --strict` 为 12 passed、0 failed。
 - 关联提交：`db181e7`（OpenSpec 规划）、`04e0f17`（代码+测试）、`9427741`（文档）、归档提交见最终报告。
+
+## 2026-10-23 16:05 — S13 Redis 短时窗口
+
+### 原始 Prompt
+
+```text
+【角色】S13「Memory：Redis 短时会话窗口」执行 Agent；按 PLAN S13 用 TDD 实现完整轮次 List + 按轮 LTRIM + TTL，并在 Runtime 响应返回前同步写回；引入可选 session_id，保持 S03–S12 兼容；完成验收与 M3 起点。
+```
+
+### 执行摘要
+
+- `Agent.run(user_input, session_id=None)` 增量参数；`AgentResult.session_id` 可选；旧单参数不写 Redis。
+- ShortTermMemory：JSON 完整轮次、LTRIM 10 轮、TTL 86400s、key 含 session_id、Redis 失败 memory.degraded。
+- 写回在 loop 返回后、Agent.run 返回前 await；工具配对/reasoning 持久化。
+- 依赖：redis>=7.4,<8；fakeredis>=2.23,<3 dev。
+- 验收：270 passed、覆盖率 97.09%；unit 204、contract 64；mypy 65 files 0 errors。

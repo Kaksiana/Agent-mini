@@ -1,4 +1,4 @@
-﻿# TESTING <!-- omit in toc -->
+# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -6,12 +6,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 版本 | v0.16（S12 search / M2） |
+| 版本 | v0.17（S13 Redis 短时窗口） |
 | 日期 | 2026-10-23 |
-| 状态 | 执行中（S00–S12 已实现） |
+| 状态 | 执行中（S00–S13 已实现） |
 | 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 258（unit 197、contract 64） |
 
-> 本文件同时记录测试设计与执行状态。截至 S12，S00–S12 已实现 263 个 pytest 用例（最近全量 263 passed、覆盖率 97.04%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S13，S00–S13 已实现 270 个 pytest 用例（最近全量 270 passed、覆盖率 97.09%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -254,6 +254,17 @@
 | Provider | fake 透传、空结果成功、异常/timeout/畸形结构化 | 真实网络 provider 未实现 |
 | 截断 | 结果超 limit、摘要超 500 → truncated=true | 无 |
 
+#### 4.2.13 S13 覆盖边界
+
+| TC | S13 已覆盖 | 留待后续阶段 |
+| --- | --- | --- |
+| TC-L3-001 | 3 轮写入、get_recent_rounds(2)、整轮 LTRIM、时间正序 | 无 |
+| TC-L3-002 | ttl_seconds=1，过期后空集合 | 无 |
+| TC-L3-005 | Redis 连接失败，Agent 正常返回，日志 memory.degraded | S17/S18 全链路 |
+| TC-L3-014 | 工具配对、reasoning、跨会话隔离；Mongo/Context 部分 | **S14/S16** |
+| TC-L3-011/012 | 不覆盖 | **S17/S18** |
+| session_id | Agent.run 可选参数；AgentResult.session_id；不传不写 | HTTP S18 |
+
 ### 4.3 L3 集成测试
 
 | 编号 | 前置条件 | 测试步骤 | 预期结果 |
@@ -426,6 +437,7 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 | AC-21 | TC-L3-011、TC-L3-012 |
 | AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 | AC-23 | TC-LIVE-001、TC-LIVE-002 |
+
 
 
 

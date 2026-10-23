@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -465,6 +465,14 @@
 - 历史限制：S11 Prompt 在实现/收口提交后补，无法回改；后续先留 Prompt 再提交。
 - 状态：Resolved
 - 关联提交：`s11-report-fixes` change（见最终报告）
+
+### S13 阶段问题记录（2026-10-23）
+
+- 新增 redis>=7.4,<8 运行依赖、fakeredis>=2.23,<3 dev；无其他缓存库。
+- `Agent.run(user_input, session_id=None)` 增量兼容；`AgentResult.session_id` 可选；旧单参数调用不写 Redis。
+- ShortTermMemory JSON 完整轮次、LTRIM 10 轮、TTL 24h、跨会话 key；Redis/序列化失败 memory.degraded。
+- 验收：270 passed、覆盖率 97.09%；unit 204、contract 64；mypy 65 files 0 errors；OpenSpec/wheel 通过。
+- 无新增阻塞；TC-L3-014 Mongo/Context 部分留 S14/S16；TC-L3-011/012 留 S17/S18。
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
 
