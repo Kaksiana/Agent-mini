@@ -456,6 +456,14 @@
 - 状态：Resolved
 - 关联提交：`s10-report-fixes` change（见最终报告）
 
+### S11 阶段问题记录（2026-10-23）
+
+- 实现：write_file 复用 Sandbox；父目录必须存在；默认不覆盖，overwrite=true 才替换。
+- 原子：同目录 mkstemp + fsync + os.replace；失败 unlink；校验/编码/超限在临时文件前返回。
+- 往返：空内容/换行与 read_file 一致；安全用例覆盖 ../、绝对路径、隐藏、symlink 目标、父目录缺失、编码错误。
+- 验收：243 passed、覆盖率 97.00%；unit 179、contract 64；mypy 61 files 0 errors；OpenSpec/wheel 通过。
+- 无新增阻塞；TC-L4-002 留 S18；并发非 CAS。
+
 ### S10 阶段问题记录（2026-10-23）
 
 - 实现：`Sandbox` 四步校验、read_file、`ToolContext.sandbox_root/max_file_size`。

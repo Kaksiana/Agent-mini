@@ -347,9 +347,11 @@
 | S08 | 已完成 | 2026-10-23 | time：默认 Asia/Shanghai、指定 IANA、tz 兼容、now_provider 注入、invalid_timezone；176 passed、覆盖率 95.97% |
 | S09 | 已完成 | 2026-10-23 | todo：ToolContext 注入、进程内 MemoryTodoStore、1-based 稳定序号、会话隔离、伪造 session_id 拒绝；192 passed、覆盖率 96.34% |
 | S10 | 已完成 | 2026-10-23 | 沙箱四步校验 + read_file：.. / 绝对路径 / 符号链接阻断、大小/扩展名/隐藏/路径长度限制、结构化编码/二进制错误；224 passed、覆盖率 96.76% |
-| S11–S21 | 未开始 | — | 后续阶段 |
+| S11 | 已完成 | 2026-10-23 | write_file：复用沙箱、同目录临时文件+fsync+os.replace、默认不覆盖、失败无残留、read_file 往返；243 passed、覆盖率 97.00% |
+| S12–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+
 
 
 
