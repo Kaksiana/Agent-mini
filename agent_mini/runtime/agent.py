@@ -1,5 +1,7 @@
 """Agent Runtime 入口：直答、ReAct 工具循环与安全阀。"""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import cast
@@ -7,7 +9,8 @@ from uuid import uuid4
 
 from agent_mini.llm.client import LLMClient
 from agent_mini.llm.models import Message
-from agent_mini.memory.base import ShortTermStore
+from agent_mini.memory.base import ShortTermStore, StoredRound
+from agent_mini.memory.mid_term import MidTermMemory
 from agent_mini.runtime.loop import LoopPolicy, ToolExecutor, run_react_loop
 from agent_mini.runtime.result import AgentResult
 from agent_mini.tools.registry import ToolContext
@@ -17,7 +20,7 @@ LOGGER = logging.getLogger("agent_mini.runtime")
 
 
 class Agent:
-    """通过构造器注入 LLM、工具、安全阀与短时记忆的 Runtime。"""
+    """通过构造器注入 LLM、工具、安全阀与记忆的 Runtime。"""
 
     def __init__(
         self,
@@ -27,19 +30,28 @@ class Agent:
         short_term: ShortTermStore | None = None,
         memory_timeout: float = MEMORY_WRITEBACK_TIMEOUT_SECONDS,
     ) -> None:
-        """保存注入依赖；旧调用不传 short_term 时行为不变。"""
+        """保存注入依赖；旧调用不传记忆时行为不变。"""
         self._llm_client = llm_client
         self._tool_executor = tool_executor
         self._policy = policy
         self._short_term = short_term
         self._memory_timeout = memory_timeout
+        self._mid_term: MidTermMemory | None = None
+        self._mongo_timeout = MEMORY_WRITEBACK_TIMEOUT_SECONDS
+        self._background: set[asyncio.Task[None]] = set()
+
+    def with_mid_term(self, mid_term: MidTermMemory, timeout: float) -> Agent:
+        """启用响应后异步 Mongo 写回。"""
+        self._mid_term = mid_term
+        self._mongo_timeout = timeout
+        return self
 
     async def run(
         self,
         user_input: str,
         session_id: str | None = None,
     ) -> AgentResult:
-        """运行单轮；有 session_id 时在返回前同步写回 Redis。"""
+        """运行单轮；响应前同步 Redis，响应后异步 Mongo。"""
         messages = [Message(role="user", content=user_input)]
         executor = self._executor_for(session_id)
         result = await run_react_loop(
@@ -52,6 +64,16 @@ class Agent:
             messages.append(Message(role="assistant", content=result.reply))
         if session_id is not None and self._short_term is not None:
             await self._write_back(session_id, messages, result)
+        if session_id is not None and self._mid_term is not None:
+            stored = StoredRound(
+                uuid4().hex,
+                tuple(messages),
+                result.truncated,
+                result.termination_reason,
+            )
+            task = asyncio.create_task(self._write_mongo(session_id, stored))
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
         if session_id is not None:
             result = result.model_copy(update={"session_id": session_id})
         return result
@@ -87,6 +109,21 @@ class Agent:
                     result.termination_reason,
                 ),
                 self._memory_timeout,
+            )
+        except Exception:
+            LOGGER.warning(
+                "memory.degraded",
+                extra={"event": "memory.degraded", "session_id": session_id},
+            )
+
+    async def _write_mongo(self, session_id: str, stored: StoredRound) -> None:
+        mid_term = self._mid_term
+        if mid_term is None:
+            return
+        try:
+            await asyncio.wait_for(
+                mid_term.append_round(session_id, stored),
+                self._mongo_timeout,
             )
         except Exception:
             LOGGER.warning(

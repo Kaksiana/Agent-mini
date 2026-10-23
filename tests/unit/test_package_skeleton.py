@@ -51,9 +51,11 @@ DESIGN_FILES = [
     "tools/builtin/write_file.py",
     "tools/builtin/search.py",
     "memory/short_term.py",
+    "memory/mid_term.py",
     "memory/base.py",
     "memory/__init__.py",
     "memory/short_term.py",
+    "memory/mid_term.py",
     "memory/mid_term.py",
     "memory/base.py",
     "context/__init__.py",
@@ -91,6 +93,7 @@ NON_PLACEHOLDER_MODULES = {
     "tools/builtin/write_file.py",
     "tools/builtin/search.py",
     "memory/short_term.py",
+    "memory/mid_term.py",
     "memory/base.py",
 }
 
