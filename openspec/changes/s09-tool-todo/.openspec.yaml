@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-23
+goal: S09 todo：会话级内存存储、ToolContext 注入与伪造拒绝
