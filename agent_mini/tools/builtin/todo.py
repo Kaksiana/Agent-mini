@@ -1,10 +1,10 @@
 """S09 todo：会话级待办工具。"""
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agent_mini.tools.registry import ToolContext, ToolResult, tool
 
@@ -14,18 +14,16 @@ ERROR_INVALID_INDEX = "invalid_index"
 ERROR_NOT_FOUND = "todo_not_found"
 ERROR_EMPTY_CONTENT = "empty_content"
 
-TodoAction = Literal["add", "list", "complete", "delete"]
-
 
 class TodoArgs(BaseModel):
-    """todo 的模型参数；session_id 不在其中。"""
+    """todo 的模型参数。"""
 
-    action: TodoAction
+    action: str
     content: str | None = None
-    index: int | None = None
+    index: int | None = Field(default=None, strict=True)
 
 
-@dataclass
+@dataclass(frozen=True)
 class TodoItem:
     """一条待办；id 稳定且不随删除重排。"""
 
@@ -73,39 +71,40 @@ class MemoryTodoStore:
         return self.list_items(session_id)
 
     def list_items(self, session_id: str) -> list[TodoItem]:
-        """返回会话列表。"""
-        return list(self._items.get(session_id, []))
+        """返回会话列表快照。"""
+        return [replace(item) for item in self._items.get(session_id, [])]
 
     def complete(self, session_id: str, item_id: int) -> list[TodoItem] | None:
         """完成指定 id；不存在返回 None。"""
-        item = self._find(session_id, item_id)
-        if item is None:
-            return None
-        item.status = "done"
-        return self.list_items(session_id)
+        items = self._items.get(session_id, [])
+        for index, item in enumerate(items):
+            if item.id == item_id:
+                items[index] = replace(item, status="done")
+                return self.list_items(session_id)
+        return None
 
     def delete(self, session_id: str, item_id: int) -> list[TodoItem] | None:
         """删除指定 id；不存在返回 None。"""
         items = self._items.get(session_id, [])
-        item = self._find(session_id, item_id)
-        if item is None:
-            return None
-        items.remove(item)
-        return self.list_items(session_id)
+        for index, item in enumerate(items):
+            if item.id == item_id:
+                del items[index]
+                return self.list_items(session_id)
+        return None
 
     def clear(self) -> None:
         """清空全部会话。"""
         self._items.clear()
         self._next_id.clear()
 
-    def _find(self, session_id: str, item_id: int) -> TodoItem | None:
-        for item in self._items.get(session_id, []):
-            if item.id == item_id:
-                return item
-        return None
+
+_STORE: TodoStore = MemoryTodoStore()
 
 
-_STORE = MemoryTodoStore()
+def configure_todo_store(store: TodoStore) -> None:
+    """替换存储实现，供 S13/测试注入。"""
+    global _STORE
+    _STORE = store
 
 
 def reset_todo_store() -> None:

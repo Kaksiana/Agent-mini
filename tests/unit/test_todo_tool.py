@@ -32,6 +32,7 @@ def test_add_list_complete_same_session() -> None:
     second = _items(todo("list", context=context))
 
     assert len(first) == 2
+    assert len(second) == 2
     assert second[0]["id"] == 1
     assert second[0]["status"] == "done"
     assert second[1]["status"] == "open"
@@ -43,9 +44,14 @@ def test_sessions_are_isolated() -> None:
 
     todo("add", "a", context=a)
     todo("add", "b", context=b)
+    todo("complete", index=1, context=a)
 
-    assert [item["content"] for item in _items(todo("list", context=a))] == ["a"]
-    assert [item["content"] for item in _items(todo("list", context=b))] == ["b"]
+    a_items = _items(todo("list", context=a))
+    b_items = _items(todo("list", context=b))
+    assert [item["content"] for item in a_items] == ["a"]
+    assert [item["content"] for item in b_items] == ["b"]
+    assert a_items[0]["status"] == "done"
+    assert b_items[0]["status"] == "open"
 
 
 def test_empty_list_returns_empty_items() -> None:
@@ -88,6 +94,19 @@ def test_delete_does_not_renumber() -> None:
     todo("delete", index=1, context=context)
 
     assert [item["id"] for item in _items(todo("list", context=context))] == [2]
+    missing = todo("delete", index=99, context=context)
+    assert missing.error_code == "todo_not_found"
+
+
+def test_store_can_be_configured() -> None:
+    from agent_mini.tools.builtin.todo import MemoryTodoStore, configure_todo_store
+
+    configure_todo_store(MemoryTodoStore())
+    context = ToolContext(session_id="injected", trace_id="t")
+
+    result = todo("add", "x", context=context)
+
+    assert _items(result)[0]["content"] == "x"
 
 
 def test_registry_injects_context_and_rejects_forged_session() -> None:
@@ -113,14 +132,42 @@ def test_registry_injects_context_and_rejects_forged_session() -> None:
         assert added.ok is True
         assert len(json.loads(listed.content)["items"]) == 1
         assert forged.error_code == "invalid_arguments"
+        after = await DEFAULT_REGISTRY.execute(
+            "todo",
+            {"action": "list"},
+            context=context,
+        )
+        assert len(json.loads(after.content)["items"]) == 1
 
     asyncio.run(run())
 
 
 def test_schema_does_not_expose_session_id() -> None:
     schema = DEFAULT_REGISTRY.get("todo").to_json_schema()
+    assert "session_id" not in str(schema)
     parameters = schema["parameters"]
     assert isinstance(parameters, dict)
     properties = parameters["properties"]
     assert isinstance(properties, dict)
     assert "session_id" not in properties
+
+
+async def test_registry_invalid_action_preserves_domain_error() -> None:
+    result = await DEFAULT_REGISTRY.execute(
+        "todo",
+        {"action": "bogus"},
+        context=ToolContext(session_id="s", trace_id="t"),
+    )
+
+    assert result.error_code == "invalid_action"
+
+
+@pytest.mark.parametrize("bad_index", ["1", 1.5, True])
+async def test_registry_rejects_non_integer_index(bad_index: object) -> None:
+    result = await DEFAULT_REGISTRY.execute(
+        "todo",
+        {"action": "complete", "index": bad_index},
+        context=ToolContext(session_id="s", trace_id="t"),
+    )
+
+    assert result.error_code == "invalid_arguments"
