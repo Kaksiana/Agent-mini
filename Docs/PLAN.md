@@ -176,7 +176,7 @@
 - **输入**：相对路径、内容、是否覆盖。
 - **输出**：`tools/builtin/write_file.py`（原子写 + 覆盖保护）。
 - **验收标准**：写入后可被 `read_file` 读回；默认不覆盖；越界与超限拒绝且不落盘。
-- **测试项**：TC-L1-012（写分支）、TC-L4-002。
+- **测试项**：TC-L1-012（写分支）；独立文件 E2E 待 S18 新增。
 - **前置阶段**：S10。
 
 ### S12 — Tool：search
@@ -347,10 +347,12 @@
 | S08 | 已完成 | 2026-10-23 | time：默认 Asia/Shanghai、指定 IANA、tz 兼容、now_provider 注入、invalid_timezone；176 passed、覆盖率 95.97% |
 | S09 | 已完成 | 2026-10-23 | todo：ToolContext 注入、进程内 MemoryTodoStore、1-based 稳定序号、会话隔离、伪造 session_id 拒绝；192 passed、覆盖率 96.34% |
 | S10 | 已完成 | 2026-10-23 | 沙箱四步校验 + read_file：.. / 绝对路径 / 符号链接阻断、大小/扩展名/隐藏/路径长度限制、结构化编码/二进制错误；224 passed、覆盖率 96.76% |
-| S11 | 已完成 | 2026-10-23 | write_file：复用沙箱、同目录临时文件+fsync+os.replace、默认不覆盖、失败无残留、read_file 往返；243 passed、覆盖率 97.00% |
+| S11 | 已完成 | 2026-10-23 | write_file：复用沙箱、同目录临时文件+fsync+os.replace、默认不覆盖、失败无残留、read_file 往返；247 passed、覆盖率 97.06% |
 | S12–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+
+
 
 
 

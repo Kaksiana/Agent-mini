@@ -5,7 +5,7 @@
 - 复用 S10 Sandbox；父目录必须存在，默认不覆盖，overwrite=true 才替换。
 - 同目录临时文件 + flush/fsync + os.replace；失败清理；内容超限/编码错误在临时文件前返回。
 - 空内容合法；write→read 往返保留换行；错误码 file_exists/file_too_large/invalid_encoding/file_write_error 等。
-- 验收：243 passed、覆盖率 97.00%；unit 179、contract 64；mypy 61 files 0 errors。
+- 验收：247 passed、覆盖率 97.06%；unit 183、contract 64；mypy 61 files 0 errors。
 
 ## 2026-10-23 — S10 沙箱与 read_file
 
@@ -100,6 +100,7 @@
 - 每次 LLM 出站前，统一计数实际 messages、完整 tools Schema 与协议开销；计数/发送复用 tools_snapshot。保留最多 K 个历史完整轮次，最小集合仍超预算时本地 CONTEXT_TOO_LARGE/400，不继续请求模型。
 - Redis 按完整轮次保留；todo 的 session_id 由可信执行上下文注入，模型不能覆盖。新增双窗口、工具追问和真实 API 验收用例，功能用例共 75 个，另有 1 个工程 smoke。
 - 真实 API 001/002 是交付门禁；启用思考模式时还需 003。密钥只从 DEEPSEEK_API_KEY 读取，文档仅保留脱敏占位；本轮未保存或验证用户提供的密钥。
+
 
 
 

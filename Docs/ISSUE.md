@@ -456,12 +456,22 @@
 - 状态：Resolved
 - 关联提交：`s10-report-fixes` change（见最终报告）
 
+### ISSUE-038 — S11 报告 P0/P1 修复与 Prompt 时序偏差
+
+- 日期：2026-10-23
+- 现象：resolve 后父目录替换可越界写；overwrite=false 并发覆盖；设备名不完整；TC-L4-002 错配；计数矛盾；Prompt 后补。
+- 解决方案：temp/parent 多次 containment；overwrite=false 用 os.link 原子发布；补全 COM/LPT；文件 E2E 待 S18；统一计数；新 change 承接。
+- 验证结果：247 passed、覆盖率 97.06%；unit 183、contract 64；mypy 61 files 0 errors；OpenSpec 11 passed。
+- 历史限制：S11 Prompt 在实现/收口提交后补，无法回改；后续先留 Prompt 再提交。
+- 状态：Resolved
+- 关联提交：`s11-report-fixes` change（见最终报告）
+
 ### S11 阶段问题记录（2026-10-23）
 
 - 实现：write_file 复用 Sandbox；父目录必须存在；默认不覆盖，overwrite=true 才替换。
 - 原子：同目录 mkstemp + fsync + os.replace；失败 unlink；校验/编码/超限在临时文件前返回。
 - 往返：空内容/换行与 read_file 一致；安全用例覆盖 ../、绝对路径、隐藏、symlink 目标、父目录缺失、编码错误。
-- 验收：243 passed、覆盖率 97.00%；unit 179、contract 64；mypy 61 files 0 errors；OpenSpec/wheel 通过。
+- 验收：247 passed、覆盖率 97.06%；unit 183、contract 64；mypy 61 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞；TC-L4-002 留 S18；并发非 CAS。
 
 ### S10 阶段问题记录（2026-10-23）
@@ -495,6 +505,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 

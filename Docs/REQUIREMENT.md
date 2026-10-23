@@ -1,4 +1,4 @@
-# REQUIREMENT <!-- omit in toc -->
+﻿# REQUIREMENT <!-- omit in toc -->
 
 > **Agent-mini 需求基线**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 本文件是整个项目的需求唯一来源；设计、测试、计划文档均以此为基准，变更需回溯同步。
@@ -193,8 +193,8 @@ Agent-mini 是一个**最小可用 Agent**。
 | FR-TOOL-02 | calculator：安全四则与括号运算，禁止任意代码执行 | P0 | TC-L1-001、TC-L1-002、TC-L1-003 |
 | FR-TOOL-03 | time：支持默认时区与指定 IANA 时区 | P0 | TC-L1-004、TC-L1-005 |
 | FR-TOOL-04 | todo：会话级增删改查，session_id 由可信执行上下文注入，不允许模型参数覆盖 | P0 | TC-L1-006、TC-L3-013、TC-L4-009 |
-| FR-TOOL-05 | read_file：沙箱内读取，限制大小与编码 | P0 | TC-L1-012、TC-L4-002 |
-| FR-TOOL-06 | write_file：沙箱内写入，禁止覆盖越界与超限 | P0 | TC-L1-012、TC-L4-002 |
+| FR-TOOL-05 | read_file：沙箱内读取，限制大小与编码 | P0 | TC-L1-012；文件 E2E 待 S18 |
+| FR-TOOL-06 | write_file：沙箱内写入，禁止覆盖越界与超限 | P0 | TC-L1-012；文件 E2E 待 S18 |
 | FR-TOOL-07 | 沙箱：阻断 `..` 逃逸、绝对路径越界、符号链接逃逸 | P0 | TC-L1-010、TC-L1-011、TC-L5-003 |
 | FR-TOOL-08 | search：provider 抽象，未配置时返回明确"未启用"错误 | P1 | TC-L1-021、TC-L3-006 |
 
@@ -320,3 +320,4 @@ Agent-mini 是一个**最小可用 Agent**。
 | v0.6 | 2026-10-21 | **放弃官方 tokenizer 方案**，改回**本地 tokenizer 估算**（`tiktoken` + 10% 安全余量）；`usage` 仅用于观测对账，不参与预算判断 | FR-CTX-02；联动 `DESIGN` §1.1/§2.2/§3.5/ADR-015/§8、`TESTING` TC-L1-022 与工具表、`PLAN` S15 |
 | v0.7 | 2026-10-21 | 完善 reasoning/content/tool_calls 解析和 trace 来源；完整请求预算统计 tools Schema、循环增长与本地超限拒绝；补充双窗口、工具追问和真实 API 验收；Redis 改为整轮保留 | DESIGN v0.6、TESTING v0.6（75 个用例）、PLAN v0.6；AC-06/08/20/22 修订，新增 AC-23；ISSUE-010~012 |
 | v0.8 | 2026-10-22 | FR-RT-01/AC-01 映射 S03 的 TC-L1-015A/B/C；TC-L1-015 与 TC-L4-003 分别明确为 S04/S18 | TESTING v0.7、PLAN S03、ISSUE-028 |
+

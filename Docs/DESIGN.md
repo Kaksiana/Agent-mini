@@ -314,7 +314,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；模型 before validator 将非字符串转字符串，保证 Registry 返回 `invalid_timezone`；Schema 仅含 `timezone`，描述不暴露 tz；`now_provider` 仅测试注入，不进入 Schema | 空串/大小写错误/不存在 IANA/非字符串返回 `invalid_timezone`（FR-TOOL-03） |
   | todo | 以 `ToolContext.session_id` 为键的 `MemoryTodoStore`（可 `configure_todo_store` 注入，S13 替换 Memory KV）；1-based 稳定 id，complete/delete 不重排，返回 frozen 快照；add/list/complete/delete；index 严格 int | 空列表返回空 items；不跨会话；重启丢失、非线程安全；完整 Schema 不含 session_id；非法 action 返回 invalid_action（FR-TOOL-04） |
   | read_file | `ToolContext.sandbox_root` 提供根；`Sandbox.resolve` 四步校验；大小≤max_file_size；有界读取 `limit+1`；NUL 二进制拒绝；仅文本 codec（空编码/非文本拒绝）；返回 JSON `{content,size,encoding}`；空文件正常、换行保留；错误码 absolute_path/path_escape/invalid_path/hidden_path/extension_not_allowed/path_too_long/file_not_found/file_too_large/binary_file/decode_error/invalid_encoding/file_read_error/missing_sandbox_root | 越界阻断、二进制拒绝、大小/编码限制、错误码区分（FR-TOOL-05） |
-  | write_file | 复用 `Sandbox.resolve`；父目录必须存在；默认不覆盖，`overwrite=true` 才替换；同目录 `mkstemp` + flush/fsync + `os.replace`；失败 unlink 临时文件；保留既有权限；空内容合法；返回 `{path,size,overwritten}` | 越界阻断、大小/编码上限、失败无残留；并发 exists/replace 非 CAS（FR-TOOL-06） |
+  | write_file | 复用 `Sandbox.resolve`；父目录必须存在；默认不覆盖，`overwrite=false` 用同目录临时文件 + `os.link` 原子发布（EEXIST→file_exists），`overwrite=true` 才 `os.replace`；temp/parent 在创建后和发布前复核 root；失败 unlink；保留既有权限；空内容合法；返回 `{path,size,overwritten}` | 越界阻断、大小/编码上限、失败无残留；父目录竞态采用多次 containment 复核，仍不宣称完全原子（FR-TOOL-06） |
   | search | `SearchProvider` 协议 + `NullProvider`（未配置时返回 `not_configured`） | **禁止伪造搜索结果**（FR-TOOL-08） |
 
 ### 3.4 Memory 记忆
@@ -565,3 +565,4 @@ AgentResult →
 | v0.23 | 2026-10-23 | S10 沙箱/read_file：ToolContext 根、四步校验、限制常量、TOCTOU 假设、错误码 | §3.3；联动 FR-TOOL-05/07、TC-L1-010/011/012、TC-L5-003 |
 | v0.24 | 2026-10-23 | S10 报告修复：Windows 反斜杠/设备名、任意 `..`、文本 codec、有界读取、file_read_error | §3.3；联动 S10-report、s10-report-fixes |
 | v0.25 | 2026-10-23 | S11 write_file：沙箱复用、同目录原子写、覆盖保护、失败清理、权限/并发假设 | §3.3；联动 FR-TOOL-06、TC-L1-012 写分支、TC-L4-002 |
+| v0.26 | 2026-10-23 | S11 报告修复：os.link 原子不覆盖、parent/temp containment、COM/LPT 全量 | §3.3；联动 S11-report、s11-report-fixes |

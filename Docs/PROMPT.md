@@ -1,4 +1,4 @@
-# PROMPT <!-- omit in toc -->
+﻿# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -1808,4 +1808,37 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 原子写：父目录必须存在；默认不覆盖；同目录 mkstemp + flush/fsync + os.replace；失败清理临时文件。
 - 安全：复用 Sandbox.resolve；../、绝对路径、隐藏、symlink 目标、父目录缺失、编码/超限均不落盘。
 - 往返：空内容/换行与 read_file 一致。
-- 验收：243 passed、覆盖率 97.00%；unit 179、contract 64；mypy 61 files 0 errors。
+- 验收：247 passed、覆盖率 97.06%；unit 183、contract 64；mypy 61 files 0 errors。
+
+## 2026-10-23 14:54 — S11 独立评估
+
+### 原始 Prompt
+
+```text
+【评估】S11代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S11 write_file 的安全写入、覆盖保护、测试真实性、分发、依赖与流程合规性。
+- 产出：新增 `Docs/S11-report.md`；识别 2 项 P0、4 项 P1、4 项 P2，结论为修复 P0/P1 后方可进入 S12。
+- 验证：247 passed、覆盖率 97%；unit 183、contract 64；ruff/format/mypy/OpenSpec/wheel/Python 3.11 隔离安装与全量测试通过。
+- 关键发现：父目录 junction 竞态可写出沙箱；overwrite=false 的 exists/replace 竞态会覆盖竞争者文件；Windows 设备名范围不全；TC-L4-002 映射、测试计数与 Prompt 时序不合规。
+- 人工修正 / 决策：只记录评估结果，不修改实现、测试、Issue、PLAN、OpenSpec、README、MEMORY 或远程状态。
+- 关联提交：无（独立评估未提交）。
+
+
+## 2026-10-23 14:59 — 修复 S11 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】S11-report中问题
+```
+
+### 执行摘要
+
+- P0-01：temp/parent 在创建后、发布前复核 root containment；失败 path_escape 且清理。
+- P0-02：overwrite=false 改用 os.link 原子发布，EEXIST→file_exists；overwrite=true 才 replace。
+- P1：补全 COM1–9/LPT1–9；TC-L4-002 从文件需求移除，文件 E2E 留 S18；统一 247/183/97.06%。
+- 验收：247 passed、覆盖率 97.06%；unit 183、contract 64；mypy 61 files 0 errors。
