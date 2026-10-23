@@ -1,0 +1,169 @@
+"""TC-L4-001/003/007/008/012、TC-L3-008：HTTP 接口契约。"""
+
+from __future__ import annotations
+
+from typing import Any, cast
+
+import httpx
+import pytest
+
+from agent_mini.context.window import ContextTooLarge
+from agent_mini.interface.http import create_app
+from agent_mini.llm.errors import LLMError, LLMRateLimitError, LLMTimeoutError
+from agent_mini.llm.models import Usage
+from agent_mini.runtime.result import AgentResult, ThoughtStep
+
+pytestmark = pytest.mark.integration
+
+
+class _Agent:
+    def __init__(self, result: AgentResult | None = None) -> None:
+        self.result = result or AgentResult(
+            reply="你好",
+            steps=1,
+            usage=Usage(prompt_tokens=2, completion_tokens=3, total_tokens=5),
+            trace=(ThoughtStep(step=1, decision="final", thought="回答"),),
+            tool_calls=0,
+            trace_id="trace-1",
+        )
+        self.calls: list[tuple[str, str, str]] = []
+
+    async def run(
+        self,
+        user_input: str,
+        session_id: str | None = None,
+        trace_id: str | None = None,
+    ) -> AgentResult:
+        self.calls.append((user_input, session_id or "", trace_id or ""))
+        return self.result.model_copy(update={"session_id": session_id, "trace_id": trace_id})
+
+
+def _app(agent: object) -> Any:
+    return create_app(cast(Any, agent), {"redis": lambda: True, "mongo": lambda: True})
+
+
+async def _post(app: object, payload: dict[str, object]) -> httpx.Response:
+    transport = httpx.ASGITransport(app=cast(Any, app), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post("/chat", json=payload)
+
+
+async def test_chat_contract_and_generated_session() -> None:
+    agent = _Agent()
+    response = await _post(_app(agent), {"message": "你好"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "session_id",
+        "reply",
+        "steps",
+        "tool_calls",
+        "usage",
+        "trace",
+        "trace_id",
+        "truncated",
+    }
+    assert body["reply"] == "你好"
+    assert body["tool_calls"] == 0
+    assert body["truncated"] is False
+    assert body["usage"] == {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}
+    assert body["trace"][0]["decision"] == "final"
+    assert len(body["session_id"]) >= 32
+    assert len(body["trace_id"]) >= 16
+
+
+async def test_existing_session_is_reused() -> None:
+    agent = _Agent()
+    response = await _post(_app(agent), {"session_id": "A", "message": "hi"})
+
+    assert response.json()["session_id"] == "A"
+    assert agent.calls[0][1] == "A"
+
+
+@pytest.mark.parametrize(
+    ("exc", "status", "code"),
+    [
+        (LLMTimeoutError("timeout"), 408, "LLM_TIMEOUT"),
+        (LLMRateLimitError("rate"), 429, "LLM_RATE_LIMITED"),
+        (LLMError("bad"), 502, "LLM_ERROR"),
+        (RuntimeError("boom"), 500, "INTERNAL_ERROR"),
+        (ContextTooLarge(), 400, "CONTEXT_TOO_LARGE"),
+    ],
+)
+async def test_error_mapping(exc: Exception, status: int, code: str) -> None:
+    class Broken:
+        async def run(self, *args: object, **kwargs: object) -> AgentResult:
+            raise exc
+
+    response = await _post(_app(Broken()), {"message": "hi"})
+
+    assert response.status_code == status
+    assert response.json()["code"] == code
+    assert "traceback" not in response.text.lower()
+    assert "Traceback" not in response.text
+
+
+async def test_invalid_request_is_400() -> None:
+    response = await _post(_app(_Agent()), {"message": "   "})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "INVALID_REQUEST"
+
+
+async def test_health_does_not_leak_secrets() -> None:
+    app = create_app(
+        cast(Any, _Agent()),
+        {
+            "redis": lambda: True,
+            "mongo": lambda: False,
+            "mysql": lambda: (_ for _ in ()).throw(RuntimeError("password=secret")),
+        },
+    )
+    transport = httpx.ASGITransport(app=cast(Any, app), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/healthz")
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["status"] == "degraded"
+    assert body["dependencies"] == {
+        "redis": "ok",
+        "mongo": "unavailable",
+        "mysql": "unavailable",
+    }
+    assert "secret" not in response.text
+    assert "dsn" not in response.text.lower()
+
+
+async def test_secret_values_are_redacted() -> None:
+    secret = "sk-sentinel1234567890"
+    agent = _Agent(
+        AgentResult(
+            reply=f"key={secret} Authorization: Bearer abc",
+            steps=1,
+            usage=Usage(),
+            trace=(),
+            trace_id="t",
+        )
+    )
+    response = await _post(_app(agent), {"message": "hi"})
+
+    assert secret not in response.text
+    assert "Bearer abc" not in response.text
+
+
+async def test_truncated_result_returns_200() -> None:
+    result = AgentResult(
+        reply="达到最大步数限制，已停止。",
+        steps=2,
+        usage=Usage(),
+        trace=(),
+        truncated=True,
+        termination_reason="max_steps",
+        trace_id="t",
+    )
+    response = await _post(_app(_Agent(result)), {"message": "hi"})
+
+    assert response.status_code == 200
+    assert response.json()["truncated"] is True

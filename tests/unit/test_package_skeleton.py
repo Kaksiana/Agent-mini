@@ -97,6 +97,7 @@ NON_PLACEHOLDER_MODULES = {
     "memory/base.py",
     "systemdb/models.py",
     "systemdb/repository.py",
+    "interface/http.py",
 }
 
 PLACEHOLDER_MODULES = [

@@ -109,12 +109,14 @@ class Agent:
         self,
         user_input: str,
         session_id: str | None = None,
+        trace_id: str | None = None,
     ) -> AgentResult:
         """运行单轮；响应前同步 Redis，响应后异步 Mongo。"""
         if session_id is not None and not valid_session_id(session_id):
             raise ValueError("session_id 非法")
         started = monotonic()
-        executor = self._executor_for(session_id)
+        active_trace = trace_id or uuid4().hex
+        executor = self._executor_for(session_id, active_trace)
         messages, tools_snapshot, context_fit = await self._build_context(
             user_input,
             session_id,
@@ -146,14 +148,14 @@ class Agent:
                 self._write_system(
                     session_id,
                     result,
-                    uuid4().hex,
+                    active_trace,
                     int((monotonic() - started) * 1000),
                 )
             )
             self._background.add(task)
             task.add_done_callback(self._background.discard)
         if session_id is not None:
-            result = result.model_copy(update={"session_id": session_id})
+            result = result.model_copy(update={"session_id": session_id, "trace_id": active_trace})
         return result
 
     async def _build_context(
@@ -187,16 +189,20 @@ class Agent:
 
         return list(payload.messages), payload.tools_snapshot, fit
 
-    def _executor_for(self, session_id: str | None) -> ToolExecutor | None:
+    def _executor_for(
+        self,
+        session_id: str | None,
+        trace_id: str,
+    ) -> ToolExecutor | None:
         if session_id is None or self._tool_executor is None:
             return self._tool_executor
         bind_request = getattr(self._tool_executor, "bind_request", None)
         if callable(bind_request):
-            return cast(ToolExecutor, bind_request(session_id, uuid4().hex))
+            return cast(ToolExecutor, bind_request(session_id, trace_id))
         with_context = getattr(self._tool_executor, "with_context", None)
         if not callable(with_context):
             return self._tool_executor
-        context = ToolContext(session_id=session_id, trace_id=uuid4().hex)
+        context = ToolContext(session_id=session_id, trace_id=trace_id)
         return cast(ToolExecutor, with_context(context))
 
     async def _write_back(self, session_id: str, stored: StoredRound) -> None:
