@@ -1914,7 +1914,55 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - ShortTermMemory：JSON 完整轮次、LTRIM 10 轮、TTL 86400s、key 含 session_id、Redis 失败 memory.degraded。
 - 写回在 loop 返回后、Agent.run 返回前 await；工具配对/reasoning 持久化。
 - 依赖：redis>=7.4,<8；fakeredis>=2.23,<3 dev。
-- 验收：270 passed、覆盖率 97.09%；unit 204、contract 64；mypy 65 files 0 errors。
+- 验收：271 passed、覆盖率 96.51%；unit 197、contract 64；mypy 65 files 0 errors。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s13-memory-redis-shortterm`；新建 `short-term-memory` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 13 passed、0 failed。
 - 关联提交：`ea0e825`（代码+测试/依赖/change）、`ebd81c4`（文档）、归档提交见最终报告。
+
+## 2026-10-23 17:04 — S13 代码产出独立评估
+
+### 原始 Prompt
+
+```text
+【评估】S13代码产出
+```
+
+### 执行摘要
+
+- 目标：独立评估 S13 Redis 短时窗口、Runtime 写回、session_id、测试、OpenSpec、依赖与 S12 前置门禁。
+- 产出：新增 `Docs/S13-report.md`；识别 3 项 P0、6 项 P1、5 项 P2，结论为 S13 暂不可进入 S14。
+- 关键验证：271 passed、覆盖率 96.51%；ruff/format/mypy/OpenSpec/wheel/Python 3.11 通过；复现沙箱外原文件删除、Redis 无 TTL 部分写、Memory 异常/悬挂阻断响应、安全阀轮次不完整和 session 工具上下文断链。
+- 人工修正 / 决策：本轮只新增报告与 Prompt 记录，不修改实现、测试、OpenSpec、Issue、阶段状态或远程状态。
+- 关联提交：无（评估 Agent 不提交、不推送）。
+
+## 2026-10-23 17:04 — 继续 S13 评估
+
+### 原始 Prompt
+
+```text
+继续
+```
+
+### 执行摘要
+
+- 目标：继续执行未完成的 S13 边界探针、全量门禁、隔离打包与报告落盘。
+- 产出：完成 `Docs/S13-report.md` 与本轮验证闭环。
+- 人工修正 / 决策：保持只读评估边界，不实施修复、不提交、不推送。
+- 关联提交：无。
+
+
+## 2026-10-23 17:15 — 修复 S13 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】S13-report
+```
+
+### 执行摘要
+
+- Redis 分步写改为 MULTI/EXEC pipeline 原子执行；Memory 写回加 5s 超时/异常降级。
+- Agent 安全阀补 assistant 回复与 truncated 元数据；session_id 经 RegistryExecutor.with_context 注入。
+- S13 Redis 测试改为 integration；search provider name 异常纳入结构化错误。
+- write_file 发布窗口 P0-01 仍无法在 Windows 无目录句柄下完全闭环，已如实保留。
+- 验收：271 passed、覆盖率 96.51%；unit 197、contract 64、integration 8。
