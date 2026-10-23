@@ -1859,7 +1859,40 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 新增 SearchProvider/SearchResult/NullProvider、SearchArgs、@tool("search")；模块级 provider 注入。
 - 未配置 not_configured；参数/异常/超时/畸形/截断结构化；空结果成功。
 - TC-L3-006 实际是 calculator 集成，登记 ISSUE-039；search 独立 E2E 留后续。
-- 验收：258 passed、覆盖率 96.99%；unit 194、contract 64；mypy 63 files 0 errors。
+- 验收：263 passed、覆盖率 97.04%；unit 197、contract 64；mypy 63 files 0 errors。
 
 - OpenSpec 归档：change 归档为 `2026-10-23-s12-tool-search`；新建 `search` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 12 passed、0 failed。
 - 关联提交：`3617c1e`（OpenSpec 规划）、`b7eb3c9`（代码+测试）、`5d2b7cb`（文档）、归档提交见最终报告。
+
+## 2026-10-23 15:49 — S12 代码产出独立评估
+
+### 原始 Prompt
+
+```text
+【评估】S12代码产出
+```
+
+### 执行摘要
+
+- 目标：按项目规范独立评估 S12 search 与 M2 收口，复核需求、实现、测试、OpenSpec、打包、流程及 S11 前置门禁。
+- 产出：新增 `Docs/S12-report.md`；识别 1 项 P0、5 项 P1、5 项 P2，结论为 S12 暂不可进入 S13、M2 不满足完成定义。
+- 关键验证：263 passed、覆盖率 97.04%；ruff/format/mypy/OpenSpec/wheel/Python 3.11 通过；复现 S11 最终发布窗口沙箱逃逸、builtin 干净导入 0 注册、provider 畸形字段异常泄漏和并发来源错标。
+- 人工修正 / 决策：本轮只新增评估报告与 Prompt 记录，不修改实现、测试、OpenSpec、Issue、阶段状态或远程状态。
+- 关联提交：无（评估 Agent 不提交、不推送）。
+
+
+## 2026-10-23 15:54 — 修复 S12 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】S12-report中问题
+```
+
+### 执行摘要
+
+- builtin 显式导入六工具，subprocess 干净进程断言六 Schema；README 增加 M2 演示。
+- provider name/SearchResult 四字段严格 str 校验；Registry search not_configured 测试。
+- write_file 发布后再次 containment，越界删除目标并 path_escape。
+- TC-L3-006 保留 calculator；search 正式 E2E 仍留 ISSUE-039。
+- 验收：263 passed、覆盖率 97.04%；unit 197、contract 64；mypy 64 files 0 errors。

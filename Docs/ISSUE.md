@@ -1,4 +1,4 @@
-# ISSUE <!-- omit in toc -->
+﻿# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -515,6 +515,8 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
+
 
 
 
