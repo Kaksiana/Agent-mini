@@ -157,3 +157,10 @@
 - ContextBuilder：system→工具摘要→中期摘要→StoredRound 历史→当前 user；不做裁剪。
 - 依赖 tiktoken>=0.12,<0.13；测试注入假 encoder，不依赖在线下载。
 - 验收：305 passed、1 skipped；unit 198、contract 64、integration 43；覆盖率 95.93%。
+
+## 2026-10-23 — S16 双触发整轮裁剪
+
+- window.fit_rounds：轮次 >10 或 token > 预算，整轮丢最旧并重计；trim_reason rounds/tokens/both。
+- ContextPayload 增加 rounds_before/after、tokens_before/after、dropped_rounds、trim_reason。
+- Agent/loop 每次 chat 前 fit；ContextTooLarge 不发请求。
+- 验收：312 passed、1 skipped；unit 198、contract 64、integration 50；覆盖率 96.11%。

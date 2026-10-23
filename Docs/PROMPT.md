@@ -2112,3 +2112,18 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - tools_snapshot 不可变；Memory 读取 1s 超时；round_id 去重；reasoning 计数开关。
 - 补 Agent→LLM 快照/超时/去重/reasoning 测试；骨架清单去重、EOF/空白修复。
 - 验收：305 passed、1 skipped；unit 198、contract 64、integration 43；覆盖率 95.93%。
+
+## 2026-10-23 23:46 — S16 双触发整轮裁剪
+
+### 原始 Prompt
+
+```text
+【角色】S16「Context：双触发整轮裁剪」执行 Agent：在 context/window.py 实现双触发整轮裁剪，并在 Agent 循环每次 LLM 出站前复核。
+```
+
+### 执行摘要
+
+- fit_rounds：K=10 或 token 超预算，整轮丢弃最旧历史并重计数；system/tools/当前轮不可删。
+- ContextPayload 分项与 context.trimmed 日志；Agent.with_context 的 fit 回调在每次 chat 前执行。
+- ContextTooLarge：最小集合超限，本地抛错且不发请求。
+- 验收：312 passed、1 skipped；覆盖率 96.11%。
