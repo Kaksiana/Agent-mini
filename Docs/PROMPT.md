@@ -1794,3 +1794,18 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 验收：224 passed、覆盖率 96.76%；unit 160、contract 64；mypy 59 files 0 errors。
 - 关联提交：`731b5e4`（OpenSpec 规划）、`350b644`（代码+测试）、`eb22379`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s10-report-fixes`；read-file 1 项、sandbox 增至 4 项 Requirement；`openspec validate --all --strict` 为 10 passed、0 failed。
+
+## 2026-10-23 14:28 — S11 write_file
+
+### 原始 Prompt
+
+```text
+【角色】S11「Tool：write_file」执行 Agent；按 PLAN S11 用 TDD 实现沙箱内原子写与覆盖保护，复用 S10 Sandbox，完成验收与收口。
+```
+
+### 执行摘要
+
+- 原子写：父目录必须存在；默认不覆盖；同目录 mkstemp + flush/fsync + os.replace；失败清理临时文件。
+- 安全：复用 Sandbox.resolve；../、绝对路径、隐藏、symlink 目标、父目录缺失、编码/超限均不落盘。
+- 往返：空内容/换行与 read_file 一致。
+- 验收：243 passed、覆盖率 97.00%；unit 179、contract 64；mypy 61 files 0 errors。
