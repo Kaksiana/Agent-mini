@@ -1,4 +1,4 @@
-﻿# PLAN <!-- omit in toc -->
+# PLAN <!-- omit in toc -->
 
 > **Agent-mini 执行计划**。规则见 `AGENT.md` §8（阶段执行粒度）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`。
@@ -357,5 +357,3 @@
 | S18–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
-
-

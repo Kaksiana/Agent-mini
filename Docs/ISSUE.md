@@ -1,4 +1,4 @@
-﻿# ISSUE <!-- omit in toc -->
+# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -590,5 +590,3 @@
 - 新增 M3 离线演示 `tests/integration/test_m3_demo.py`：三轮只写当前轮、跨轮历史、12 轮裁到 10 轮。
 - README 增加 M3 演示命令，更新到 S16。
 - 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。
-
-
