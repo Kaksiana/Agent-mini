@@ -29,10 +29,12 @@ class DuplicateToolError(ToolRegistrationError):
 
 @dataclass(frozen=True)
 class ToolContext:
-    """S09 起使用的可信会话上下文；S06 只预留。"""
+    """可信会话上下文；sandbox 配置只由服务端提供。"""
 
     session_id: str
     trace_id: str
+    sandbox_root: str | None = None
+    max_file_size: int | None = None
 
 
 @dataclass(frozen=True)
