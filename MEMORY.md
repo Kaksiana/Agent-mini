@@ -182,4 +182,4 @@
 
 - observability.logging：JSON Formatter 固定字段、ContextVar trace/session、RedactionFilter。
 - HTTP 迁移到共享 redact_text，删除临时 _SECRET_PATTERNS；reasoning/content 不落日志。
-- 验收：350 passed、2 skipped；unit 202、contract 64、integration 84；覆盖率 94.91%。
+- 验收：350 passed、2 skipped；unit 202、contract 64、integration 84；覆盖率 94.95%。
