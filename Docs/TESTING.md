@@ -1,4 +1,4 @@
-# TESTING <!-- omit in toc -->
+﻿# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -438,4 +438,5 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 | AC-21 | TC-L3-011、TC-L3-012 |
 | AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 | AC-23 | TC-LIVE-001、TC-LIVE-002 |
+
 

@@ -1,4 +1,4 @@
-# ISSUE <!-- omit in toc -->
+﻿# ISSUE <!-- omit in toc -->
 
 > 开发过程中遇到的问题与解决方案。规则见 `AGENT.md` §4。
 > 状态取值：`Open` / `Resolved` / `Wontfix`。
@@ -503,13 +503,14 @@
 - 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。
 - S15 报告复验/Python3.11/S13 POSIX 仍 Open。
 
-### ISSUE-043 — 真实 MySQL 未运行
+### ISSUE-043 — 真实 MySQL 未运行（已关闭）
 
 - 日期：2026-10-24
 - 现象：本机 MySQL80 服务无法启动，Docker 无可用 MySQL 镜像；S17 使用 SQLite 异步仓储 + MySQL schema 静态测试。
 - 影响：MySQL 8 JSON/时间精度/ON DUPLICATE KEY UPDATE 未在真实实例验证；S17 PLAN 标注“SQLite 仓储验证”。
 - 复现：设置 `MYSQL_TEST_DSN` 后在 MySQL 8 执行 schema + 仓储测试；当前环境无法提供。
-- 状态：Open
+- 状态：Resolved（2026-10-24，Docker mysql:8.0，端口 3307；schema/upsert/session/audit/metrics/索引实测通过）
+- 复现命令：`docker run -d --name agent-mini-mysql -e MYSQL_ROOT_PASSWORD=testpass -e MYSQL_DATABASE=agent_mini -p 3307:3306 mysql:8.0`；`MYSQL_TEST_DSN=mysql+asyncmy://root:testpass@127.0.0.1:3307/agent_mini pytest tests/integration/test_systemdb.py`
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
 
@@ -589,4 +590,5 @@
 - 新增 M3 离线演示 `tests/integration/test_m3_demo.py`：三轮只写当前轮、跨轮历史、12 轮裁到 10 轮。
 - README 增加 M3 演示命令，更新到 S16。
 - 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。
+
 

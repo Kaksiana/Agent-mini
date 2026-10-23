@@ -2194,3 +2194,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 启动 initialize、状态转换、请求耗时、MySQL 门控、created_at 稳定与 schema 真源。
 - 验收：323 passed、2 skipped；integration 61（MySQL 1 skip）；覆盖率 94.66%。
+
+## 2026-10-24 01:17 — 真实 MySQL Docker 验证
+
+- 启动 mysql:8.0（3307），执行 schema 两次、五表/索引、upsert、session、audit、metrics 实测。
+- MYSQL_TEST_DSN 门控测试 8 passed；ISSUE-043 Resolved。

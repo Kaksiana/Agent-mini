@@ -196,3 +196,12 @@
 | P2-04 格式 | ruff/mypy/EOF 修复 | 通过 |
 
 **复验**：323 passed、2 skipped；unit 198、contract 64、integration 61（MySQL 1 skip）；覆盖率 **94.66%**；mypy 71 files 0 errors。
+
+## 11. 真实 MySQL 验证（2026-10-24）
+
+- Docker `mysql:8.0`（8.0.46），端口 3307，库 `agent_mini`。
+- `schema.sql` 连续执行两次通过；五表存在；`idx_tool_invocations_session_time` 存在。
+- 2 模型/6 工具两次 upsert 仍 2/6；手工 enabled=0 保留；created_at 稳定。
+- 两次 session upsert 后 message_count=2；显式 idle 后 upsert 仍 idle。
+- tool_invocations/request_metrics 各 1 条。
+- 命令：`MYSQL_TEST_DSN=mysql+asyncmy://root:testpass@127.0.0.1:3307/agent_mini pytest tests/integration/test_systemdb.py`（8 passed）。
