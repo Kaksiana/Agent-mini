@@ -1698,4 +1698,61 @@ TC 定义见 `Docs/TESTING.md` TC-L1-006、TC-L3-013；TC-L4-009/010 在 S18 回
 - 关联提交：`ab9f676`（OpenSpec 规划）、`6615870`（代码+测试）、`70c7073`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s09-report-fixes`；todo-tool 增至 5 项 Requirement；`openspec validate --all --strict` 为 8 passed、0 failed。
 
+## 2026-10-23 13:44 — S10 沙箱与 read_file
+
+### 原始 Prompt
+
+```text
+【角色】
+你是 S10「Tool：沙箱内核与 read_file」执行 Agent，熟悉路径沙箱、符号链接逃逸防护、TOCTOU、pydantic、pytest、OpenSpec、SuperPower SKILL，遵循 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+阶段定义、验收标准、测试项见 `Docs/PLAN.md` S10。
+沙箱四步校验与 `SandboxViolation` 契约见 `Docs/DESIGN.md` §3.3；S06 已完成注册机制，S07–S09 已交付 calculator / time / todo，参照其结构与错误码约定。
+TC 定义见 `Docs/TESTING.md` TC-L1-010/011/012、TC-L5-003；需求见 `Docs/REQUIREMENT.md` FR-TOOL-05、FR-TOOL-07。
+S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
+【任务】
+按 PLAN S10 用 TDD 实现沙箱内核（`tools/sandbox.py`）与 read_file 工具，完成验收与收口。
+【约束】
+1. 开工前核对：S06 接口与 DESIGN §3.3 一致；TC-L1-010/011/012、TC-L5-003 在 TESTING 中定义齐全；S07–S09 错误码风格。缺失或不一致 → 停，登记 ISSUE，不得自行补写。
+2. 只改 `agent_mini/tools/sandbox.py`、`agent_mini/tools/builtin/read_file.py` 及测试；必要时最小改动 `tools/__init__.py` 导出，需说明理由。
+3. 不实现 S11 write_file、S12 search、S13+ 其他阶段；不改 Runtime 或其他子包；不引入第三方沙箱库（如 `filelock`、`pathvalidate`）；不新增运行依赖。
+4. **沙箱根目录来源必须在 change design 中明确**：配置常量 / `ToolContext` 注入 / 构造参数。禁止硬编码为固定路径；若从 `ToolContext` 注入，须说明 S06/S09 已有 `ToolContext` 的扩展方式与对 S09 无回归的验证。
+5. **四步校验必须实现且可测**（DESIGN §3.3）：①拒绝绝对路径；②拼接后 `resolve()` 求真实路径；③真实路径仍在 root 之下（防 `..` 与符号链接逃逸）；④大小与扩展名白名单校验。任一步失败抛 `SandboxViolation` 或对应错误码，转为 `ToolResult(ok=False, ...)`，不得抛未捕获异常。
+6. **TOCTOU 假设必须在 design 中明确**：`resolve()` 后的校验与后续 `open()` 之间存在竞态，S10 的防护等级与不防护范围（如是否用 `os.open(O_NOFOLLOW)`）须在 design 中声明；本轮采用最小可用防护即可，但必须在 DESIGN §3.3 或 change design 中留痕，不得静默假设安全。
+7. 限制项必须提取为具名常量：单文件大小上限、允许的扩展名白名单、是否允许隐藏文件、是否允许空文件；默认值在 design 中给出。
+8. read_file 行为契约：
+   - 输入：相对路径、可选编码；
+   - 输出：文件内容与元信息（大小、编码）；二进制文件、超限文件、编码解码失败均返回结构化错误；
+   - 空文件返回空字符串 + 正常元信息，不算错误；
+   - 换行符处理（保留原始 vs 归一）在 design 中明确。
+9. 非法参数（缺失字段、路径为空、编码不支持）转为 `ToolResult(ok=False, error_code=..., content=...)`；error_code 集中定义，命名与 S07–S09 一致。
+10. 用 OpenSpec 创建 `s10-tool-sandbox-readfile` change，`validate --strict` 通过后 TDD；使用 SuperPower SKILL，不可用登记 ISSUE。
+11. TDD：TC 逐条先红后绿，红因为未实现相关，不得以收集错误冒充；红绿证据写入 `Docs/PROMPT.md`（逐字保存本轮 Prompt）。
+12. 安全测试必须覆盖：`../`、多层 `../`、绝对路径（POSIX / Windows 盘符）、符号链接指向外部、符号链接链、`.` 与空路径、超限文件、二进制文件、扩展名不在白名单、隐藏文件（如 design 决定拒绝）。缺少任一典型越界用例须登记 ISSUE。
+13. 遵循代码规范：行宽、单行单语句、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无魔法数字。
+14. 验收：`pytest -m unit`、`pytest -m contract`、全量 `pytest`（S00–S09 无回归）、覆盖率（含新增代码）、`ruff check .`、`ruff format --check .`、`mypy agent_mini tests`、`openspec validate --all --strict`、wheel + 仓库外导入；复跑留证。
+15. 文档收口：PLAN 状态、DESIGN（沙箱根来源、TOCTOU 假设、限制常量、error_code）、TESTING、ISSUE、MEMORY、PROMPT、README（如需要）；OpenSpec 归档；不改已归档 change。
+16. Commit 拆分：OpenSpec / 代码+测试 / 文档 / 归档；冲突或失败停止报告，不得强推。
+【输出格式】
+1. 开工前核对结论 + Prompt 逐字记录确认。
+2. TC 映射表：TC-L1-010/011/012、TC-L5-003（定义摘要 / 覆盖部分 / 用例文件）。
+3. 设计决策：沙箱根来源、四步校验实现方式、TOCTOU 假设与防护等级、限制常量、read_file 行为契约、error_code 列表。
+4. 变更文件（代码/测试/文档/OpenSpec），涉及 `tools/__init__.py` 或 `ToolContext` 须单列。
+5. OpenSpec change 名、validate、归档结果。
+6. TDD 记录：每条 TC 红因、绿因。
+7. 验收结果：各命令结果、覆盖率。
+8. 验收证据：`..`/绝对路径/符号链接逃逸阻断 / 大小与编码限制生效 / 结构化错误返回。
+9. 安全测试覆盖清单（第 12 条逐项）。
+10. 文档收口与 Git 状态。
+11. 异常与待确认（无则写「无」）。
+不输出代码或文档正文。
+```
+
+### TDD 与验收摘要
+
+- 红：Sandbox/read_file 未实现时测试失败；symlink 在 Windows 无权限时用 junction 复验。
+- 绿：`../`、多层 `../`、POSIX/Windows 绝对路径、junction 逃逸、NTFS 流、隐藏、超长、扩展名大小写均阻断；read_file 空/超限/二进制/解码/编码错误结构化。
+- 验收：214 passed、覆盖率 96.66%；unit 150、contract 64；mypy 59 files 0 errors。
+- 关联提交：OpenSpec 规划/代码+测试/文档/归档提交见最终报告。
+
 

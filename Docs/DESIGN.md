@@ -303,8 +303,9 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 - **注册机制**：`@tool(name, description, params_model, enabled_key)` 装饰器写入指定/默认 `ToolRegistry`；`ToolRegistry(enabled=...)` 在 `schemas()`/`execute()` 统一过滤启停，未配置的 `enabled_key` 默认启用；`ToolSpec` 注册期校验名称、描述、pydantic 模型、handler 与 enabled_key（FR-TOOL-01）。
 - **Schema**：`ToolSpec.to_json_schema()` 由 pydantic 模型生成 `{name, description, parameters}`；顶层额外参数按字段白名单拒绝，不依赖模型 `extra` 配置。
 - **执行契约**：`handler(**validated_args) -> ToolResult`；同步 handler 通过 `asyncio.to_thread`，async handler 直接 await；**所有异常必须被捕获并转为** `ToolResult(ok=False, error_code=..., content=可读说明)`，其他返回类型归 `invalid_tool_result`；不得向上抛出（FR-RT-06）。
-- **可信会话上下文**：`ToolContext(session_id, trace_id)` 由 `ToolRegistry.execute(..., context=...)` 传入；`_invoke` 仅对声明 `context` 参数的 handler 注入，calculator/time 零影响。session_id 不放入模型可写参数 Schema，若模型伪造该参数则按额外字段拒绝。模型不能自行指定另一个会话的待办分区。
-- **沙箱**：`Sandbox(root).resolve(rel_path)` 执行四步校验——① 拒绝绝对路径；② 拼接后 `Path.resolve()` 求真实路径；③ 校验真实路径仍在 `root` 之下（防 `..` 与符号链接逃逸）；④ 校验大小与扩展名白名单。任何一步失败抛 `SandboxViolation`（FR-TOOL-07）。
+- **可信会话上下文**：`ToolContext(session_id, trace_id, sandbox_root, max_file_size)` 由 `ToolRegistry.execute(..., context=...)` 传入；`_invoke` 仅对声明 `context` 参数的 handler 注入，calculator/time 零影响。session_id/sandbox_root 不放入模型可写参数 Schema，若模型伪造该参数则按额外字段拒绝。模型不能自行指定另一个会话的待办分区。
+- **沙箱**：`Sandbox(root, max_file_size)` 执行四步校验——① 拒绝 POSIX/Windows 绝对路径、空/`.`、NTFS 流、超长路径、隐藏路径；② 拼接后 `Path.resolve()` 求真实路径；③ 校验真实路径仍在 `root` 之下（防 `..` 与符号链接/junction 逃逸）；④ 校验扩展名白名单（大小写敏感）与大小上限。默认 1 MiB、扩展名 `.txt/.md/.json/.csv/.log/.py/.yaml/.yml`、路径 ≤240、禁止隐藏、允许空文件。失败抛 `SandboxViolation`/`SandboxViolationError`（FR-TOOL-07）。
+- **TOCTOU**：`resolve()` 校验与 `open()` 之间仍存在竞态；S10 采用最小防护，不宣称 `O_NOFOLLOW` 级原子性；S11 写路径需沿用同一根与限制。
 - **六个工具**
 
   | 工具 | 实现要点 | 风险控制 |
@@ -312,7 +313,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | calculator | `ast.parse(mode="eval")` 白名单 `Expression/BinOp/UnaryOp/Constant`，仅 `+ - * /`、取负/取正、括号；阈值 200 字符/20 层/1e12；错误码 `unsafe_expression`/`syntax_error`/`division_by_zero`/`type_error`/`expression_too_long`/`expression_too_deep`/`number_overflow` | 禁止 `eval/exec/compile/import`；bool 不算数值；危险节点拒绝（FR-TOOL-02） |
   | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；模型 before validator 将非字符串转字符串，保证 Registry 返回 `invalid_timezone`；Schema 仅含 `timezone`，描述不暴露 tz；`now_provider` 仅测试注入，不进入 Schema | 空串/大小写错误/不存在 IANA/非字符串返回 `invalid_timezone`（FR-TOOL-03） |
   | todo | 以 `ToolContext.session_id` 为键的 `MemoryTodoStore`（可 `configure_todo_store` 注入，S13 替换 Memory KV）；1-based 稳定 id，complete/delete 不重排，返回 frozen 快照；add/list/complete/delete；index 严格 int | 空列表返回空 items；不跨会话；重启丢失、非线程安全；完整 Schema 不含 session_id；非法 action 返回 invalid_action（FR-TOOL-04） |
-  | read_file | 读文本，限制体积与编码 | 越界阻断、二进制拒绝（FR-TOOL-05） |
+  | read_file | `ToolContext.sandbox_root` 提供根；`Sandbox.resolve` 四步校验；大小≤max_file_size；NUL 二进制拒绝；编码 `codecs.lookup` 校验；返回 JSON `{content,size,encoding}`；空文件正常、换行保留；错误码 absolute_path/path_escape/invalid_path/hidden_path/extension_not_allowed/path_too_long/file_not_found/file_too_large/binary_file/decode_error/invalid_encoding/missing_sandbox_root | 越界阻断、二进制拒绝、大小/编码限制（FR-TOOL-05） |
   | write_file | 写文本，默认不覆盖已有文件（需显式 `overwrite`） | 越界阻断、大小上限、原子写（临时文件 + `os.replace`）（FR-TOOL-06） |
   | search | `SearchProvider` 协议 + `NullProvider`（未配置时返回 `not_configured`） | **禁止伪造搜索结果**（FR-TOOL-08） |
 
@@ -561,3 +562,4 @@ AgentResult →
 | v0.20 | 2026-10-23 | S08 报告修复：Windows tzdata、Registry 非字符串、Schema 去 tz、固定时钟断言、S07 追溯 change | §1.2、§3.3；联动 S08-report、s07-s08-report-fixes |
 | v0.21 | 2026-10-23 | S09 todo：ToolContext 注入、MemoryTodoStore、1-based 稳定 id、会话隔离 | §3.3；联动 FR-TOOL-04、TC-L1-006、TC-L3-013 |
 | v0.22 | 2026-10-23 | S09 报告修复：完整 Schema 去 session_id、invalid_action 可达、严格 index、快照/Store 注入 | §3.3；联动 S09-report、s09-report-fixes |
+| v0.23 | 2026-10-23 | S10 沙箱/read_file：ToolContext 根、四步校验、限制常量、TOCTOU 假设、错误码 | §3.3；联动 FR-TOOL-05/07、TC-L1-010/011/012、TC-L5-003 |

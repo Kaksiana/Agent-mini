@@ -1,4 +1,11 @@
-﻿# MEMORY <!-- omit in toc -->
+# MEMORY <!-- omit in toc -->
+
+## 2026-10-23 — S10 沙箱与 read_file
+
+- 新增 `Sandbox` 四步校验：绝对路径、空/`.`、NTFS 流、隐藏、超长、扩展名、resolve 越界。
+- `ToolContext` 增量 `sandbox_root/max_file_size`；read_file 返回 JSON content/size/encoding；空文件正常、二进制/超限/解码失败结构化。
+- 默认 1 MiB、扩展名白名单、路径 ≤240、禁止隐藏；TOCTOU 为 resolve 后 open，不宣称强原子性。
+- 验收：214 passed、覆盖率 96.66%；unit 150、contract 64；mypy 59 files 0 errors。
 
 ## 2026-10-23 — S09 todo
 

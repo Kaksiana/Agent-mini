@@ -447,6 +447,15 @@
 - 状态：Resolved
 - 关联提交：`s09-report-fixes` change（见最终报告）
 
+### S10 阶段问题记录（2026-10-23）
+
+- 实现：`Sandbox` 四步校验、read_file、`ToolContext.sandbox_root/max_file_size`。
+- 安全：`..`、绝对路径、junction/symlink 逃逸、NTFS 流、隐藏、超长、扩展名大小写均阻断。
+- 限制：默认 1 MiB、扩展名白名单、路径 240、禁止隐藏；空文件正常；二进制/解码/编码结构化错误。
+- TOCTOU：resolve 后 open，最小防护，未宣称强原子性。
+- 验收：214 passed、覆盖率 96.66%；unit 150、contract 64；mypy 59 files 0 errors；OpenSpec/wheel 通过。
+- 无新增阻塞；write_file 留 S11。
+
 ### S09 阶段问题记录（2026-10-23）
 
 - 实现：`TodoArgs`/`@tool("todo")`、`TodoStore` Protocol、进程内 `MemoryTodoStore`；ToolContext 仅注入声明 context 的 handler。
