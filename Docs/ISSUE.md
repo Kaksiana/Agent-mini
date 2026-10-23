@@ -471,7 +471,7 @@
 - 新增 redis>=7.4,<8 运行依赖、fakeredis>=2.23,<3 dev；无其他缓存库。
 - `Agent.run(user_input, session_id=None)` 增量兼容；`AgentResult.session_id` 可选；旧单参数调用不写 Redis。
 - ShortTermMemory JSON 完整轮次、LTRIM 10 轮、TTL 24h、跨会话 key；Redis/序列化失败 memory.degraded。
-- 验收：272 passed、覆盖率 96.18%；unit 198、contract 64；mypy 65 files 0 errors；OpenSpec/wheel 通过。
+- 验收：278 passed、覆盖率 95.76%；unit 198、contract 64、integration 16、unmarked 0；mypy 65 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞；TC-L3-014 Mongo/Context 部分留 S14/S16；TC-L3-011/012 留 S17/S18。
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
@@ -523,6 +523,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 
