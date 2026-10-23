@@ -474,6 +474,14 @@
 - 验收：279 passed、覆盖率 95.76%；unit 198、contract 64、integration 17、unmarked 0；mypy 65 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞；TC-L3-014 Mongo/Context 部分留 S14/S16；TC-L3-011/012 留 S17/S18。
 
+### S14 阶段问题记录（2026-10-23）
+
+- 新增 pymongo>=4.9,<5 运行依赖、mongomock>=4.3,<5 dev；未引入 motor/beanie。
+- MidTermMemory：StoredRound + session_id/created_at；索引 `session_created_desc` 幂等；检索 session/content，公开剥离 reasoning。
+- Agent 响应后异步 Mongo；失败 memory.degraded；Redis 仍在响应前同步。
+- 验收：288 passed、1 skipped；unit 198、contract 64、integration 26；覆盖率 95.91%。
+- S13 ISSUE-040（POSIX Linux 未实跑）/041（覆盖率）仍 Open。
+
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
 
 - 日期：2026-10-23
@@ -545,6 +553,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 

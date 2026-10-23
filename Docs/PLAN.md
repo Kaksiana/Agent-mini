@@ -350,9 +350,11 @@
 | S11 | 已完成 | 2026-10-23 | write_file：复用沙箱、同目录临时文件+fsync+os.replace、默认不覆盖、失败无残留、read_file 往返；247 passed、覆盖率 97.06% |
 | S12 | 已完成 | 2026-10-23 | search：SearchProvider/NullProvider、not_configured、provider 异常/超时/截断；M2 S06–S12 收口；263 passed、覆盖率 97.04% |
 | S13 | 已完成（POSIX 验证豁免） | 2026-10-23 | Redis 窗口/StoredRound/安全阀回写/上下文隔离；279 passed、覆盖率 95.76%；POSIX 用例 Windows skip，见 ISSUE-040 |
-| S14–S21 | 未开始 | — | 后续阶段 |
+| S14 | 已完成 | 2026-10-23 | MongoDB 中期存储：StoredRound 复用、复合索引、session/关键词检索、reasoning 隔离、响应后异步写回；288 passed、覆盖率 95.91% |
+| S15–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+
 
 
 

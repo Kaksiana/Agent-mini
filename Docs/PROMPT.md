@@ -2028,3 +2028,17 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - OpenSpec 归档：`s13-closeout` 归档为 `2026-10-23-s13-closeout`；short-term-memory +1 Requirement；`openspec validate --all --strict` 13 passed。
 - 关联提交：`7e67aca`（change）、`8c37fd2`（POSIX）、`1915da6`（search TC）、`1d0ea96`（StoredRound）、`f027273`（文档）、归档提交见最终报告。
+
+## 2026-10-23 22:20 — S14 MongoDB 中期存储
+
+### 原始 Prompt
+
+```text
+【角色】S14「Memory：MongoDB 中期存储与检索」执行 Agent：按 PLAN S14 用 TDD 实现 MongoDB 中期存储与检索，复用 StoredRound，响应后异步写回，完成验收与收口。
+```
+
+### 执行摘要
+
+- MidTermMemory：conversation_rounds、session_created_desc 幂等索引、session/关键词检索、reasoning 公开隔离。
+- Agent 响应后异步 Mongo 写回；失败 memory.degraded。
+- 依赖 pymongo/mongomock；验收 288 passed、1 skipped、覆盖率 95.91%。

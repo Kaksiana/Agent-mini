@@ -140,3 +140,11 @@
 - 新增 TC-L3-015（Agent→Registry→search），关闭 ISSUE-039；TC-L3-006 保留 calculator。
 - 279 passed、unit 198、contract 64、integration 17、unmarked 0；覆盖率 95.76%（ISSUE-041）。
 - 提交噪声 21780eb 已登记 ISSUE-042，未改写历史。
+
+## 2026-10-23 — S14 MongoDB 中期存储
+
+- MidTermMemory：`conversation_rounds`，StoredRound + session_id/created_at；索引 `session_created_desc` 幂等。
+- 检索强制 session、时间倒序、content 关键词；公开结果剥离 reasoning，include_private 保留。
+- Agent 响应后 asyncio task 写 Mongo，失败/超时 memory.degraded。
+- 依赖 pymongo>=4.9,<5；mongomock>=4.3,<5 dev。
+- 验收：288 passed、1 skipped；unit 198、contract 64、integration 26；覆盖率 95.91%。
