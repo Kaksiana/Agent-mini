@@ -2006,3 +2006,6 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 保留 P0-01 残余：Windows 无目录句柄下仍非 OS 级原子。
 - 最终：278 passed、覆盖率 95.76%；unit 198、contract 64、integration 16、unmarked 0、integration 8、unmarked 2。
 
+
+- OpenSpec 归档：`2026-10-23-s12-write-file-confinement-v2`、`2026-10-23-s13-memory-context-closeout`；write-file/short-term-memory 各 +1 Requirement；`openspec validate --all --strict` 13 passed。
+- 关联提交：`21780eb`/`65e707c`（change）、`842648e`（write_file）、`aec956e`（S13）、`623c7f9`（文档）、归档提交见最终报告。
