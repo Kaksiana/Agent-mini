@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import math
 import re
 import time
@@ -24,6 +25,7 @@ from agent_mini.tools.registry import ToolResult
 DEFAULT_MAX_STEPS = 8
 DEFAULT_DEADLINE_SECONDS = 120.0
 DEFAULT_REPEAT_THRESHOLD = 3
+LOGGER = logging.getLogger("agent_mini.runtime")
 MAX_STEPS_MESSAGE = "已达到最大步数限制，已停止。"
 DEADLINE_MESSAGE = "已达到截止时间限制，已停止。"
 REPEAT_MESSAGE = "检测到重复工具调用，已停止。"
@@ -128,6 +130,7 @@ async def run_react_loop(
         if remaining <= 0:
             return _truncated_result(state, "deadline")
         state.step += 1
+        step_started = time.monotonic()
         if active_options.context_fit is not None:
             try:
                 fitted = await asyncio.wait_for(
@@ -150,6 +153,14 @@ async def run_react_loop(
         except TimeoutError:
             return _truncated_result(state, "deadline")
         state.usage = _add_usage(state.usage, response.usage)
+        LOGGER.info(
+            "react.step",
+            extra={
+                "event": "react.step",
+                "step": state.step,
+                "duration_ms": int((time.monotonic() - step_started) * 1000),
+            },
+        )
         reasoning_present = bool(response.reasoning_content)
         if response.tool_calls:
             if tool_executor is None:
@@ -287,6 +298,15 @@ def _append_tool(
     step_traces: list[ToolCallTrace],
 ) -> None:
     messages.append(Message(role="tool", content=outcome.content, tool_call_id=call.id))
+    LOGGER.info(
+        "tool.call",
+        extra={
+            "event": "tool.call",
+            "step": state.step,
+            "tool": call.name,
+            "ok": outcome.ok,
+        },
+    )
     item = _tool_trace(call, outcome)
     step_traces.append(item)
     state.tool_traces.append(item)

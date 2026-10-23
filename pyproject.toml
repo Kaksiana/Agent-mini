@@ -84,6 +84,7 @@ ignore = [
 "tests/**" = ["ANN", "D"]
 "agent_mini/context/window.py" = ["error-suffix-on-exception-name"]
 "agent_mini/interface/http.py" = ["complex-structure"]
+"agent_mini/observability/logging.py" = ["too-many-return-statements"]
 "agent_mini/runtime/loop.py" = [
     "complex-structure",
     "too-many-return-statements",
@@ -119,3 +120,4 @@ show_error_codes = true
 module = "tests.*"
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+

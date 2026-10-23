@@ -75,6 +75,7 @@ def test_redaction_of_secrets_and_reasoning() -> None:
             "reasoning_content": "private reasoning",
             "content": "full prompt body",
             "prompt": "full prompt",
+            "details": [{"api_key": "plain-secret"}],
         },
     )
 
@@ -83,6 +84,7 @@ def test_redaction_of_secrets_and_reasoning() -> None:
     assert "Bearer abc" not in text
     assert "private reasoning" not in text
     assert "full prompt" not in text
+    assert "plain-secret" not in text
     assert "***" in text
     lines = _lines(stream)
     assert lines[0]["reasoning_content"] == "***"

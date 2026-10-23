@@ -6,6 +6,7 @@ import contextvars
 import json
 import logging
 import re
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -42,6 +43,12 @@ def set_trace_context(trace_id: str | None, session_id: str | None = None) -> No
 def current_trace_id() -> str | None:
     """读取当前 trace_id。"""
     return TRACE_ID.get()
+
+
+def reset_trace_context() -> None:
+    """清空当前异步上下文 trace/session。"""
+    TRACE_ID.set(None)
+    SESSION_ID.set(None)
 
 
 class JsonFormatter(logging.Formatter):
@@ -96,11 +103,15 @@ def _sanitize_field(key: str, value: object) -> object:
         return f"<redacted:{len(str(value))}>"
     if isinstance(value, str):
         return redact_text(value)
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         return {
             item_key: _sanitize_field(str(item_key), item_value)
             for item_key, item_value in value.items()
         }
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [_sanitize_field(str(key), item) for key, item in enumerate(value)]
+    if isinstance(value, BaseException):
+        return redact_text(str(value))
     return value
 
 

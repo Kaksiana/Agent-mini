@@ -17,7 +17,12 @@ from agent_mini.context.window import ContextTooLarge
 from agent_mini.llm.client import HttpLLMClient
 from agent_mini.llm.errors import LLMError, LLMRateLimitError, LLMTimeoutError
 from agent_mini.llm.models import ModelConfig
-from agent_mini.observability.logging import configure_logging, redact_text, set_trace_context
+from agent_mini.observability.logging import (
+    configure_logging,
+    redact_text,
+    reset_trace_context,
+    set_trace_context,
+)
 from agent_mini.runtime.agent import Agent
 from agent_mini.runtime.registry_adapter import RegistryExecutor
 from agent_mini.runtime.result import AgentResult
@@ -25,6 +30,7 @@ from agent_mini.tools import builtin as _builtin
 from agent_mini.tools.registry import DEFAULT_REGISTRY
 
 MAX_MESSAGE_CHARS = 32_000
+LOGGER = __import__("logging").getLogger("agent_mini.http")
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-chat"
 DEFAULT_TIMEOUT_SECONDS = 60.0
@@ -110,20 +116,27 @@ def create_app(
         request.state.trace_id = trace_id
         session_id = payload.session_id or str(uuid4())
         set_trace_context(trace_id, session_id)
-        result = await agent.run(
-            payload.message,
-            session_id=session_id,
-            trace_id=trace_id,
-        )
-        configure_logging().info(
-            "http.chat",
-            extra={
-                "event": "http.chat",
-                "step": result.steps,
-                "duration_ms": int((monotonic() - started) * 1000),
-            },
-        )
-        return _to_response(result, session_id, trace_id)
+        try:
+            result = await agent.run(
+                payload.message,
+                session_id=session_id,
+                trace_id=trace_id,
+            )
+            LOGGER.info(
+                "http.chat",
+                extra={
+                    "event": "http.chat",
+                    "step": result.steps,
+                    "tool_calls": result.tool_calls,
+                    "prompt_tokens": result.usage.prompt_tokens,
+                    "completion_tokens": result.usage.completion_tokens,
+                    "total_tokens": result.usage.total_tokens,
+                    "duration_ms": int((monotonic() - started) * 1000),
+                },
+            )
+            return _to_response(result, session_id, trace_id)
+        finally:
+            reset_trace_context()
 
     @app.get("/healthz")
     async def healthz() -> dict[str, object]:
@@ -177,6 +190,14 @@ def create_app(
 
     @app.exception_handler(Exception)
     def internal_error(request: Request, exc: Exception) -> JSONResponse:
+        LOGGER.error(
+            "http.error",
+            extra={
+                "event": "http.error",
+                "code": "INTERNAL_ERROR",
+                "duration_ms": 0,
+            },
+        )
         return _error("INTERNAL_ERROR", "内部错误", 500, request)
 
     return app
