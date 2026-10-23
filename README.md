@@ -1,6 +1,6 @@
 # Agent-mini
 
-Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00–S15（Context 拼接与预算）：工程基线、单轮模型接入、错误分类/退避重试、单轮直答、ReAct 工具循环、安全阀、工具注册/Schema、calculator、time、todo、沙箱 read_file/write_file 与 search，以及 Redis 短时会话窗口；包含 `ToolRegistry`、pydantic Schema、`RegistryExecutor`、安全工具、未配置显式报错的 SearchProvider 与响应前同步写回，包含 MongoDB 中期存储与 Context 拼接/预算；不包含 Context 裁剪/HTTP 接口。
+Agent-mini 是一个从零实现的最小 ReAct Agent。当前完成 S00–S16（Context 双触发整轮裁剪）：工程基线、单轮模型接入、错误分类/退避重试、单轮直答、ReAct 工具循环、安全阀、工具注册/Schema、calculator、time、todo、沙箱 read_file/write_file 与 search，以及 Redis 短时会话窗口；包含 `ToolRegistry`、pydantic Schema、`RegistryExecutor`、安全工具、未配置显式报错的 SearchProvider 与响应前同步写回，包含 MongoDB 中期存储、Context 拼接/预算与整轮裁剪；不包含 MySQL 系统库/HTTP 接口。
 
 ## 环境要求
 
@@ -47,6 +47,16 @@ pytest -q \
 
 预期：`4 passed`。覆盖直接回复、两步工具配对、max_steps 固定文案与 deadline 取消/补齐。
 
+
+## M3 离线演示
+
+验证三轮记忆、跨轮上下文与超 K 整轮裁剪，不访问网络：
+
+```bash
+pytest -q tests/integration/test_m3_demo.py
+```
+
+预期：`1 passed`。覆盖三轮 StoredRound 只写当前轮、下一轮带历史、12 轮裁到最近 10 轮且 system/current 保留。
 ## M2 离线演示
 
 验证六工具显式装载、文件往返与 search 未配置：
@@ -64,10 +74,3 @@ ruff check .
 ruff format --check .
 mypy agent_mini tests
 ```
-
-
-
-
-
-
-

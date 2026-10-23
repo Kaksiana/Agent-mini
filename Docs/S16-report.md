@@ -190,6 +190,6 @@
 | P2-04 测试 | 新增三轮写回、deadline；纯 fit 仍 integration | 集成 52 passed |
 | P2-05 文档/流程 | 统计/BOM/EOF/骨架修复；进度门禁记录 | 文档 |
 
-**复验**：314 passed、1 skipped；unit 198、contract 64、integration 52、unmarked 0；覆盖率 **95.74%**；mypy 69 files 0 errors；OpenSpec 16 passed。
+**复验**：316 passed、1 skipped；unit 198、contract 64、integration 54、unmarked 0；覆盖率 **95.74%**；mypy 69 files 0 errors；OpenSpec 16 passed。
 
 

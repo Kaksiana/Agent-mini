@@ -163,4 +163,4 @@
 - window.fit_rounds：轮次 >10 或 token > 预算，整轮丢最旧并重计；trim_reason rounds/tokens/both。
 - ContextPayload 增加 rounds_before/after、tokens_before/after、dropped_rounds、trim_reason。
 - Agent/loop 每次 chat 前 fit；ContextTooLarge 不发请求。
-- 验收：314 passed、1 skipped；unit 198、contract 64、integration 52；覆盖率 95.74%。
+- 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。

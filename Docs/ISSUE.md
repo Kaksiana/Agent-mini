@@ -500,7 +500,7 @@
 
 - 只持久化当前轮；fit 纳入 deadline；ContextTooLarge 补 trace/tool_traces。
 - trim_reason 累计、日志分项/超限事件、max_rounds 可配置。
-- 验收：314 passed、1 skipped；unit 198、contract 64、integration 52；覆盖率 95.74%。
+- 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。
 - S15 报告复验/Python3.11/S13 POSIX 仍 Open。
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
@@ -574,3 +574,10 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
+### M3 补齐（2026-10-24）
+
+- 新增 `test_tool_overflow_keeps_trace_and_does_not_replay`：工具后超限，LLM 只调用 1 次、工具只执行 1 次，异常含 steps/trace/tool_traces。
+- 新增 M3 离线演示 `tests/integration/test_m3_demo.py`：三轮只写当前轮、跨轮历史、12 轮裁到 10 轮。
+- README 增加 M3 演示命令，更新到 S16。
+- 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。

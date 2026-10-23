@@ -1,4 +1,4 @@
-﻿# PROMPT <!-- omit in toc -->
+# PROMPT <!-- omit in toc -->
 
 > 本文件**完整记录用户发送的原始 Prompt**（逐字保留，未做改写或摘要），并附每轮的执行摘要。
 > 规则见 `AGENT.md` §3：追加写入、禁止覆盖历史；令牌、密钥、隐私信息一律脱敏。
@@ -2126,7 +2126,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - fit_rounds：K=10 或 token 超预算，整轮丢弃最旧历史并重计数；system/tools/当前轮不可删。
 - ContextPayload 分项与 context.trimmed 日志；Agent.with_context 的 fit 回调在每次 chat 前执行。
 - ContextTooLarge：最小集合超限，本地抛错且不发请求。
-- 验收：314 passed、1 skipped；覆盖率 95.74%。
+- 验收：316 passed、1 skipped；覆盖率 95.94%。
 
 ## 2026-10-24 00:00 — S16 代码产出独立评估
 
@@ -2140,7 +2140,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 目标：独立复核 S16 双触发整轮裁剪、每次出站复核、ContextTooLarge、跨轮记忆、测试与工程门禁，判断是否可进入 S17。
 - 产出：新增 `Docs/S16-report.md`；识别 0 项 P0、3 项 P1、5 项 P2、1 项 P3，结论为 S16 暂不可进入 S17，M3 尚未达成。
-- 验证：314 passed、1 skipped；总覆盖率约 95.95%，window.py 99%；Ruff、mypy、OpenSpec、wheel、依赖审计通过；S16 变更集 diff-check 未通过。
+- 验证：316 passed、1 skipped；总覆盖率约 95.95%，window.py 99%；Ruff、mypy、OpenSpec、wheel、依赖审计通过；S16 变更集 diff-check 未通过。
 - 边界抽查：复现跨轮写回 3→6→12 条倍增、fit 绕过总 deadline、both 被覆盖为 tokens、工具超限异常缺 trace；确认超预算第二次 LLM 被阻止且工具未重放。
 - 人工修正 / 决策：保持只读评估边界，不修改实现、测试、OpenSpec 或远程状态；修复等待后续指令。
 - 关联提交：评估基准 `1d41999`；本轮未提交、未推送。
@@ -2150,4 +2150,10 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 只持久化当前轮；fit 纳入 deadline；ContextTooLarge 补 trace/tool_traces。
 - trim_reason 累计；日志分项/超限事件；max_rounds 可配置。
-- 验收：314 passed、1 skipped；unit 198、contract 64、integration 52；覆盖率 95.74%。
+- 验收：316 passed、1 skipped；unit 198、contract 64、integration 54；覆盖率 95.94%。
+
+## 2026-10-24 00:15 — 补齐 M3 缺失项
+
+- S16 工具后超限 trace/不重放回归；M3 离线演示；README/PLAN/TESTING 同步。
+- 验收：316 passed、1 skipped；integration 54；覆盖率 95.94%。
+- 剩余：S13 POSIX Linux、Python3.11、独立报告复验。

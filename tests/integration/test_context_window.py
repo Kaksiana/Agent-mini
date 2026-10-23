@@ -205,6 +205,64 @@ async def test_fit_is_bounded_by_deadline() -> None:
     assert llm.calls == 0
 
 
+class _ToolLLM:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def chat(
+        self,
+        messages: list[Message],
+        tools: list[ToolSchema] | None = None,
+        **params: object,
+    ) -> LLMResponse:
+        self.calls += 1
+        if self.calls == 1:
+            return LLMResponse(
+                tool_calls=[ToolCall(id="call_big", name="echo", arguments={})],
+                finish_reason="tool_calls",
+                usage=Usage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+            )
+        return LLMResponse(content="unexpected", finish_reason="stop", usage=Usage())
+
+
+class _HugeExecutor:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def schemas(self) -> list[ToolSchema]:
+        return [
+            ToolSchema(
+                name="echo",
+                description="echo",
+                parameters={"type": "object"},
+            )
+        ]
+
+    async def execute(self, call: ToolCall) -> ToolResult:
+        self.calls += 1
+        return ToolResult(True, "x" * 6000, None)
+
+
+async def test_tool_overflow_keeps_trace_and_does_not_replay() -> None:
+    llm = _ToolLLM()
+    executor = _HugeExecutor()
+    builder = ContextBuilder(
+        TokenCounter(Encoder()),
+        max_context_tokens=2_000,
+        max_output_tokens=1_024,
+    )
+    agent = Agent(cast(Any, llm), tool_executor=executor).with_context(builder)
+
+    with pytest.raises(ContextTooLarge) as error:
+        await agent.run("current", session_id="A")
+
+    assert llm.calls == 1
+    assert executor.calls == 1
+    assert error.value.steps >= 2
+    assert len(error.value.trace) >= 1
+    assert len(error.value.tool_traces) == 1
+
+
 async def test_builder_payload_tracks_trim_fields() -> None:
     class Short:
         async def append_round(self, *args: object, **kwargs: object) -> bool:
