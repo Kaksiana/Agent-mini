@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from agent_mini.tools.registry import ToolResult, tool
 
@@ -14,9 +14,17 @@ NowProvider = Callable[[ZoneInfo], datetime]
 
 
 class TimeArgs(BaseModel):
-    """time 的唯一模型参数；tz 仅为 handler 兼容别名。"""
+    """time 的模型参数。"""
 
     timezone: str | None = None
+
+    @field_validator("timezone", mode="before")
+    @classmethod
+    def _stringify_timezone(cls, value: object) -> object:
+        """让非字符串值进入 handler 的 invalid_timezone 分支。"""
+        if value is None or isinstance(value, str):
+            return value
+        return str(value)
 
 
 @tool(
