@@ -1695,6 +1695,7 @@ TC 定义见 `Docs/TESTING.md` TC-L1-006、TC-L3-013；TC-L4-009/010 在 S18 回
 - TC：complete 后仍 2 项、第一项 done；补跨会话 complete、伪造无副作用、快照、Store 注入。
 - 存储：TodoItem frozen；Store 返回快照；`configure_todo_store` 提供注入点。
 - 验收：192 passed、覆盖率 96.34%；unit 128、contract 64；mypy 57 files 0 errors。
-- 关联提交：`s09-report-fixes` change、代码/文档/归档提交见最终报告。
+- 关联提交：`ab9f676`（OpenSpec 规划）、`6615870`（代码+测试）、`70c7073`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s09-report-fixes`；todo-tool 增至 5 项 Requirement；`openspec validate --all --strict` 为 8 passed、0 failed。
 
 
