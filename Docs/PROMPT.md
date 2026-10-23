@@ -1563,9 +1563,45 @@ TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` F
 - ISSUE-034：TC 的 `tz` 与 Prompt 的 `timezone` 冲突；`TimeArgs` 只公开 `timezone`，handler 兼容 `tz`。
 - 红阶段：占位 `current_time` 抛 `NotImplementedError` 或 registry 无 `time`，9 个用例全红。
 - 绿阶段：默认 Asia/Shanghai、UTC、非法时区、timezone 优先、Schema/Registry、now_provider 全绿。
-- 验收：173 passed、覆盖率 95.94%；unit 109、contract 64；mypy 55 files 0 errors。
+- 验收：176 passed、覆盖率 95.97%；unit 112、contract 64；mypy 55 files 0 errors。
 - 关联提交：`330b5a5`（OpenSpec 规划）、`c0c68e9`（代码+测试）、`63f1c22`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s08-tool-time`；新建 `time-tool` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 7 passed、0 failed。
+
+## 2026-10-23 12:44 — S08 独立代码评估
+
+### 原始 Prompt
+
+```text
+【评估】S08代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S08 time 的需求、时区语义、参数/错误边界、测试、依赖、分发、流程与后续影响。
+- 产出：新增 `Docs/S08-report.md`；识别 6 项 P1、3 项 P2，结论为修复 P1 后方可进入 S09。
+- 验证：173 passed；unit 109、contract 64；覆盖率 95.94%；ruff/format/mypy/OpenSpec/wheel 通过；Windows 隔离 venv 因未声明 tzdata 复现默认/UTC 失败。
+- 人工修正 / 决策：只记录评估结果，不修改实现、测试、依赖、OpenSpec、PLAN、ISSUE、README、MEMORY 或远程状态。
+- 关联提交：无（只读评估，未提交）。
+
+## 2026-10-23 12:49 — 修复 S08 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】修复S08-report中问题：1.Windows 全新安装缺少 tzdata，默认时区与 UTC 均不可用。2.非字符串时区在 Registry 路径错误返回 invalid_arguments。3.模型 Schema 描述暴露了实际不支持的 tz 别名。4.固定时钟测试未断言固定时间，无法证明注入生效。5.ISSUE-034 晚于实现提交登记。6.S07 归档后修复绕过 OpenSpec change。
+```
+
+### 执行摘要
+
+- tzdata：`pyproject.toml` 增加 Windows 平台标记依赖；wheel METADATA 已验证；干净 Windows venv 安装后默认/UTC 成功。
+- Registry：TimeArgs before validator 将非字符串转字符串，handler 返回 `invalid_timezone`。
+- Schema：移除 TimeArgs 描述中的 tz；完整 Schema 断言无别名。
+- 时钟：断言完整 ISO；补 naive provider。
+- 流程：新 change `s07-s08-report-fixes` 追溯 S07/S08；ISSUE-034 后补作为历史例外记录。
+- 验收：176 passed、覆盖率 95.97%；unit 112、contract 64；mypy 55 files 0 errors。
+- 关联提交：`16105eb`（OpenSpec 规划）、代码/文档/归档提交见最终报告。
+
+
 
 
 

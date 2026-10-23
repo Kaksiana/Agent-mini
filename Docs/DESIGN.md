@@ -29,6 +29,7 @@
 | 系统数据库 | `mysql` 8.x + `SQLAlchemy Core` + `asyncmy` | ≥ 2.0 / ≥ 0.2 | 需求明确指定 MySQL；承载**会话管理、系统模型、工具登记**与调用审计等系统信息，与 Redis/MongoDB 职责隔离 |
 | Token 计数 | 本地 `tiktoken`（`cl100k_base`）+ 安全余量 | ≥ 0.7 | 纯本地估算，不依赖外部分发包与网络；可测试、可复现；与 DeepSeek 分词器的偏差由 10% 余量吸收 |
 | 日志 | 标准库 `logging` + 自定义 JSON Formatter + `contextvars` | 内置 | 不引入 APM/日志框架，符合 NFR-OBS-01 且依赖最少 |
+| 时区数据 | `tzdata`（仅 Windows 平台标记） | ≥ 2025.1 | Windows 无系统 IANA 数据库；标准库 `zoneinfo` 读取该数据包，Linux 使用系统数据 |
 | 测试 | `pytest` + `pytest-asyncio` + `respx` + `fakeredis` + `mongomock` + `pytest-cov` | — | 覆盖单元、契约、集成四类；无外部依赖即可跑全量测试 |
 | 属性测试 | `hypothesis` | — | 用于 calculator 与沙箱路径的组合爆炸场景 |
 | 质量工具 | `ruff`（lint + format）+ `mypy` | — | 单工具替代 flake8/isort/black，配置集中 |
@@ -309,7 +310,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | 工具 | 实现要点 | 风险控制 |
   | --- | --- | --- |
   | calculator | `ast.parse(mode="eval")` 白名单 `Expression/BinOp/UnaryOp/Constant`，仅 `+ - * /`、取负/取正、括号；阈值 200 字符/20 层/1e12；错误码 `unsafe_expression`/`syntax_error`/`division_by_zero`/`type_error`/`expression_too_long`/`expression_too_deep`/`number_overflow` | 禁止 `eval/exec/compile/import`；bool 不算数值；危险节点拒绝（FR-TOOL-02） |
-  | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；`now_provider` 仅测试注入，不进入 Schema；输出 ISO8601 + 时区名 | 空串/大小写错误/不存在 IANA 返回 `invalid_timezone`（FR-TOOL-03） |
+  | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；模型 before validator 将非字符串转字符串，保证 Registry 返回 `invalid_timezone`；Schema 仅含 `timezone`，描述不暴露 tz；`now_provider` 仅测试注入，不进入 Schema | 空串/大小写错误/不存在 IANA/非字符串返回 `invalid_timezone`（FR-TOOL-03） |
   | todo | 以会话为键的列表，存储复用 Memory 的 KV 能力 | 空列表返回空集合；不跨会话（FR-TOOL-04） |
   | read_file | 读文本，限制体积与编码 | 越界阻断、二进制拒绝（FR-TOOL-05） |
   | write_file | 写文本，默认不覆盖已有文件（需显式 `overwrite`） | 越界阻断、大小上限、原子写（临时文件 + `os.replace`）（FR-TOOL-06） |
@@ -557,3 +558,4 @@ AgentResult →
 | v0.17 | 2026-10-22 | S06 工具注册：ToolResult/ToolContext/ToolRegistry/@tool、启停、pydantic Schema、严格参数与返回、Runtime adapter、深层只读 trace | §2.2、§3.2.3、§3.3；联动 FR-TOOL-01、TC-L1-007/008/009、ISSUE-032/033 |
 | v0.18 | 2026-10-23 | S07 calculator：AST 白名单、阈值/错误码、bool/危险节点拒绝 | §3.3；联动 FR-TOOL-02、TC-L1-001/002/003 |
 | v0.19 | 2026-10-23 | S08 time：默认 Asia/Shanghai、timezone/tz 兼容、now_provider、invalid_timezone | §3.3；联动 FR-TOOL-03、TC-L1-004/005、ISSUE-034 |
+| v0.20 | 2026-10-23 | S08 报告修复：Windows tzdata、Registry 非字符串、Schema 去 tz、固定时钟断言、S07 追溯 change | §1.2、§3.3；联动 S08-report、s07-s08-report-fixes |

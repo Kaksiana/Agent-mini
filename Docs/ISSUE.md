@@ -428,6 +428,16 @@
 - 状态：Resolved
 - 关联提交：S08 time change（见最终报告）
 
+### ISSUE-035 — S08 报告 6 项 P1 修复
+
+- 日期：2026-10-23
+- 现象：Windows 无 tzdata、Registry 非字符串错误码、Schema 暴露 tz、固定时钟断言不足、ISSUE-034 后补、S07 归档后修复绕过 change。
+- 解决方案：声明 Windows tzdata；TimeArgs before validator + handler 统一 invalid_timezone；Schema 描述去 tz；完整 ISO/naive 断言；新 change `s07-s08-report-fixes` 追溯 S07/S08。
+- 验证结果：176 passed、覆盖率 95.97%；unit 112、contract 64；干净 Windows venv 安装 wheel 后默认/UTC 成功；mypy 55 files 0 errors；OpenSpec 7 passed。
+- 历史限制：ISSUE-034 后补无法回改；由新 change 记录流程例外，后续先记账。
+- 状态：Resolved
+- 关联提交：S08 报告修复提交（见最终报告）
+
 ### S07 阶段问题记录（2026-10-23）
 
 - calculator 实现：AST 白名单、阈值 200/20/1e12、7 个错误码；注册到默认 ToolRegistry。
@@ -442,6 +452,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 
