@@ -9,6 +9,7 @@ import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from pathlib import Path
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +27,9 @@ ERROR_INVALID_CONTENT = "invalid_content"
 DEFAULT_ENCODING = "utf-8"
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 LOGGER = logging.getLogger("agent_mini.tools.write_file")
+_O_DIRECTORY = getattr(os, "O_DIRECTORY", 0)
+_O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+_FCHMOD = getattr(os, "fchmod", None)
 
 
 class WriteFileArgs(BaseModel):
@@ -145,6 +149,9 @@ def _atomic_write(
     root: Path,
     overwrite: bool,
 ) -> None:
+    if os.name == "posix":  # pragma: no cover - exercised on POSIX CI
+        _posix_publish(target, data, mode, root, overwrite)
+        return
     with _locked_parent(target.parent, root):
         descriptor, temporary = tempfile.mkstemp(
             dir=target.parent,
@@ -189,6 +196,72 @@ def _publish_temp(
     except FileExistsError as exc:
         raise _TargetExistsError from exc
     temp_path.unlink(missing_ok=True)
+
+
+def _posix_publish(  # pragma: no cover - POSIX-only
+    target: Path,
+    data: bytes,
+    mode: int | None,
+    root: Path,
+    overwrite: bool,
+) -> None:
+    parent_fd = os.open(root, os.O_RDONLY | _O_DIRECTORY | _O_NOFOLLOW)
+    opened: list[int] = [parent_fd]
+    temp_name = f".write-{uuid4().hex}.tmp"
+    try:
+        for part in target.parent.relative_to(root).parts:
+            child = os.open(
+                part,
+                os.O_RDONLY | _O_DIRECTORY | _O_NOFOLLOW,
+                dir_fd=parent_fd,
+            )
+            opened.append(child)
+            parent_fd = child
+        descriptor = os.open(
+            temp_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | _O_NOFOLLOW,
+            0o600,
+            dir_fd=parent_fd,
+        )
+        try:
+            _write_fd(descriptor, data)
+            if mode is not None and callable(_FCHMOD):
+                _FCHMOD(descriptor, mode)
+        finally:
+            os.close(descriptor)
+        if overwrite:
+            os.rename(
+                temp_name,
+                target.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+            return
+        try:
+            os.link(
+                temp_name,
+                target.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+        except FileExistsError as exc:
+            raise _TargetExistsError from exc
+        os.unlink(temp_name, dir_fd=parent_fd)
+    except OSError as exc:
+        with suppress(OSError):
+            os.unlink(temp_name, dir_fd=parent_fd)
+        raise SandboxViolation("path_escape", "POSIX 发布失败") from exc
+    finally:
+        for file_descriptor in reversed(opened):
+            os.close(file_descriptor)
+
+
+def _write_fd(descriptor: int, data: bytes) -> None:  # pragma: no cover - POSIX-only
+    remaining = memoryview(data)
+    while remaining:
+        written = os.write(descriptor, remaining)
+        remaining = remaining[written:]
+    os.fsync(descriptor)
 
 
 @contextmanager

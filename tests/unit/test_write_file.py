@@ -128,6 +128,27 @@ def test_symlink_target_escape_is_blocked(tmp_path: Path) -> None:
     assert secret.read_text() == "secret"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX dir_fd path only")
+def test_posix_parent_symlink_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "a.txt").write_text("original")
+    (root / "link").symlink_to(outside, target_is_directory=True)
+    target = root / "link" / "a.txt"
+    monkeypatch.setattr(Sandbox, "resolve", lambda self, path: target)
+
+    result = write_file("a.txt", "x", overwrite=True, context=_context(root))
+
+    assert result.error_code == "path_escape"
+    assert (outside / "a.txt").read_text() == "original"
+    assert list(outside.glob(".write-*")) == []
+
+
 def test_parent_reparse_after_resolve_is_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
