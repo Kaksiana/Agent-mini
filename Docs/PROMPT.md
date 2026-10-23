@@ -1599,7 +1599,8 @@ TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` F
 - 时钟：断言完整 ISO；补 naive provider。
 - 流程：新 change `s07-s08-report-fixes` 追溯 S07/S08；ISSUE-034 后补作为历史例外记录。
 - 验收：176 passed、覆盖率 95.97%；unit 112、contract 64；mypy 55 files 0 errors。
-- 关联提交：`16105eb`（OpenSpec 规划）、代码/文档/归档提交见最终报告。
+- 关联提交：`16105eb`（OpenSpec 规划）、`b2c19ce`（代码+测试/依赖）、`2074a3e`（文档）、归档提交见最终报告。
+- OpenSpec 归档：change 归档为 `2026-10-23-s07-s08-report-fixes`；calculator 4 项、time-tool 5 项 Requirement；`openspec validate --all --strict` 为 7 passed、0 failed。
 
 
 
