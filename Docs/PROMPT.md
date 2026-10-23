@@ -1563,7 +1563,7 @@ TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` F
 - ISSUE-034：TC 的 `tz` 与 Prompt 的 `timezone` 冲突；`TimeArgs` 只公开 `timezone`，handler 兼容 `tz`。
 - 红阶段：占位 `current_time` 抛 `NotImplementedError` 或 registry 无 `time`，9 个用例全红。
 - 绿阶段：默认 Asia/Shanghai、UTC、非法时区、timezone 优先、Schema/Registry、now_provider 全绿。
-- 验收：187 passed、覆盖率 96.24%；unit 123、contract 64；mypy 55 files 0 errors。
+- 验收：192 passed、覆盖率 96.34%；unit 128、contract 64；mypy 55 files 0 errors。
 - 关联提交：`330b5a5`（OpenSpec 规划）、`c0c68e9`（代码+测试）、`63f1c22`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s08-tool-time`；新建 `time-tool` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 7 passed、0 failed。
 
@@ -1652,7 +1652,7 @@ TC 定义见 `Docs/TESTING.md` TC-L1-006、TC-L3-013；TC-L4-009/010 在 S18 回
 - TC-L1-006：占位 store/todo 未实现，11 个用例在 setup 阶段红；实现后 add/list/complete 全绿。
 - TC-L3-013：A/B 隔离、Registry 注入 context、伪造 session_id 拒绝、Schema 无 session_id 全绿。
 - 空列表、1-based 稳定 id、删除不重排、缺失 context/非法 action/index/内容为空均结构化错误。
-- 验收：187 passed、覆盖率 96.24%；unit 123、contract 64；mypy 57 files 0 errors。
+- 验收：192 passed、覆盖率 96.34%；unit 128、contract 64；mypy 57 files 0 errors。
 - 关联提交：`1c63de7`（OpenSpec 规划）、`e1dcb13`（代码+测试）、`7447ec9`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s09-tool-todo`；新建 `todo-tool` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 8 passed、0 failed。
 
@@ -1661,5 +1661,40 @@ TC 定义见 `Docs/TESTING.md` TC-L1-006、TC-L3-013；TC-L4-009/010 在 S18 回
 
 
 
+
+
+## 2026-10-23 13:31 — S09 独立代码评估
+
+### 原始 Prompt
+
+```text
+【评估】S09代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S09 todo 的需求、可信上下文、CRUD/隔离、错误边界、测试、分发、依赖与流程合规性。
+- 产出：新增 `Docs/S09-report.md`；识别 5 项 P1、4 项 P2，结论为修复 P1 后方可进入 S10。
+- 验证：192 passed；unit 128、contract 64；覆盖率 96.24%；ruff/format/mypy/OpenSpec/wheel/隔离安装通过。
+- 关键发现：完整 Schema description 暴露 `session_id`；Registry 非法 action 返回通用错误；index 接受 bool/字符串/整数浮点；TC-L1-006 与 TC-L3-013 追溯不完整。
+- 人工修正 / 决策：只记录评估结果，不修改实现、测试、Issue、PLAN、OpenSpec、README、MEMORY 或远程状态。
+- 关联提交：无（独立评估未提交）。
+
+## 2026-10-23 13:34 — 修复 S09 报告问题
+
+### 原始 Prompt
+
+```text
+【修复】S09-report中问题
+```
+
+### 执行摘要
+
+- Schema：移除 TodoArgs 描述中的 session_id；完整 Schema 字符串断言。
+- Registry：action 改为 str，非法 action 返回 invalid_action；index 严格 int。
+- TC：complete 后仍 2 项、第一项 done；补跨会话 complete、伪造无副作用、快照、Store 注入。
+- 存储：TodoItem frozen；Store 返回快照；`configure_todo_store` 提供注入点。
+- 验收：192 passed、覆盖率 96.34%；unit 128、contract 64；mypy 57 files 0 errors。
+- 关联提交：`s09-report-fixes` change、代码/文档/归档提交见最终报告。
 
 

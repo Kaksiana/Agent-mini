@@ -311,7 +311,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
   | --- | --- | --- |
   | calculator | `ast.parse(mode="eval")` 白名单 `Expression/BinOp/UnaryOp/Constant`，仅 `+ - * /`、取负/取正、括号；阈值 200 字符/20 层/1e12；错误码 `unsafe_expression`/`syntax_error`/`division_by_zero`/`type_error`/`expression_too_long`/`expression_too_deep`/`number_overflow` | 禁止 `eval/exec/compile/import`；bool 不算数值；危险节点拒绝（FR-TOOL-02） |
   | time | `ZoneInfo(timezone)` + `datetime.now`，默认 `DEFAULT_TIMEZONE="Asia/Shanghai"`；handler 兼容 `tz` 别名且 `timezone` 优先；模型 before validator 将非字符串转字符串，保证 Registry 返回 `invalid_timezone`；Schema 仅含 `timezone`，描述不暴露 tz；`now_provider` 仅测试注入，不进入 Schema | 空串/大小写错误/不存在 IANA/非字符串返回 `invalid_timezone`（FR-TOOL-03） |
-  | todo | 以 `ToolContext.session_id` 为键的 `MemoryTodoStore`（进程内，S13 替换为 Memory KV）；1-based 稳定 id，complete/delete 不重排；add/list/complete/delete | 空列表返回空 items；不跨会话；重启丢失、非线程安全；session_id 不在 Schema（FR-TOOL-04） |
+  | todo | 以 `ToolContext.session_id` 为键的 `MemoryTodoStore`（可 `configure_todo_store` 注入，S13 替换 Memory KV）；1-based 稳定 id，complete/delete 不重排，返回 frozen 快照；add/list/complete/delete；index 严格 int | 空列表返回空 items；不跨会话；重启丢失、非线程安全；完整 Schema 不含 session_id；非法 action 返回 invalid_action（FR-TOOL-04） |
   | read_file | 读文本，限制体积与编码 | 越界阻断、二进制拒绝（FR-TOOL-05） |
   | write_file | 写文本，默认不覆盖已有文件（需显式 `overwrite`） | 越界阻断、大小上限、原子写（临时文件 + `os.replace`）（FR-TOOL-06） |
   | search | `SearchProvider` 协议 + `NullProvider`（未配置时返回 `not_configured`） | **禁止伪造搜索结果**（FR-TOOL-08） |
@@ -560,3 +560,4 @@ AgentResult →
 | v0.19 | 2026-10-23 | S08 time：默认 Asia/Shanghai、timezone/tz 兼容、now_provider、invalid_timezone | §3.3；联动 FR-TOOL-03、TC-L1-004/005、ISSUE-034 |
 | v0.20 | 2026-10-23 | S08 报告修复：Windows tzdata、Registry 非字符串、Schema 去 tz、固定时钟断言、S07 追溯 change | §1.2、§3.3；联动 S08-report、s07-s08-report-fixes |
 | v0.21 | 2026-10-23 | S09 todo：ToolContext 注入、MemoryTodoStore、1-based 稳定 id、会话隔离 | §3.3；联动 FR-TOOL-04、TC-L1-006、TC-L3-013 |
+| v0.22 | 2026-10-23 | S09 报告修复：完整 Schema 去 session_id、invalid_action 可达、严格 index、快照/Store 注入 | §3.3；联动 S09-report、s09-report-fixes |

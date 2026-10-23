@@ -433,17 +433,26 @@
 - 日期：2026-10-23
 - 现象：Windows 无 tzdata、Registry 非字符串错误码、Schema 暴露 tz、固定时钟断言不足、ISSUE-034 后补、S07 归档后修复绕过 change。
 - 解决方案：声明 Windows tzdata；TimeArgs before validator + handler 统一 invalid_timezone；Schema 描述去 tz；完整 ISO/naive 断言；新 change `s07-s08-report-fixes` 追溯 S07/S08。
-- 验证结果：187 passed、覆盖率 96.24%；unit 123、contract 64；干净 Windows venv 安装 wheel 后默认/UTC 成功；mypy 55 files 0 errors；OpenSpec 7 passed。
+- 验证结果：192 passed、覆盖率 96.34%；unit 128、contract 64；干净 Windows venv 安装 wheel 后默认/UTC 成功；mypy 55 files 0 errors；OpenSpec 7 passed。
 - 历史限制：ISSUE-034 后补无法回改；由新 change 记录流程例外，后续先记账。
 - 状态：Resolved
 - 关联提交：S08 报告修复提交（见最终报告）
+
+### ISSUE-036 — S09 报告 P1/P2 修复
+
+- 日期：2026-10-23
+- 现象：完整 Schema 含 session_id、invalid_action 在 Registry 不可达、index 宽松转换、TC 计数/隔离断言不足、Store 返回共享对象。
+- 解决方案：TodoArgs 描述去 session_id；action=str 交给 handler；index strict；complete 后仍 2 项；补跨会话/伪造/快照；TodoItem frozen + Store 快照 + configure_todo_store。
+- 验证结果：192 passed、覆盖率 96.34%；unit 128、contract 64；mypy 57 files 0 errors；OpenSpec/wheel 通过。
+- 状态：Resolved
+- 关联提交：`s09-report-fixes` change（见最终报告）
 
 ### S09 阶段问题记录（2026-10-23）
 
 - 实现：`TodoArgs`/`@tool("todo")`、`TodoStore` Protocol、进程内 `MemoryTodoStore`；ToolContext 仅注入声明 context 的 handler。
 - 安全：session_id 不在 Schema，Registry 白名单拒绝伪造；A/B 隔离测试。
 - TDD：初始 11 个用例因占位 store/todo 未实现而红；实现后 11 个 todo 测试全绿。
-- 验收：187 passed、覆盖率 96.24%；unit 123、contract 64；mypy 57 files 0 errors；OpenSpec/wheel 通过。
+- 验收：192 passed、覆盖率 96.34%；unit 128、contract 64；mypy 57 files 0 errors；OpenSpec/wheel 通过。
 - 无新增阻塞；TC-L4-009/010 留 S18；S13 替换 MemoryStore。
 
 ### S07 阶段问题记录（2026-10-23）
@@ -460,6 +469,7 @@
 - 实现：max_steps=8、deadline=120s、repeat=3；truncated/termination_reason；固定文案；deadline 用 wait_for 取消；重复按连续 name+规范化 args；中断补齐 tool 消息。
 - 验收：112 passed、覆盖率 95.72%；unit 48、contract 64；`mypy agent_mini tests` 49 files 0 errors；OpenSpec 通过；M1 S00–S05 收口。
 - 无新增阻塞；S06/S13–S18 未实现。
+
 
 
 

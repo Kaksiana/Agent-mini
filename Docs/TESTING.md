@@ -1,4 +1,4 @@
-# TESTING <!-- omit in toc -->
+﻿# TESTING <!-- omit in toc -->
 
 > **Agent-mini 测试文档**。规则见 `AGENT.md` §1（文档优先）、§2（TDD）与 §7（需求驱动开发）。
 > 测试设计先于实现：本文件的用例清单是实现前必须完成的产物。
@@ -9,9 +9,9 @@
 | 版本 | v0.13（S09 todo） |
 | 日期 | 2026-10-23 |
 | 状态 | 执行中（S00–S09 已实现） |
-| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 187（unit 123、contract 64） |
+| 用例总数 | 设计 78（L1×33、L2×10、L3×14、L4×12、L5×6、LIVE×3）；自动化测试 187（unit 128、contract 64） |
 
-> 本文件同时记录测试设计与执行状态。截至 S09，S00–S09 已实现 187 个 pytest 用例（最近全量 187 passed、覆盖率 96.24%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S09，S00–S09 已实现 192 个 pytest 用例（最近全量 192 passed、覆盖率 96.34%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -96,7 +96,7 @@
 | TC-L1-003 | 同上 | 调用 `1/0`、`2+`、`"a"+1` | 均返回结构化错误（`division_by_zero` / `syntax_error` / `type_error`），进程不中断 |
 | TC-L1-004 | 配置时区为 `Asia/Shanghai` | 调用 `time()` 不传参 | 返回 ISO8601 且偏移为 `+08:00` |
 | TC-L1-005 | 同上 | 调用 `time(tz="UTC")`；再调用 `time(tz="Mars/Base")` | 前者返回 `+00:00`；后者 `ok=False`，`error_code=invalid_timezone` |
-| TC-L1-006 | todo 存储为内存替身 | 依次 add("a")、add("b")、list()、complete(1)、list() | 第一次 list 返回 2 项；第二次返回 1 项且已完成项状态为 done |
+| TC-L1-006 | todo 存储为内存替身 | 依次 add("a")、add("b")、list()、complete(1)、list() | 第一次 list 返回 2 项；第二次仍返回 2 项，第一项状态为 done |
 | TC-L1-007 | 空注册表 | 用 `@tool` 注册一个 `echo` 工具后查询注册表 | `registry.get("echo")` 可查到，且 `registry.schemas()` 含该工具 |
 | TC-L1-008 | 已注册 `echo(text: str)` | 调用 `to_json_schema()` | 输出合法 JSON Schema，`type=object`、含 `text` 且 `required` 正确 |
 | TC-L1-009 | 已注册名为 `echo` 的工具 | 再次注册同名工具 | 抛 `DuplicateToolError`，注册表内容不变 |
@@ -397,6 +397,8 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 | AC-21 | TC-L3-011、TC-L3-012 |
 | AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 | AC-23 | TC-LIVE-001、TC-LIVE-002 |
+
+
 
 
 
