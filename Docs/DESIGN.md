@@ -322,7 +322,7 @@ return AgentResult(reply=fallback_message, steps=len(trace), truncated=True, tra
 
 - **抽象**：`ShortTermStore` / `MidTermStore` 两个 Protocol，实现可替换（测试用 fakeredis / mongomock）。
 - **短时（Redis）**：`session:{id}:messages` 为 List，每个元素是一个完整轮次 `{round_id, messages[]}`，一次 RPUSH 写入一轮；按整轮 LTRIM 保留最近 K 轮（默认 10），EXPIRE 默认 24h。读取后展开轮内消息，禁止按默认 50 条消息截断而拆散工具往返。
-- **中期（MongoDB）**：集合 `messages`，字段 `{session_id, round_id, role, content, tool_calls, tool_call_id, reasoning_content?, created_at}`；索引 `(session_id, created_at desc)`。`reasoning_content` 是受 session 限定的私有协议字段，不进入关键词检索或公开输出；上下文恢复完整轮次时才按模式加载。普通检索按 session 过滤、时间倒序和可选 content 关键词执行。
+- **中期（MongoDB）**：集合 `conversation_rounds`，每个文档是一轮 `{session_id, round_id, messages[], truncated, termination_reason, created_at}`；`messages` 元素含 role/content/tool_calls/tool_call_id/reasoning_content；索引 `(session_id, created_at desc)`。`reasoning_content` 是受 session 限定的私有协议字段，不进入关键词检索或公开输出；上下文恢复完整轮次时才按模式加载。普通检索按 session 过滤、时间倒序和可选 content 关键词执行。
 - **降级**：任一存储不可用时记录 `memory.degraded` 告警日志并返回空集合，上层继续运行（FR-MEM-05、AC-07）。
 - **写回时机**：Redis 在响应前同步 await，Mongo 在响应后异步写回；失败告警，详见 §3.2.2。公开 trace 摘要不作为历史消息重复存储。
 - **边界重申**：Memory **不存**会话元数据与审计（属 MySQL），也**不**做轮次窗口裁剪（属 Context）。
@@ -466,10 +466,10 @@ build: 历史 14 轮 / tokens = 21000，K = 10，预算 = 16000
 ```
 AgentResult →
   ├─ [响应前·同步] Redis:  RPUSH 完整轮次 + LTRIM(最近 K 轮) + EXPIRE(24h)
-  ├─ [响应后·异步] Mongo:  insert_many（对话正文，失败仅告警）
+  ├─ [响应后·异步] Mongo:  insert_one 完整轮次（失败仅告警）
   └─ [响应后·异步] MySQL:  UPSERT sessions / INSERT tool_invocations、request_metrics（失败仅告警）
 
-S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且注入 ShortTermMemory 时，在 loop 返回后、Agent.run 返回前 `await append_round`。key `agent_mini:short_term:{session_id}:rounds`；元素为冻结 `StoredRound(round_id,messages,truncated,termination_reason)` 的 JSON，禁止 pickle；`DEFAULT_MAX_ROUNDS=10`、`DEFAULT_TTL_SECONDS=86400`，每次写回刷新 TTL；Redis/序列化异常记录 `memory.degraded` 并跳过，不阻断对话。write_file POSIX 用 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；Windows 用目录句柄锁定。S14 Mongo：集合 `conversation_rounds`，文档由 StoredRound + session_id/created_at 派生，复合索引 `session_created_desc (session_id,created_at desc)`；检索强制 session、时间倒序、content 关键词，公开结果剥离 reasoning；Agent 响应后异步写回。
+S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且注入 ShortTermMemory 时，在 loop 返回后、Agent.run 返回前 `await append_round`。key `agent_mini:short_term:{session_id}:rounds`；元素为冻结 `StoredRound(round_id,messages,truncated,termination_reason)` 的 JSON，禁止 pickle；`DEFAULT_MAX_ROUNDS=10`、`DEFAULT_TTL_SECONDS=86400`，每次写回刷新 TTL；Redis/序列化异常记录 `memory.degraded` 并跳过，不阻断对话。write_file POSIX 用 dir_fd/O_DIRECTORY/O_NOFOLLOW/linkat/renameat；Windows 用目录句柄锁定。S14 Mongo：集合 `conversation_rounds`，文档由 StoredRound + session_id/created_at 派生，复合索引 `session_created_desc (session_id,created_at desc)`；检索强制 session、时间倒序、content 关键词，公开结果剥离 reasoning；Agent 响应后异步写回；`MidTermMemory` 实现 `MidTermStore`，提供 `drain/close`。
 ```
 
 ## 6. 不依赖现有 Agent 框架的说明
@@ -571,5 +571,6 @@ S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且
 | v0.26 | 2026-10-23 | S11 报告修复：os.link 原子不覆盖、parent/temp containment、COM/LPT 全量 | §3.3；联动 S11-report、s11-report-fixes |
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
 | v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |
+
 
 

@@ -9,9 +9,9 @@
 | 版本 | v0.18（S14 MongoDB 中期存储） |
 | 日期 | 2026-10-23 |
 | 状态 | 执行中（S00–S14 已实现） |
-| 用例总数 | 设计 78（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 288（unit 198、contract 64、integration 26、unmarked 0） |
+| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 294（unit 198、contract 64、integration 32、unmarked 0） |
 
-> 本文件同时记录测试设计与执行状态。截至 S14，S00–S14 已实现 288 个 pytest 用例（最近全量 288 passed、1 skipped、覆盖率 95.91%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S14，S00–S14 已实现 294 个 pytest 用例（最近全量 294 passed、1 skipped、覆盖率 95.79%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 
@@ -271,7 +271,7 @@
 | --- | --- | --- | --- |
 | TC-L3-001 | fakeredis（或真实 Redis），每个 List 元素为完整轮次 | append 三轮 → get_recent_rounds(2) 并展开消息 | 返回后两轮，时间正序，轮内内容/调用 ID 完整且无孤立 tool 消息 |
 | TC-L3-002 | 同上，TTL 设为 1s | 写入后等待 TTL 过期再读 | 返回空集合，且不抛异常 |
-| TC-L3-003 | mongomock（或真实 Mongo） | 写入 3 条消息后查询集合 | 集合内 3 条文档，字段 `session_id/role/content/created_at` 完整 |
+| TC-L3-003 | mongomock（或真实 Mongo） | 写入 1 个含 3 条消息的完整轮次后查询集合 | 集合内 1 个文档，字段 `session_id/round_id/messages/truncated/termination_reason/created_at` 完整 |
 | TC-L3-004 | 会话 A 有 5 条、会话 B 有 2 条 | 按 session A + 关键词过滤检索 | 只返回 A 中命中关键词的记录，`created_at` 倒序 |
 | TC-L3-005 | 短时存储抛连接异常 | 运行一次完整对话 | 对话成功返回；日志含 `memory.degraded` 告警；进程未退出 |
 | TC-L3-006 | mock LLM 返回 calculator 的 tool_call | 运行 `Agent.run()` | 真实执行 calculator；第 2 步 LLM 收到工具结果；`AgentResult.tool_traces` 有 1 条记录 |
@@ -438,6 +438,8 @@ LIVE-001/002 为最终交付必验项；LIVE-003 仅在启用思考模式时必�
 | AC-21 | TC-L3-011、TC-L3-012 |
 | AC-22 | TC-L1-024、TC-L1-030、TC-L2-007、TC-L2-010、TC-L3-014、TC-LIVE-003 |
 | AC-23 | TC-LIVE-001、TC-LIVE-002 |
+
+
 
 
 

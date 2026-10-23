@@ -147,4 +147,5 @@
 - 检索强制 session、时间倒序、content 关键词；公开结果剥离 reasoning，include_private 保留。
 - Agent 响应后 asyncio task 写 Mongo，失败/超时 memory.degraded。
 - 依赖 pymongo>=4.9,<5；mongomock>=4.3,<5 dev。
-- 验收：288 passed、1 skipped；unit 198、contract 64、integration 26；覆盖率 95.91%。
+- 验收：294 passed、1 skipped；unit 198、contract 64、integration 32；覆盖率 95.79%。
+

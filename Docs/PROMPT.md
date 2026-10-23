@@ -2041,7 +2041,31 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - MidTermMemory：conversation_rounds、session_created_desc 幂等索引、session/关键词检索、reasoning 公开隔离。
 - Agent 响应后异步 Mongo 写回；失败 memory.degraded。
-- 依赖 pymongo/mongomock；验收 288 passed、1 skipped、覆盖率 95.91%。
+- 依赖 pymongo/mongomock；验收 294 passed、1 skipped、覆盖率 95.79%。
 
 - OpenSpec 归档：`s14-memory-mongo-midterm` 归档为 `2026-10-23-s14-memory-mongo-midterm`；新建 `mid-term-memory`（2 Requirement）；`openspec validate --all --strict` 14 passed。
 - 关联提交：`9be69e5`（change）、`b72a0fa`（代码+测试+依赖）、`79e341b`（文档）、归档提交见最终报告。
+
+## 2026-10-23 22:24 — S14 代码产出独立评估
+
+### 原始 Prompt
+
+```text
+【评估】S14代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S14 MongoDB 中期存储、检索、Agent 异步写回、测试与文档流程，判断是否可进入 S15。
+- 产出：新增 `Docs/S14-report.md`；识别 1 项 P0、7 项 P1、2 项 P2，结论为 S14 暂不可进入 S15。
+- 验证：初始 PATH 上 Python 3.13.9 工具得到 294 passed、1 skipped、覆盖率 95.79%；最终 Python 3.11.14 全量为 287 passed、1 failed、1 skipped，失败用例单独运行 10/10 次复现异步日志竞态；ruff/format/mypy、OpenSpec strict、依赖兼容与漏洞审计通过；边界探针另复现 shutdown 丢写、跨存储 round_id 分裂、空 session 孤儿数据与错误同名索引误判。
+- 人工修正 / 决策：本轮为只读评估，不修改实现、测试、Issue、PLAN、OpenSpec 或远程状态；修复等待后续指令。
+- 关联提交：评估基准 `62e434f`；本轮未提交、未推送。
+
+
+## 2026-10-23 22:35 — 修复 S14 报告
+
+- Agent drain/close 生命周期；Redis/Mongo 共用一个 StoredRound/round_id。
+- base 增加 MidTermStore Protocol；session 校验统一；索引 key 校验；MidTermMemory/drain。
+- 文档统一 conversation_rounds 一轮一文档；补 raw/full tool round/timeout/invalid session/index conflict 测试。
+- 验收：294 passed、1 skipped；unit 198、contract 64、integration 32、unmarked 0；覆盖率 95.79%。
