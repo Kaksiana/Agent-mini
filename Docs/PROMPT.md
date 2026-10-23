@@ -2199,3 +2199,18 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 启动 mysql:8.0（3307），执行 schema 两次、五表/索引、upsert、session、audit、metrics 实测。
 - MYSQL_TEST_DSN 门控测试 8 passed；ISSUE-043 Resolved。
+
+## 2026-10-24 01:28 — S18 HTTP API
+
+### 原始 Prompt
+
+```text
+【角色】S18「Interface：HTTP API」执行 Agent：实现 POST /chat 与健康检查，回填 TC-L4，真实 API 验收。
+```
+
+### 执行摘要
+
+- FastAPI create_app；字段严格按 §3.6；session_id 自动生成/复用。
+- 错误映射 400/408/429/502/500；ContextTooLarge→400；脱敏 Key/Bearer/sk。
+- trace_id 贯穿 Agent→ToolContext/SystemDB。
+- LIVE 未运行（DEEPSEEK_API_KEY/RUN_LIVE 缺失），登记 ISSUE-044。

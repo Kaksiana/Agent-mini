@@ -171,3 +171,9 @@
 - Agent `with_system_db` 响应后异步 record_turn，`drain` 限时；失败 systemdb.degraded。
 - 测试：SQLite 异步仓储 + MySQL schema 静态；真实 MySQL 环境缺失（ISSUE-043）。
 - 验收：323 passed、1 skipped；unit 198、contract 64、integration 61；覆盖率 94.66%。
+
+## 2026-10-24 — S18 HTTP API
+
+- FastAPI /chat 字段、session UUID、/healthz 依赖状态；错误映射 400/408/429/502/500；脱敏。
+- Agent trace_id 贯穿 ToolContext/SystemDB；LIVE Key 缺失未运行。
+- 验收：334 passed、2 skipped；unit 198、contract 64、integration 72；覆盖率 94.87%。
