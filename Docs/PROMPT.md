@@ -1563,7 +1563,7 @@ TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` F
 - ISSUE-034：TC 的 `tz` 与 Prompt 的 `timezone` 冲突；`TimeArgs` 只公开 `timezone`，handler 兼容 `tz`。
 - 红阶段：占位 `current_time` 抛 `NotImplementedError` 或 registry 无 `time`，9 个用例全红。
 - 绿阶段：默认 Asia/Shanghai、UTC、非法时区、timezone 优先、Schema/Registry、now_provider 全绿。
-- 验收：176 passed、覆盖率 95.97%；unit 112、contract 64；mypy 55 files 0 errors。
+- 验收：187 passed、覆盖率 96.24%；unit 123、contract 64；mypy 55 files 0 errors。
 - 关联提交：`330b5a5`（OpenSpec 规划）、`c0c68e9`（代码+测试）、`63f1c22`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s08-tool-time`；新建 `time-tool` 规格（3 项 Requirement）；`openspec validate --all --strict` 为 7 passed、0 failed。
 
@@ -1601,6 +1601,60 @@ TC 定义见 `Docs/TESTING.md` TC-L1-004/005，需求见 `Docs/REQUIREMENT.md` F
 - 验收：176 passed、覆盖率 95.97%；unit 112、contract 64；mypy 55 files 0 errors。
 - 关联提交：`16105eb`（OpenSpec 规划）、`b2c19ce`（代码+测试/依赖）、`2074a3e`（文档）、归档提交见最终报告。
 - OpenSpec 归档：change 归档为 `2026-10-23-s07-s08-report-fixes`；calculator 4 项、time-tool 5 项 Requirement；`openspec validate --all --strict` 为 7 passed、0 failed。
+
+## 2026-10-23 13:06 — S09 todo
+
+### 原始 Prompt
+
+```text
+【角色】
+你是 S09「Tool：todo」执行 Agent，熟悉会话级状态设计、pydantic、pytest、OpenSpec、SuperPower SKILL，遵循 `AGENT.md` 与 OpenSpec 全局规范。
+【背景】
+阶段定义、验收标准、测试项见 `Docs/PLAN.md` S09。
+工具接口契约见 `Docs/DESIGN.md` §3.3，含 `ToolContext`（可信会话上下文）与会话隔离要求；S06 已完成注册机制。
+S07、S08 已交付 calculator / time，参照其结构与错误码约定。
+TC 定义见 `Docs/TESTING.md` TC-L1-006、TC-L3-013；TC-L4-009/010 在 S18 回填，不在本轮覆盖；需求见 `Docs/REQUIREMENT.md` FR-TOOL-04。
+【任务】
+按 PLAN S09 用 TDD 实现 todo 工具（会话级增删改查），完成验收与收口。
+【约束】
+1. 开工前核对：S06 注册表接口与 DESIGN §3.3 一致；`ToolContext` 在 S06/S07/S08 中是否已引入；TC-L1-006、TC-L3-013 在 TESTING 中定义齐全；S07/S08 错误码风格。缺失或不一致 → 停，登记 ISSUE，不得自行补写。
+2. 只改 `agent_mini/tools/builtin/todo.py` 及测试；必要时最小改动 `tools/__init__.py` 导出，需说明理由。若需引入或扩展 `ToolContext`，须在 change design 中显式说明改动范围，并保持 S03–S08 全绿。
+3. 不实现 S10 沙箱、S13/S14 Memory、S17 系统库、S18 HTTP；不实现其他工具；不实现 Runtime 变更。
+4. **session_id 必须通过 `ToolContext` 注入，不得出现在模型可写参数 Schema 中**；若模型伪造 session_id 参数，须按未知/额外字段拒绝，不得静默使用。此为安全边界，必须用测试固化。
+5. **存储介质的决策必须在 change design 中显式落地**：S13/S14 尚未实现 Memory，DESIGN §3.3 提及"存储复用 Memory 的 KV 能力"。可选：(a) 定义最小 `TodoStore` Protocol + 内存实现，S13 替换为真实 Memory；(b) 直接使用进程内数据结构。选择理由、线程/进程隔离边界、重启行为、跨会话隔离必须在 design 中说明，并同步到 DESIGN §3.3 或本 change；不得静默选一种。
+6. 行为契约：
+   - 增删改查在同一会话内一致；空列表返回空集合（非 None、非异常）；
+   - 序号语义（0-based / 1-based、越界行为、删除后是否重排）必须在 design 中明确；
+   - 并发/重入不要求本轮实现，但须在 design 中说明假设。
+7. 非法参数（缺失字段、类型错误、越界序号、session 上下文缺失）转为 `ToolResult(ok=False, error_code=..., content=...)`，不抛异常；error_code 集中定义，命名与 S07/S08 一致。
+8. 用 OpenSpec 创建 `s09-tool-todo` change，`validate --strict` 通过后 TDD；使用 SuperPower SKILL，不可用登记 ISSUE。
+9. TDD：TC 逐条先红后绿，红因为未实现相关，不得以收集错误冒充；红绿证据写入 `Docs/PROMPT.md`（逐字保存本轮 Prompt）。
+10. 遵循代码规范：行宽、单行单语句、嵌套、函数长度、中文简洁 docstring、无 `# noqa`、无 `# type: ignore`、无魔法数字。
+11. 验收：`pytest -m unit`、`pytest -m contract`、全量 `pytest`（S00–S08 无回归）、覆盖率（含新增代码）、`ruff check .`、`ruff format --check .`、`mypy agent_mini tests`、`openspec validate --all --strict`、wheel + 仓库外导入；复跑留证。
+12. 文档收口：PLAN 状态、DESIGN（`ToolContext` 若扩展、存储介质决策、error_code）、TESTING、ISSUE、MEMORY、PROMPT、README（如需要）；OpenSpec 归档；不改已归档 change。
+13. Commit 拆分：OpenSpec / 代码+测试 / 文档 / 归档；冲突或失败停止报告，不得强推。
+【输出格式】
+1. 开工前核对结论（含 `ToolContext` 现状）+ Prompt 逐字记录确认。
+2. TC 映射表：TC-L1-006、TC-L3-013（定义摘要 / 覆盖部分 / 用例文件）；TC-L4-009/010 明确留 S18。
+3. 设计决策：`ToolContext` 引入方式、存储介质选择与隔离边界、序号语义、error_code 列表、session_id 注入与伪造拒绝方案。
+4. 变更文件（代码/测试/文档/OpenSpec），涉及 `runtime/` 或其他子包须单列。
+5. OpenSpec change 名、validate、归档结果。
+6. TDD 记录：每条 TC 红因、绿因。
+7. 验收结果：各命令结果、覆盖率。
+8. 验收证据：同会话增删改查一致 / 空列表 / session_id 伪造拒绝 / 非法参数结构化返回。
+9. 文档收口与 Git 状态。
+10. 异常与待确认（无则写「无」）。
+不输出代码或文档正文。
+```
+
+### TDD 与验收摘要
+
+- TC-L1-006：占位 store/todo 未实现，11 个用例在 setup 阶段红；实现后 add/list/complete 全绿。
+- TC-L3-013：A/B 隔离、Registry 注入 context、伪造 session_id 拒绝、Schema 无 session_id 全绿。
+- 空列表、1-based 稳定 id、删除不重排、缺失 context/非法 action/index/内容为空均结构化错误。
+- 验收：187 passed、覆盖率 96.24%；unit 123、contract 64；mypy 57 files 0 errors。
+- 关联提交：OpenSpec 规划/代码+测试/文档/归档提交见最终报告。
+
 
 
 

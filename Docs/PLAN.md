@@ -1,4 +1,4 @@
-﻿# PLAN <!-- omit in toc -->
+# PLAN <!-- omit in toc -->
 
 > **Agent-mini 执行计划**。规则见 `AGENT.md` §8（阶段执行粒度）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`、`Docs/DESIGN.md`、`Docs/TESTING.md`。
@@ -345,9 +345,11 @@
 | S06 | 已完成 | 2026-10-22 | ToolRegistry/pydantic Schema/ToolResult/ToolContext 预留；RegistryExecutor 集成回填；129 passed、覆盖率 95.25%；内置工具留 S07–S12 |
 | S07 | 已完成 | 2026-10-23 | calculator：ast 白名单四则/括号/取负、危险表达式拒绝、结构化错误与阈值；164 passed、覆盖率 95.81% |
 | S08 | 已完成 | 2026-10-23 | time：默认 Asia/Shanghai、指定 IANA、tz 兼容、now_provider 注入、invalid_timezone；176 passed、覆盖率 95.97% |
-| S09–S21 | 未开始 | — | 后续阶段 |
+| S09 | 已完成 | 2026-10-23 | todo：ToolContext 注入、进程内 MemoryTodoStore、1-based 稳定序号、会话隔离、伪造 session_id 拒绝；187 passed、覆盖率 96.24% |
+| S10–S21 | 未开始 | — | 后续阶段 |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。
+
 
 
 
