@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-23
+goal: S13 收尾：POSIX dir_fd、search TC、StoredRound、覆盖率与流程
