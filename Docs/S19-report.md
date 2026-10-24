@@ -23,7 +23,7 @@
 | --- | --- |
 | `git diff --stat 46aaf80..355599d` | 15 files changed，376 insertions，22 deletions |
 | `python -m pytest tests/unit/test_observability_logging.py -q` | **4 passed** |
-| `python -m pytest --cov=agent_mini --cov-report=term-missing -q` | **350 passed，2 skipped**；总覆盖率四舍五入为 **95%**；`observability/logging.py` **97%** |
+| `python -m pytest --cov=agent_mini --cov-report=term-missing -q` | **352 passed，2 skipped**；总覆盖率四舍五入为 **95%**；`observability/logging.py` **97%** |
 | `python -m ruff check .` / `ruff format --check .` | All checks passed；77 files already formatted |
 | `python -m mypy agent_mini tests` | **74 source files，0 errors** |
 | `openspec validate --specs --strict` / `--all --strict` | **19 passed，0 failed**；仅既有长 Requirement INFO |
@@ -188,4 +188,11 @@
 | P2-02 每请求重配日志 | 请求路径改用模块 LOGGER | 代码 |
 | P2-03/04 文档 | 部分同步 | 计数/结构 |
 
-**复验**：350 passed、2 skipped；unit 202、contract 64、integration 84；覆盖率 **94.95%**；mypy 74 files 0 errors。
+**复验**：352 passed、2 skipped；unit 202、contract 64、integration 85；覆盖率 **94.95%**；mypy 74 files 0 errors。
+
+## 12. 第二轮修复（2026-10-24）
+
+- `configure_logging`：`propagate=False`，清理旧的非 JSON handler；新增 root/已有 handler 重复输出测试。
+- 安全 E2E：`test_observability_security` 注入运行时生成哨兵 Key/reasoning，扫描 HTTP、stderr 日志、SQLite 五表，均无泄漏；工具只执行 1 次。
+- 依赖：升级 FastAPI 0.162 / Starlette 1.9.0；`pip-audit .` **No known vulnerabilities found**，ISSUE-045 Resolved。
+- 复验：352 passed、2 skipped；unit 202、contract 64、integration 85；覆盖率 **95.01%**。

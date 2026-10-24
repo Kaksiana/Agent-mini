@@ -2236,7 +2236,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 ## 2026-10-24 01:54 — 修复 S18 报告
 
 - 错误 trace 复用请求 trace；JSON/Bearer 脱敏；空白 session 400；异步 health；shutdown close。
-- 验收：346 passed、2 skipped；integration 84；覆盖率 94.86%。
+- 验收：346 passed、2 skipped；integration 85；覆盖率 94.86%。
 - 仍未补 TC-L4-002/004/005/006/009/010/011、L3-008、LIVE。
 
 ## 2026-10-24 02:01 — 重新评估 S18 代码产出
@@ -2259,14 +2259,14 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 ## 2026-10-24 02:07 — 继续 S18 回填
 
 - 新增 HTTP calculator/记忆/裁剪/双会话/工具追问/并发测试。
-- 346 passed、2 skipped；integration 84；覆盖率 94.86%。
+- 346 passed、2 skipped；integration 85；覆盖率 94.86%。
 
 ## 2026-10-24 02:17 — 继续 S18
 
 - create_app_from_env/uvicorn factory、缺 Key 失败、真实 healthz 200。
 - 补 HTTP 三工具链路/并发/记忆/裁剪；L4-006/011 覆盖。
 - 审计 certifi/urllib3 4 项无法升级，ISSUE-045。
-- 346 passed、2 skipped；integration 84；覆盖率 94.86%。
+- 346 passed、2 skipped；integration 85；覆盖率 94.86%。
 
 ## 2026-10-24 02:07 — S19 结构化日志
 
@@ -2280,7 +2280,7 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - JSON Formatter/RedactionFilter/configure_logging；HTTP 设 trace context 并迁移共享脱敏。
 - 固定字段与 create_task trace 测试；哨兵 Key/reasoning/content 过滤。
-- 验收：350 passed、2 skipped；覆盖率 94.95%。
+- 验收：352 passed、2 skipped；覆盖率 95.06%。
 
 ## 2026-10-24 02:36 — 独立评估 S19 代码产出
 
@@ -2296,12 +2296,18 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 关键约束：只读评估；除 `Docs/S19-report.md` 与本 Prompt 记录外，不修改实现、测试、OpenSpec 或远程状态；不调用真实 API，不输出 `.env` 秘密值。
 - 产出：新增 `Docs/S19-report.md`；结论为不通过，P0 1 项、P1 5 项、P2 4 项，暂不可进入 S20。
 - 关键发现：Basic/多词/嵌套/既有 handler 可绕过脱敏；真实 ReAct 工具链 0 条步骤日志；缺 tool_calls/token/失败指标；日志传播产生非 JSON 重复行；TC-L5-004 未按设计执行。
-- 验证：350 passed、2 skipped、总覆盖率 95%、logging.py 97%；Ruff/mypy/OpenSpec/build/pip check 通过；diff-check 与 pip-audit 失败。
+- 验证：352 passed、2 skipped、总覆盖率 95%、logging.py 97%；Ruff/mypy/OpenSpec/build/pip check 通过；diff-check 与 pip-audit 失败。
 - 人工修正 / 最终决策：未实施代码修复；要求关闭 P0/P1 后复评。
 - 关联提交：无；本轮未提交、未推送。
 
 ## 2026-10-24 02:56 — 修复 S19 报告
 
 - 递归/整行脱敏、react.step/tool.call、http.chat 指标、http.error、trace reset、请求路径不重配日志。
-- 350 passed、2 skipped；覆盖率 94.95%。
+- 352 passed、2 skipped；覆盖率 95.06%。
 - 仍剩 P1-03 propagate/root 重复、P1-04 端到端安全扫描、P1-05 依赖审计。
+
+## 2026-10-24 11:53 — 修复 S19 剩余三项
+
+- propagate=False/清理旧 handler；HTTP+日志+SQLite 哨兵安全 E2E。
+- FastAPI/Starlette 升级，pip-audit 无漏洞。
+- 352 passed、2 skipped；integration 85；覆盖率 95.06%。
