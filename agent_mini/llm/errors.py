@@ -1,16 +1,13 @@
-"""LLM 错误类型。"""
+"""LLM 错误类型（S20 接入 AgentError）。"""
+
+from agent_mini.observability.errors import AgentError
 
 
-class LLMError(Exception):
+class LLMError(AgentError):
     """LLM 调用错误基类。"""
 
     code = "LLM_ERROR"
     http_status = 502
-
-    def __init__(self, message: str) -> None:
-        """保存可读错误消息。"""
-        super().__init__(message)
-        self.message = message
 
 
 class LLMProtocolError(LLMError):
