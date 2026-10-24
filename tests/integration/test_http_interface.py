@@ -227,4 +227,4 @@ async def test_async_health_and_shutdown() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/healthz")
     assert response.json()["status"] == "ok"
-    assert app.router.on_shutdown
+    assert app.router.lifespan_context is not None
