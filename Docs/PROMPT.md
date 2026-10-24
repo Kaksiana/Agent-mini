@@ -2316,3 +2316,27 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 执行摘要：新增 AgentError 层级与错误码；LLMError 根迁移；S18 HTTP 局部映射改为统一处理器；4xx/5xx 日志级别与 code 一致性测试。
 - 验收：361 passed、2 skipped；覆盖率 95.07%。
+
+## 2026-10-24 22:33 — 独立评估 S20 代码产出
+
+### 原始 Prompt
+
+```text
+【评估】S20代码产出，保存报告至Docs/S20-report
+```
+
+### 执行摘要
+
+- 目标：独立复核 S20 统一异常层级、LLMError/ToolError/Sandbox/Context 迁移、HTTP 错误映射、4xx/5xx 日志级别、trace 关联与阶段门禁。
+- 关键约束：只读评估；除 `Docs/S20-report.md` 与本 Prompt 记录外，不修改实现、测试、OpenSpec 或远程状态；不调用真实 API，不输出 `.env` 秘密值。
+- 产出：新增 `Docs/S20-report.md`；结论为不通过，P0 0 项、P1 4 项、P2 6 项、P3 1 项，暂不可进入 S21。
+- 关键发现：错误日志的 `trace_id`/`session_id` 全为 null；`ERROR_TYPES` 与真实 LLM/Tool 异常不一致；`to_error_response()` 不存在且 Sandbox/Input/Internal 错误码与 TC-L1-019 不符；ruff 失败、3 个新单测 unmarked；PROMPT/ISSUE/README 文档漂移。
+- 验证：361 passed、2 skipped、覆盖率 95.07%；`ruff check` 1 error；mypy 77 files 0 errors；OpenSpec 20 passed；build 成功；探针复现错误 trace、工具失败日志缺错误码、ContextTooLarge 丢 steps/trace/truncated。
+- 人工修正 / 最终决策：未修改实现、测试或 OpenSpec；要求关闭 P1 并复验后再进入 S21。
+- 关联提交：无；本轮未提交、未推送。
+
+## 2026-10-24 22:37 — 修复 S20 报告
+
+- 合并 LLM/Tool 根；冻结 INVALID_INPUT/SANDBOX_VIOLATION/INTERNAL；新增 to_error_response。
+- 错误日志 trace/session/error_type/duration；ContextTooLarge 证据字段；5xx/validation 日志。
+- 364 passed、2 skipped；unit 207、integration 93；覆盖率 95.10%。

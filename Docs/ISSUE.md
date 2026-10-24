@@ -281,8 +281,8 @@
 - 决策：**S02–S19 继续使用临时 `LLMError` 根，S20 统一迁移**。S02 新增异常均继承 `LLMError`，保持 `*Error` 命名与 `code/http_status`。
 - 影响范围：`llm/errors.py`、`llm/client.py`、`llm/models.py`、`tests/contract/*`；S18 HTTP 错误映射与 S19 日志可先按 `LLMError` 处理。
 - 迁移工作量：S20 在 `observability/errors.py` 定义 `AgentError`，将 `LLMError` 改为其子类，更新引用点并补异常层次测试；预计 0.5–1 人日。
-- 触发时机：S20 建立统一异常体系时；S18 真实 API 验收前复核错误码映射。\n- 状态：Resolved（2026-10-24）。验证：`LLMError(AgentError)`，S00–S19 全量 361 passed；错误码/状态映射测试通过。
-- 状态：Open
+- 触发时机：S20 建立统一异常体系时；S18 真实 API 验收前复核错误码映射。
+- 状态：Resolved（2026-10-24）。验证：`LLMError(AgentError)`，全量 364 passed；错误码/状态映射测试通过。
 - 关联提交：S02 规划提交（见最终报告）
 
 ### ISSUE-025 — 运行依赖与 pytest 仍仅设下界（S01 P2-05 遗留）
@@ -601,6 +601,6 @@
 ### ISSUE-045 — 依赖审计仍报漏洞（已关闭）
 
 - 日期：2026-10-24
-- 现象：`pip-audit` 报 certifi 2026.7.22 与 urllib3 2.7.0 共 4 项；升级到修复版本失败（包索引不可用）。
-- 影响：S18 依赖审计未通过；不影响当前 HTTP 单测，但发布前必须升级并复跑。
-- 状态：Open
+- 现象：S18 阶段 `pip-audit` 曾报 certifi/urllib3；S19 升级 FastAPI 0.162/Starlette 1.9.0 后 `pip-audit .` 无已知漏洞。
+- 影响：无；保留记录供审计追溯。
+- 状态：Resolved（2026-10-24）
