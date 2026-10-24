@@ -68,6 +68,9 @@ DESIGN_FILES = [
     "observability/__init__.py",
     "observability/logging.py",
     "observability/errors.py",
+    "config/models.py",
+    "config/loader.py",
+    "config/container.py",
 ]
 
 NON_PLACEHOLDER_MODULES = {
@@ -100,6 +103,9 @@ NON_PLACEHOLDER_MODULES = {
     "interface/http.py",
     "observability/logging.py",
     "observability/errors.py",
+    "config/models.py",
+    "config/loader.py",
+    "config/container.py",
 }
 
 PLACEHOLDER_MODULES = [

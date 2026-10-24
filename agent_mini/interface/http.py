@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import inspect
 import logging
-import os
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from time import monotonic
+from typing import cast
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -16,8 +16,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from agent_mini.context.window import ContextTooLarge
-from agent_mini.llm.client import HttpLLMClient
-from agent_mini.llm.models import ModelConfig
 from agent_mini.observability.errors import AgentError, to_error_response
 from agent_mini.observability.logging import (
     configure_logging,
@@ -26,10 +24,8 @@ from agent_mini.observability.logging import (
     set_trace_context,
 )
 from agent_mini.runtime.agent import Agent
-from agent_mini.runtime.registry_adapter import RegistryExecutor
 from agent_mini.runtime.result import AgentResult
 from agent_mini.tools import builtin as _builtin
-from agent_mini.tools.registry import DEFAULT_REGISTRY
 
 MAX_MESSAGE_CHARS = 32_000
 LOGGER = __import__("logging").getLogger("agent_mini.http")
@@ -81,21 +77,12 @@ class ChatResponse(BaseModel):
     truncated: bool
 
 
-def create_app_from_env() -> FastAPI:
-    """从环境构造可运行应用；缺 Key 启动失败。"""
-    api_key = os.environ.get("DEEPSEEK_API_KEY")
-    if not api_key:
-        raise RuntimeError("DEEPSEEK_API_KEY 未配置")
-    config = ModelConfig(
-        base_url=os.environ.get("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL),
-        model=os.environ.get("DEEPSEEK_MODEL", DEFAULT_MODEL),
-        timeout=float(os.environ.get("DEEPSEEK_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)),
-    )
-    agent = Agent(
-        HttpLLMClient(config, api_key),
-        tool_executor=RegistryExecutor(DEFAULT_REGISTRY),
-    )
-    return create_app(agent)
+def create_app_from_env(config_path: str | None = None) -> FastAPI:
+    """从 config.yaml + 环境构造应用；缺必填项抛 ConfigError。"""
+    from agent_mini.config.container import build_container
+    from agent_mini.config.loader import load_config
+
+    return cast(FastAPI, build_container(load_config(config_path)).build())
 
 
 def create_app(

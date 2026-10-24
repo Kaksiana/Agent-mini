@@ -1,4 +1,4 @@
-"""S18 回填：calculator、记忆、工具追问、双会话与并发。"""
+﻿"""S18 回填：calculator、记忆、工具追问、双会话与并发。"""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from agent_mini.context.token_counter import TokenCounter
 from agent_mini.interface.http import create_app, create_app_from_env
 from agent_mini.llm.models import LLMResponse, Message, ToolCall, Usage
 from agent_mini.memory.base import StoredRound
+from agent_mini.observability.errors import ConfigError
 from agent_mini.runtime.agent import Agent
 from agent_mini.runtime.registry_adapter import RegistryExecutor
 from agent_mini.tools.registry import DEFAULT_REGISTRY
@@ -190,7 +191,7 @@ async def test_concurrent_sessions() -> None:
 
 def test_env_factory_requires_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
+    with pytest.raises(ConfigError, match="配置缺失"):
         create_app_from_env()
 
 
