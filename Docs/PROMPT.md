@@ -2311,3 +2311,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - propagate=False/清理旧 handler；HTTP+日志+SQLite 哨兵安全 E2E。
 - FastAPI/Starlette 升级，pip-audit 无漏洞。
 - 352 passed、2 skipped；integration 85；覆盖率 95.06%。
+
+## 2026-10-24 12:26 — S20 统一异常
+
+- 执行摘要：新增 AgentError 层级与错误码；LLMError 根迁移；S18 HTTP 局部映射改为统一处理器；4xx/5xx 日志级别与 code 一致性测试。
+- 验收：361 passed、2 skipped；覆盖率 95.07%。

@@ -1,4 +1,4 @@
-﻿# DESIGN <!-- omit in toc -->
+# DESIGN <!-- omit in toc -->
 
 > **Agent-mini 设计文档**。规则见 `AGENT.md` §1（文档优先）与 §7（需求驱动开发）。
 > 上位文档：`Docs/REQUIREMENT.md`（本文件所有设计点均可回溯到其中的 FR / NFR 编号）。
@@ -364,7 +364,7 @@ ot_configured`；provider 异常 `provider_error`、超时 `provider_timeout`、
 ### 3.7 可观测与治理
 
 - **日志**：JSON 行，字段固定 `ts/level/event/trace_id/session_id/step/duration_ms`；`trace_id` 通过 `contextvars` 注入，跨异步边界保持。
-- **异常体系**：`AgentError` 基类 → `ConfigError / LLMError / ToolError / SandboxError / ContextError / InputError / SystemDBError`，每个带 `code` 与 `http_status`。S02–S19 的 `LLMError` 暂时作为独立临时根，S20 统一接入 `AgentError`；具体类型统一 `*Error` 后缀，临时根到期后必须迁移。
+- **异常体系**：`AgentError` 基类 → `ConfigError / LLMError / ToolError / SandboxError / ContextError / InputError / SystemDBError`，每个带 `code` 与 `http_status`；S20 已将 `LLMError` 迁移为 `AgentError` 子类，HTTP 由单一处理器按 `http_status` 输出，4xx WARNING、5xx ERROR。
 - **脱敏**：日志过滤器统一拦截 `api_key`、`authorization`、`password` 字段（NFR-SEC-02、AC-14）。
 
 ### 3.8 配置与依赖注入
@@ -579,5 +579,3 @@ S13 短时窗口：`Agent.run(user_input, session_id=None)`；有 session_id 且
 | v0.27 | 2026-10-23 | S12 search：Provider 协议/注入/超时/截断/not_configured；M2 收口 | §3.3；联动 FR-TOOL-08、TC-L1-021、ISSUE-039 |
 | v0.28 | 2026-10-23 | S13 Redis 短时窗口：完整轮次 JSON、LTRIM/TTL、session_id、响应前同步写回、降级 | §3.2.0、§5.4；联动 FR-MEM-01/02/05、TC-L3-001/002/005/014 |
 | v0.30 | 2026-10-23 | S15 Context 拼接：ContextPayload、StoredRound 历史、tools_snapshot 复用、预算/降级 | §3.5；联动 FR-CTX-01/02、TC-L1-013/022/025、TC-L3-007 |
-
-

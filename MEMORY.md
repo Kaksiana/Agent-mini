@@ -183,3 +183,8 @@
 - observability.logging：JSON Formatter 固定字段、ContextVar trace/session、RedactionFilter。
 - HTTP 迁移到共享 redact_text，删除临时 _SECRET_PATTERNS；reasoning/content 不落日志。
 - 验收：352 passed、2 skipped；unit 202、contract 64、integration 85；覆盖率 95.06%。
+
+## 2026-10-24 — S20 统一异常
+
+- AgentError 层级；LLMError/ToolError/Sandbox/ContextTooLarge 迁移；HTTP 单一处理器。
+- 计数：361 passed、2 skipped；unit 203、contract 64、integration 91；覆盖率 95.07%；ISSUE-024 关闭。
