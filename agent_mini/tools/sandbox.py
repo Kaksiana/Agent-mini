@@ -2,6 +2,8 @@
 
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
+from agent_mini.observability.errors import SandboxError
+
 MAX_FILE_SIZE = 1024 * 1024
 MAX_PATH_CHARS = 240
 ALLOWED_EXTENSIONS = frozenset({".txt", ".md", ".json", ".csv", ".log", ".py", ".yaml", ".yml"})
@@ -18,11 +20,12 @@ WINDOWS_RESERVED = frozenset(
 )
 
 
-class SandboxViolationError(Exception):
+class SandboxViolationError(SandboxError):
     """沙箱校验失败，携带稳定 error_code。"""
 
     def __init__(self, error_code: str, message: str) -> None:
         super().__init__(message)
+        self.code = error_code
         self.error_code = error_code
 
 

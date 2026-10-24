@@ -10,6 +10,7 @@ from typing import Literal
 from agent_mini.context.token_counter import TokenCounter
 from agent_mini.llm.models import Message, ToolSchema
 from agent_mini.memory.base import StoredRound
+from agent_mini.observability.errors import ContextError
 
 DEFAULT_MAX_ROUNDS = 10
 CONTEXT_TOO_LARGE = "CONTEXT_TOO_LARGE"
@@ -19,7 +20,7 @@ TrimReason = Literal["rounds", "tokens", "both"]
 LOGGER = logging.getLogger("agent_mini.context")
 
 
-class ContextTooLarge(Exception):
+class ContextTooLarge(ContextError):
     """最小集合仍超预算的本地错误。"""
 
     def __init__(self, steps: int = 1) -> None:

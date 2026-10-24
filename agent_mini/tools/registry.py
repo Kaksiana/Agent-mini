@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from agent_mini.observability.errors import AgentError
+
 TOOL_ERROR_INVALID_ARGUMENTS = "invalid_arguments"
 TOOL_ERROR_UNKNOWN_TOOL = "unknown_tool"
 TOOL_ERROR_EXECUTION = "tool_execution_error"
@@ -15,8 +17,11 @@ TOOL_ERROR_DISABLED = "tool_disabled"
 TOOL_ERROR_INVALID_RETURN = "invalid_tool_result"
 
 
-class ToolError(Exception):
+class ToolError(AgentError):
     """工具层错误基类。"""
+
+    code = "TOOL_ERROR"
+    http_status = 500
 
 
 class ToolRegistrationError(ToolError):
