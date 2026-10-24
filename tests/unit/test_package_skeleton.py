@@ -68,6 +68,7 @@ DESIGN_FILES = [
     "observability/__init__.py",
     "observability/logging.py",
     "observability/errors.py",
+    "observability/errors.py",
 ]
 
 NON_PLACEHOLDER_MODULES = {
@@ -99,6 +100,7 @@ NON_PLACEHOLDER_MODULES = {
     "systemdb/repository.py",
     "interface/http.py",
     "observability/logging.py",
+    "observability/errors.py",
 }
 
 PLACEHOLDER_MODULES = [

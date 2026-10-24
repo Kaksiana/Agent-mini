@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any, cast
 
 import httpx
@@ -12,6 +13,13 @@ from agent_mini.context.window import ContextTooLarge
 from agent_mini.interface.http import create_app
 from agent_mini.llm.errors import LLMError, LLMRateLimitError, LLMTimeoutError
 from agent_mini.llm.models import Usage
+from agent_mini.observability.errors import (
+    ConfigError,
+    InputError,
+    SandboxError,
+    SystemDBError,
+    ToolError,
+)
 from agent_mini.runtime.result import AgentResult, ThoughtStep
 
 pytestmark = pytest.mark.integration
@@ -90,6 +98,11 @@ async def test_existing_session_is_reused() -> None:
         (LLMError("bad"), 502, "LLM_ERROR"),
         (RuntimeError("boom"), 500, "INTERNAL_ERROR"),
         (ContextTooLarge(), 400, "CONTEXT_TOO_LARGE"),
+        (ConfigError("config"), 500, "CONFIG_ERROR"),
+        (ToolError("tool"), 500, "TOOL_ERROR"),
+        (SandboxError("sandbox"), 400, "SANDBOX_ERROR"),
+        (InputError("input"), 400, "INVALID_REQUEST"),
+        (SystemDBError("db"), 500, "SYSTEMDB_ERROR"),
     ],
 )
 async def test_error_mapping(exc: Exception, status: int, code: str) -> None:
@@ -228,3 +241,19 @@ async def test_async_health_and_shutdown() -> None:
         response = await client.get("/healthz")
     assert response.json()["status"] == "ok"
     assert app.router.lifespan_context is not None
+
+
+async def test_error_log_code_matches_response_and_level(caplog: Any) -> None:
+    class Broken:
+        async def run(self, *args: object, **kwargs: object) -> AgentResult:
+            raise SandboxError("path_escape")
+
+    with caplog.at_level("WARNING", logger="agent_mini"):
+        response = await _post(_app(Broken()), {"message": "hi"})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "SANDBOX_ERROR"
+    records = [item for item in caplog.records if getattr(item, "event", None) == "agent.error"]
+    assert records
+    assert getattr(records[-1], "code", None) == "SANDBOX_ERROR"
+    assert records[-1].levelname == "WARNING"

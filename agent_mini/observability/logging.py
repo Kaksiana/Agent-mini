@@ -125,7 +125,9 @@ def configure_logging(level: int = logging.INFO) -> logging.Logger:
     logger.setLevel(level)
     logger.propagate = False
     for handler in list(logger.handlers):
-        if not isinstance(handler, _JsonHandler):
+        if not isinstance(handler, _JsonHandler) and not handler.__class__.__module__.startswith(
+            "_pytest."
+        ):
             logger.removeHandler(handler)
     if not any(isinstance(handler, _JsonHandler) for handler in logger.handlers):
         handler = _JsonHandler()

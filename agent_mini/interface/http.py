@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -14,10 +15,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from agent_mini.context.window import ContextTooLarge
 from agent_mini.llm.client import HttpLLMClient
-from agent_mini.llm.errors import LLMError, LLMRateLimitError, LLMTimeoutError
 from agent_mini.llm.models import ModelConfig
+from agent_mini.observability.errors import AgentError
 from agent_mini.observability.logging import (
     configure_logging,
     redact_text,
@@ -171,30 +171,16 @@ def create_app(
     ) -> JSONResponse:
         return _error("INVALID_REQUEST", "请求参数不合法", 400, request)
 
-    @app.exception_handler(ContextTooLarge)
-    def context_too_large(
-        request: Request,
-        exc: ContextTooLarge,
-    ) -> JSONResponse:
-        return _error("CONTEXT_TOO_LARGE", "上下文超过预算", 400, request)
-
-    @app.exception_handler(LLMTimeoutError)
-    def llm_timeout(
-        request: Request,
-        exc: LLMTimeoutError,
-    ) -> JSONResponse:
-        return _error("LLM_TIMEOUT", "模型调用超时", 408, request)
-
-    @app.exception_handler(LLMRateLimitError)
-    def llm_rate_limit(
-        request: Request,
-        exc: LLMRateLimitError,
-    ) -> JSONResponse:
-        return _error("LLM_RATE_LIMITED", "模型限流", 429, request)
-
-    @app.exception_handler(LLMError)
-    def llm_error(request: Request, exc: LLMError) -> JSONResponse:
-        return _error(exc.code, "模型不可用", 502, request)
+    @app.exception_handler(AgentError)
+    def agent_error(request: Request, exc: AgentError) -> JSONResponse:
+        level = logging.WARNING if exc.http_status < 500 else logging.ERROR
+        LOGGER.log(
+            level,
+            "agent.error",
+            extra={"event": "agent.error", "code": exc.code, "duration_ms": 0},
+        )
+        message = "请求失败" if exc.http_status >= 500 else exc.message
+        return _error(exc.code, message, exc.http_status, request)
 
     @app.exception_handler(Exception)
     def internal_error(request: Request, exc: Exception) -> JSONResponse:
