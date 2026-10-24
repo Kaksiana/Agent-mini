@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from agent_mini.context.window import ContextTooLarge
 from agent_mini.llm.errors import LLMError, LLMTimeoutError
 from agent_mini.observability.errors import (
@@ -17,6 +19,8 @@ from agent_mini.observability.errors import (
 from agent_mini.tools.registry import ToolError as RegistryToolError
 from agent_mini.tools.sandbox import SandboxViolation
 
+pytestmark = pytest.mark.unit
+
 
 def test_all_errors_are_agent_errors_and_codes_unique() -> None:
     classes = [*ERROR_TYPES, ContextTooLarge, LLMTimeoutError, RegistryToolError]
@@ -31,7 +35,19 @@ def test_context_and_sandbox_status() -> None:
     assert ContextTooLarge().code == "CONTEXT_TOO_LARGE"
     violation = SandboxViolation("path_escape", "escape")
     assert violation.http_status == 400
-    assert violation.code == "path_escape"
+    assert violation.code == "SANDBOX_VIOLATION"
+
+
+def test_llm_and_tool_roots_are_shared() -> None:
+    from agent_mini.llm.errors import LLMError as LlmRoot
+    from agent_mini.observability.errors import LLMError as ObsLlmRoot
+    from agent_mini.observability.errors import ToolError as ObsToolRoot
+    from agent_mini.tools.registry import ToolError as RegistryToolRoot
+
+    assert LlmRoot is ObsLlmRoot
+    assert RegistryToolRoot is ObsToolRoot
+    assert issubclass(LlmRoot, AgentError)
+    assert issubclass(RegistryToolRoot, AgentError)
 
 
 def test_required_error_subclasses() -> None:

@@ -38,7 +38,7 @@ class ToolError(AgentError):
 class SandboxError(AgentError):
     """沙箱路径/权限异常根。"""
 
-    code = "SANDBOX_ERROR"
+    code = "SANDBOX_VIOLATION"
     http_status = 400
 
 
@@ -52,7 +52,7 @@ class ContextError(AgentError):
 class InputError(AgentError):
     """请求入参异常。"""
 
-    code = "INVALID_REQUEST"
+    code = "INVALID_INPUT"
     http_status = 400
 
 
@@ -72,3 +72,12 @@ ERROR_TYPES: tuple[type[AgentError], ...] = (
     InputError,
     SystemDBError,
 )
+
+
+def to_error_response(error: AgentError, trace_id: str) -> dict[str, object]:
+    """构造稳定错误响应体。"""
+    return {
+        "code": error.code,
+        "message": error.message,
+        "trace_id": trace_id,
+    }

@@ -15,9 +15,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
+from agent_mini.context.window import ContextTooLarge
 from agent_mini.llm.client import HttpLLMClient
 from agent_mini.llm.models import ModelConfig
-from agent_mini.observability.errors import AgentError
+from agent_mini.observability.errors import AgentError, to_error_response
 from agent_mini.observability.logging import (
     configure_logging,
     redact_text,
@@ -122,7 +123,9 @@ def create_app(
         started = monotonic()
         trace_id = uuid4().hex
         request.state.trace_id = trace_id
-        session_id = payload.session_id or str(uuid4())
+        request.state.session_id = payload.session_id or str(uuid4())
+        request.state.started = started
+        session_id = request.state.session_id
         set_trace_context(trace_id, session_id)
         try:
             result = await agent.run(
@@ -169,7 +172,19 @@ def create_app(
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        return _error("INVALID_REQUEST", "请求参数不合法", 400, request)
+        trace_id = getattr(request.state, "trace_id", None) or uuid4().hex
+        request.state.trace_id = trace_id
+        LOGGER.warning(
+            "http.validation_error",
+            extra={
+                "event": "http.validation_error",
+                "code": "INVALID_INPUT",
+                "trace_id": trace_id,
+                "session_id": getattr(request.state, "session_id", None),
+                "duration_ms": _elapsed_ms(request),
+            },
+        )
+        return _error("INVALID_INPUT", "请求参数不合法", 400, request)
 
     @app.exception_handler(AgentError)
     def agent_error(request: Request, exc: AgentError) -> JSONResponse:
@@ -177,22 +192,41 @@ def create_app(
         LOGGER.log(
             level,
             "agent.error",
-            extra={"event": "agent.error", "code": exc.code, "duration_ms": 0},
+            extra={
+                "event": "agent.error",
+                "code": exc.code,
+                "error_type": type(exc).__name__,
+                "error_message": redact_text(str(exc)),
+                "trace_id": getattr(request.state, "trace_id", None),
+                "session_id": getattr(request.state, "session_id", None),
+                "duration_ms": _elapsed_ms(request),
+            },
         )
         message = "请求失败" if exc.http_status >= 500 else exc.message
-        return _error(exc.code, message, exc.http_status, request)
+        extra: dict[str, object] = {}
+        if isinstance(exc, ContextTooLarge):
+            extra = {
+                "steps": exc.steps,
+                "trace": list(exc.trace),
+                "truncated": exc.truncated,
+            }
+        return _error(exc.code, message, exc.http_status, request, extra)
 
     @app.exception_handler(Exception)
     def internal_error(request: Request, exc: Exception) -> JSONResponse:
         LOGGER.error(
             "http.error",
+            exc_info=exc,
             extra={
                 "event": "http.error",
-                "code": "INTERNAL_ERROR",
-                "duration_ms": 0,
+                "code": "INTERNAL",
+                "error_type": type(exc).__name__,
+                "trace_id": getattr(request.state, "trace_id", None),
+                "session_id": getattr(request.state, "session_id", None),
+                "duration_ms": _elapsed_ms(request),
             },
         )
-        return _error("INTERNAL_ERROR", "内部错误", 500, request)
+        return _error("INTERNAL", "内部错误", 500, request)
 
     return app
 
@@ -216,18 +250,24 @@ def _to_response(result: AgentResult, session_id: str, trace_id: str) -> ChatRes
     )
 
 
+def _elapsed_ms(request: Request) -> int:
+    """请求已耗时，缺失起点时返回 0。"""
+    started = getattr(request.state, "started", None)
+    return int((monotonic() - started) * 1000) if started else 0
+
+
 def _error(
     code: str,
     message: str,
     status: int,
     request: Request | None = None,
+    extra: dict[str, object] | None = None,
 ) -> JSONResponse:
     trace_id = getattr(request.state, "trace_id", None) if request is not None else None
-    return JSONResponse(
-        status_code=status,
-        content={
-            "code": code,
-            "message": redact_text(message),
-            "trace_id": trace_id or uuid4().hex,
-        },
-    )
+    error = AgentError(message)
+    error.code = code
+    content = to_error_response(error, trace_id or uuid4().hex)
+    content["message"] = redact_text(message)
+    if extra:
+        content.update(extra)
+    return JSONResponse(status_code=status, content=content)

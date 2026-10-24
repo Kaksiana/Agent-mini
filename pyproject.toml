@@ -83,7 +83,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN", "D"]
 "agent_mini/context/window.py" = ["error-suffix-on-exception-name"]
-"agent_mini/interface/http.py" = ["complex-structure"]
+"agent_mini/interface/http.py" = ["complex-structure", "too-many-statements"]
 "agent_mini/observability/logging.py" = ["too-many-return-statements"]
 "agent_mini/runtime/loop.py" = [
     "complex-structure",

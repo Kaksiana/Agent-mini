@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any, cast
 
 import httpx
@@ -96,12 +95,12 @@ async def test_existing_session_is_reused() -> None:
         (LLMTimeoutError("timeout"), 408, "LLM_TIMEOUT"),
         (LLMRateLimitError("rate"), 429, "LLM_RATE_LIMITED"),
         (LLMError("bad"), 502, "LLM_ERROR"),
-        (RuntimeError("boom"), 500, "INTERNAL_ERROR"),
+        (RuntimeError("boom"), 500, "INTERNAL"),
         (ContextTooLarge(), 400, "CONTEXT_TOO_LARGE"),
         (ConfigError("config"), 500, "CONFIG_ERROR"),
         (ToolError("tool"), 500, "TOOL_ERROR"),
-        (SandboxError("sandbox"), 400, "SANDBOX_ERROR"),
-        (InputError("input"), 400, "INVALID_REQUEST"),
+        (SandboxError("sandbox"), 400, "SANDBOX_VIOLATION"),
+        (InputError("input"), 400, "INVALID_INPUT"),
         (SystemDBError("db"), 500, "SYSTEMDB_ERROR"),
     ],
 )
@@ -122,7 +121,7 @@ async def test_invalid_request_is_400() -> None:
     response = await _post(_app(_Agent()), {"message": "   "})
 
     assert response.status_code == 400
-    assert response.json()["code"] == "INVALID_REQUEST"
+    assert response.json()["code"] == "INVALID_INPUT"
 
 
 async def test_health_does_not_leak_secrets() -> None:
@@ -252,8 +251,39 @@ async def test_error_log_code_matches_response_and_level(caplog: Any) -> None:
         response = await _post(_app(Broken()), {"message": "hi"})
 
     assert response.status_code == 400
-    assert response.json()["code"] == "SANDBOX_ERROR"
+    assert response.json()["code"] == "SANDBOX_VIOLATION"
     records = [item for item in caplog.records if getattr(item, "event", None) == "agent.error"]
     assert records
-    assert getattr(records[-1], "code", None) == "SANDBOX_ERROR"
+    assert getattr(records[-1], "code", None) == "SANDBOX_VIOLATION"
     assert records[-1].levelname == "WARNING"
+
+
+async def test_context_too_large_keeps_evidence() -> None:
+    error = ContextTooLarge(steps=2)
+    error.trace = ({"step": 1},)
+
+    class Broken:
+        async def run(self, *args: object, **kwargs: object) -> AgentResult:
+            raise error
+
+    response = await _post(_app(Broken()), {"message": "hi"})
+    body = response.json()
+    assert response.status_code == 400
+    assert body["code"] == "CONTEXT_TOO_LARGE"
+    assert body["steps"] == 2
+    assert body["truncated"] is True
+    assert body["trace"] == [{"step": 1}]
+
+
+async def test_unknown_error_hides_type_and_secret(caplog: Any) -> None:
+    class Broken:
+        async def run(self, *args: object, **kwargs: object) -> AgentResult:
+            raise RuntimeError("sk-secret-value class-and-stack")
+
+    with caplog.at_level("ERROR", logger="agent_mini"):
+        response = await _post(_app(Broken()), {"message": "hi"})
+    assert response.status_code == 500
+    assert response.json()["code"] == "INTERNAL"
+    assert "RuntimeError" not in response.text
+    assert "sk-secret" not in response.text
+    assert any(item.levelname == "ERROR" for item in caplog.records)
