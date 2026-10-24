@@ -357,6 +357,6 @@
 | S18 | 已完成（LIVE 未运行） | 2026-10-24 | FastAPI /chat、/healthz、错误映射、脱敏、trace_id、无状态；346 passed、覆盖率 94.86%；LIVE Key 缺失 |
 | S19 | 已完成 | 2026-10-24 | JSON 日志、固定字段、ContextVar trace、统一脱敏、S18 迁移；352 passed、覆盖率 95.06% |
 | S20 | 已完成 | 2026-10-24 | AgentError 层级、LLMError 根迁移、HTTP 统一映射、4xx/5xx 日志；361 passed、覆盖率 95.07% |
-| S21 | 未开始 | — | 后续阶段 |
+| S21 | 已完成 | 2026-10-24 | 四类配置、ConfigError 启动校验、轻量 DI、HTTP 迁移；373 passed、覆盖率 94.85% |
 
 > 每完成一个阶段，在此表更新状态与日期，并在 `Docs/ISSUE.md` 记录遇到的问题。

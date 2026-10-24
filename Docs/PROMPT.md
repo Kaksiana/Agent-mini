@@ -2340,3 +2340,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - 合并 LLM/Tool 根；冻结 INVALID_INPUT/SANDBOX_VIOLATION/INTERNAL；新增 to_error_response。
 - 错误日志 trace/session/error_type/duration；ContextTooLarge 证据字段；5xx/validation 日志。
 - 364 passed、2 skipped；unit 207、integration 93；覆盖率 95.10%。
+
+## 2026-10-24 22:37 — S21 配置与依赖注入
+
+- 执行摘要：四类配置、SecretStr、ConfigError 启动失败、轻量容器、HTTP 迁移、ISSUE-025 决策。
+- 验收：373 passed、2 skipped；覆盖率 94.85%。

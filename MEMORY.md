@@ -188,3 +188,10 @@
 
 - AgentError 层级；LLMError/ToolError/Sandbox/ContextTooLarge 迁移；HTTP 单一处理器。
 - 计数：361 passed、2 skipped；unit 203、contract 64、integration 91；覆盖率 95.07%；ISSUE-024 关闭。
+
+## 2026-10-24 — S21 配置与 DI
+
+- 四类冻结配置；YAML+env 优先级；缺必填抛 ConfigError。
+- 手写 Container（singleton/transient/override）；HTTP 工厂迁移。
+- ISSUE-025 选择 minor 上界：httpx<0.29、pydantic<3、pytest<9。
+- 373 passed、2 skipped；unit 216、contract 64、integration 93；覆盖率 94.85%。

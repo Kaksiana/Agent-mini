@@ -372,7 +372,7 @@ ot_configured`；provider 异常 `provider_error`、超时 `provider_timeout`、
 - **配置分层**：`config.yaml`（非敏感）+ 环境变量（敏感项：`DEEPSEEK_API_KEY`、`REDIS_URL`、`MONGO_URI`、`MYSQL_DSN`）。DeepSeek 密钥统一使用 `DEEPSEEK_API_KEY`，禁止 `LLM_API_KEY` 别名（ISSUE-013）。
 - **四类配置**：`ModelConfig`（provider/base_url/model/timeout/retry）、`ToolConfig`（启停、sandbox_root、max_file_size、search provider）、`PromptConfig`（system prompt 文件路径 + 窗口轮次）、`SystemDBConfig`（DSN、连接池、是否自动建表）。
 - **校验**：`pydantic-settings` 启动即校验，缺失必填项直接失败并给出字段名（FR-CFG-01、AC-13）。
-- **DI 容器**：轻量手写容器（注册工厂 + 单例/瞬时作用域），按配置装配 `LLMClient`、`ToolRegistry`、`Memory`、`ContextBuilder`、`SystemDB`、`Agent`；测试可注入替身（FR-CFG-04）。
+- **DI 容器**：轻量手写容器（注册工厂 + 单例/瞬时作用域），按配置装配 `LLMClient`、`ToolRegistry`、`Memory`、`ContextBuilder`、`SystemDB`、`Agent`；测试可注入替身（FR-CFG-04）。\n\n**S21 实现**：`config.yaml` 非敏感、环境变量覆盖；必填 `DEEPSEEK_API_KEY`、`MYSQL_DSN`；默认 base_url/model/timeout/retry、sandbox、prompt、pool 常量集中在 `config/models.py`。敏感值用 `SecretStr`；配置冻结。容器 config/llm 单例，agent/app 瞬时，`override(key,factory)` 替换。ISSUE-025 选择运行依赖 minor 上界（httpx<0.29、pydantic<3、pytest<9）。
 
 ### 3.9 系统数据库（MySQL）
 
