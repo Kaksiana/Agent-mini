@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-24
+goal: S20 统一 AgentError 与 HTTP 映射
