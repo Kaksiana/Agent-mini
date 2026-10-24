@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import inspect
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from time import monotonic
 from uuid import uuid4
 
@@ -102,12 +103,19 @@ def create_app(
 ) -> FastAPI:
     """创建无状态 FastAPI 应用。"""
     configure_logging()
-    app = FastAPI(title="agent-mini")
     checks = health_checks or {}
-    app.state.health_checks = checks
     close = getattr(agent, "close", None)
-    if callable(close):
-        app.add_event_handler("shutdown", close)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+        try:
+            yield
+        finally:
+            if callable(close):
+                await close()
+
+    app = FastAPI(title="agent-mini", lifespan=lifespan)
+    app.state.health_checks = checks
 
     @app.post("/chat", response_model=ChatResponse)
     async def chat(payload: ChatRequest, request: Request) -> ChatResponse:

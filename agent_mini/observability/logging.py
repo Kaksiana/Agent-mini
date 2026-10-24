@@ -123,6 +123,10 @@ def configure_logging(level: int = logging.INFO) -> logging.Logger:
     """幂等安装 JSON handler 与脱敏 filter。"""
     logger = logging.getLogger("agent_mini")
     logger.setLevel(level)
+    logger.propagate = False
+    for handler in list(logger.handlers):
+        if not isinstance(handler, _JsonHandler):
+            logger.removeHandler(handler)
     if not any(isinstance(handler, _JsonHandler) for handler in logger.handlers):
         handler = _JsonHandler()
         handler.setFormatter(JsonFormatter())

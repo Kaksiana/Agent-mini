@@ -101,3 +101,15 @@ def test_secret_value_in_message_is_redacted() -> None:
     assert "hunter2" not in text
     assert "token123" not in text
     assert "***" in text
+
+
+def test_configure_logging_disables_propagation_and_old_handlers() -> None:
+    from agent_mini.observability.logging import _JsonHandler, configure_logging
+
+    logger = logging.getLogger("agent_mini")
+    stale = logging.StreamHandler(io.StringIO())
+    logger.addHandler(stale)
+    configure_logging()
+    assert logger.propagate is False
+    assert stale not in logger.handlers
+    assert any(isinstance(handler, _JsonHandler) for handler in logger.handlers)
