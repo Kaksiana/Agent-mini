@@ -186,3 +186,8 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 ### 门禁
 
 `377 passed, 2 skipped`；unit 220；contract 64；integration 93；覆盖率 **94.56%**；ruff/format/mypy 通过。
+
+### 追加（2026-10-25 13:13）
+
+- M4-S21-02 按当前阶段决策 **mock-only 关闭**：`ToolConfig.search_provider` 支持 `none|mock`；`mock` 返回确定性本地结果，不访问网络；`none` 明确 `not_configured`。测试：`test_search_provider_mock_and_none`。
+- 真实搜索 provider 不进 v0.1；后续接入需新 change。

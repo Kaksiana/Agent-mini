@@ -2394,3 +2394,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - python:3.11-slim 跑 POSIX write_file：22 passed、1 skip；修复 replace/清理/竞态注入。
 - 容器装配 short/mid/systemdb/context 与 health；377 passed、2 skipped；覆盖率 94.56%。
 - 未关闭：search provider、health 超时、M3 复验、LIVE。
+
+## 2026-10-25 13:13 — search provider 仅 mock
+
+- 支持 none|mock；mock 本地确定性结果；none 明确 not_configured。
+- 378 passed、2 skipped；覆盖率 94.58%。

@@ -244,3 +244,9 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - POSIX `write_file`：`os.replace`、发布失败不误报 path_escape、FileExists 临时文件清理。
 - 复验：377 passed、2 skipped；unit 220、contract 64、integration 93；覆盖率 94.56%。
 - 未关闭：search_provider、health 超时、M3 独立复验、LIVE、P2 其余项。
+
+## 13. search provider 阶段决策（2026-10-25）
+
+- 当前阶段仅 mock：`none` 返回 `not_configured`；`mock` 返回确定性本地结果。
+- 不接真实搜索 API；`ToolConfig.search_provider` 限定 `none|mock`，支持 `SEARCH_PROVIDER` 环境变量。
+- 复验：378 passed、2 skipped；unit 221；覆盖率 94.58%。
