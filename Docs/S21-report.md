@@ -269,3 +269,9 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - `.env` 提供 Key；`RUN_LIVE=1 pytest tests/live -q` → 3 passed。
 - MySQL/Redis/Mongo 容器均 Up；health 探针三项 ok。
 - `RUN_LIVE=1` 全量 386 passed、2 skipped；覆盖率 94.53%。
+
+## 17. 真实 MySQL/Redis/Mongo（2026-10-25）
+
+- MySQL 审计：真实五表哨兵扫描通过。
+- Redis/Mongo：真实记忆往返通过。
+- 全部 Docker + LIVE：390 passed、1 skipped；默认 383 passed、8 skipped；覆盖率 94.76%。

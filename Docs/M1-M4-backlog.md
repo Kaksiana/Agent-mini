@@ -214,3 +214,10 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 - **真实组件**：`agent-mini-mysql`(3307)、`agent-mini-redis`(6380)、`agent-mini-mongo`(27018) 均 Up；容器 health 探针返回 `{'redis':'ok','mongo':'ok','mysql':'ok'}`。
 - **M4-S21-01 部分关闭**：Redis/Mongo/MySQL 客户端装配与 health 已实测；对话记忆链路未做真实 Redis/Mongo 往返。
 - 门禁：`RUN_LIVE=1` 全量 **386 passed、2 skipped**；默认全量 383 passed、2 skipped + live 3 skipped；覆盖率 94.53%。
+
+### 追加（2026-10-25 16:05）
+
+- **M4-S19-01 关闭**：新增 `test_mysql_audit_sentinel_scan`，真实 MySQL 五表扫描唯一哨兵；`git ls-files` 扫描已有。
+- **M4-S21-01 关闭**：新增真实 Redis/Mongo 往返测试（`test_redis_real_round_trip`、`test_mongo_real_round_trip`）与容器装配 health。
+- **真机门禁**：`RUN_LIVE=1` + 三个 Docker 组件环境，全量 **390 passed、1 skipped**；默认 **383 passed、8 skipped**。
+- 覆盖率 **94.76%**（2670 statements，140 missed）。

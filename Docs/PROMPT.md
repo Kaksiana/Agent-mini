@@ -2416,3 +2416,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - .env Key，RUN_LIVE=1；LIVE 3 passed。
 - MySQL/Redis/Mongo 容器 Up；health 三项 ok。
 - 386 passed、2 skipped；覆盖率 94.53%。
+
+## 2026-10-25 16:05 — 真实 MySQL/Redis/Mongo
+
+- 真实 MySQL 审计五表哨兵扫描；Redis/Mongo 记忆往返。
+- Docker+LIVE 390 passed、1 skipped；默认 383 passed、8 skipped；覆盖率 94.76%。
