@@ -2432,3 +2432,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - trim_reason/顺序/ensure_indexes/reasoning；Mongo 脏文档跳过。
 - M3 51 passed；全量 391/1；覆盖率 94.60%；独立复审待回。
+
+## 2026-10-25 16:30 — 最终复核
+
+- 独立复核 A/B 故障路径闭合；M3 53 passed。
+- Python3.11 392/2；wheel 导入；本机 393/1；覆盖率 94.62%。

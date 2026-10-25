@@ -288,3 +288,9 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - trim_reason=None、跨存储顺序、ensure_indexes、include_reasoning=False。
 - Mongo 脏文档逐条跳过。
 - M3 用例 51 passed；全量 Docker+LIVE 391 passed、1 skipped；覆盖率 94.60%。
+
+## 20. 最终复核（2026-10-25）
+
+- 独立子代理确认跨存储 A/B 故障路径闭合；M3 53 passed。
+- Python 3.11 全量 392 passed、2 skipped；wheel 重建并仓库外导入成功。
+- 本机 Docker+LIVE 393 passed、1 skipped；覆盖率 94.62%。

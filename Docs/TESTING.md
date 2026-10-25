@@ -9,9 +9,9 @@
 | 版本 | v0.25（S21 配置与 DI） |
 | 日期 | 2026-10-24 |
 | 状态 | 执行中（S00–S21 已实现；LIVE 条件未满足） |
-| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 393（unit 223、contract 64、integration 101、live 3、unmarked 0；默认 8 skip） |
+| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 394（unit 223、contract 64、integration 102、live 3、unmarked 0；默认 8 skip） |
 
-> 本文件同时记录测试设计与执行状态。截至 S21，S00–S21 共收集 393 个用例；Docker+LIVE 全量 392 passed、1 skipped，覆盖率 94.60%；默认 385 passed、8 skipped；Python 3.11 全量 390 passed、2 skipped。；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S21，S00–S21 共收集 394 个用例；Docker+LIVE 全量 393 passed、1 skipped，覆盖率 94.62%；默认 386 passed、8 skipped；Python 3.11 全量 392 passed、2 skipped。；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 

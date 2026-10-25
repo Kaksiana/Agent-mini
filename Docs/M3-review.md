@@ -38,3 +38,14 @@ M3 核心集成用例全绿；**未**做独立人工审阅，不把 M3 标为“
 仍剩余：P2 无真实 Redis+Mongo+ContextBuilder 全链路；P3 每轮 build+fit 重复读取 Memory。
 
 当前 M3 门禁：**392 passed、1 skipped（Docker+LIVE 全量）**，覆盖率 94.60%。独立复审报告待子代理确认。
+
+## 最终独立复核（2026-10-25）
+
+子代理重跑 `tests/integration/test_context_builder.py`：**13 passed**；M3 五文件：**53 passed**。
+
+- A：mid=[r2,r3]、short=[r1,r2,r3]（r1 Mongo 写失败）→ **r1,r2,r3 PASS**。
+- B：mid=[r1,r2,r3]、short=[r1,r2]（r3 Redis 写失败）→ **r1,r2,r3 PASS**。
+
+4 项 P1 全部闭合。
+
+残留：P2 无真实 Redis+Mongo+ContextBuilder 全链路；P3 重复 build/fit、search_rounds 不建索引、Agent.close 不关客户端。
