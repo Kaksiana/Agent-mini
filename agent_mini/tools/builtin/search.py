@@ -46,6 +46,26 @@ class SearchProvider(Protocol):
         ...
 
 
+class MockProvider:
+    """S21 阶段 mock：确定性假结果，不访问网络。"""
+
+    @property
+    def name(self) -> str:
+        """固定名称。"""
+        return "mock"
+
+    async def search(self, query: str, limit: int) -> Sequence[SearchResult]:
+        """返回一条本地 mock 结果。"""
+        return [
+            SearchResult(
+                title=f"Mock result for {query}"[:MAX_QUERY_CHARS],
+                url="https://example.invalid/mock",
+                snippet="mock provider; no network access",
+                source="mock",
+            )
+        ][:limit]
+
+
 class NullProvider:
     """未配置占位；绝不返回伪造结果。"""
 

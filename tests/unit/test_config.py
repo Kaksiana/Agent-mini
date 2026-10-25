@@ -152,3 +152,19 @@ async def test_container_assembles_context_systemdb_and_health(tmp_path: Path) -
         response = await client.get("/healthz")
     assert response.status_code == 200
     assert "mysql" in response.json()["dependencies"]
+
+
+async def test_search_provider_mock_and_none(tmp_path: Path) -> None:
+    from agent_mini.tools.builtin.search import reset_search_provider, search
+
+    path = _write_yaml(tmp_path / "config.yaml", "tool:\n  search_provider: mock\n")
+    config = load_config(path, ENV)
+    build_container(config).resolve("agent")
+    mock = await search("probe")
+    assert mock.ok is True
+    assert "mock" in mock.content
+
+    path.write_text("tool:\n  search_provider: none\n", encoding="utf-8")
+    build_container(load_config(path, ENV)).resolve("agent")
+    reset_search_provider()
+    assert (await search("probe")).error_code == "not_configured"

@@ -13,7 +13,7 @@ DEFAULT_TIMEOUT = 60.0
 DEFAULT_RETRIES = 2
 DEFAULT_SANDBOX_ROOT = Path("./workspace")
 DEFAULT_MAX_FILE_SIZE = 1024 * 1024
-DEFAULT_SEARCH_PROVIDER = "none"
+DEFAULT_SEARCH_PROVIDER: Literal["none", "mock"] = "none"
 DEFAULT_PROMPT_PATH = Path("./prompts/system.md")
 DEFAULT_WINDOW_ROUNDS = 10
 DEFAULT_POOL_SIZE = 5
@@ -57,7 +57,7 @@ class ToolConfig(_Frozen):
     enabled: bool = True
     sandbox_root: Path = DEFAULT_SANDBOX_ROOT
     max_file_size: int = Field(default=DEFAULT_MAX_FILE_SIZE, gt=0)
-    search_provider: str = DEFAULT_SEARCH_PROVIDER
+    search_provider: Literal["none", "mock"] = DEFAULT_SEARCH_PROVIDER
 
 
 class PromptConfig(_Frozen):

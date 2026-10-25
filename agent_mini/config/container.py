@@ -122,6 +122,16 @@ def _build_agent(container: Container) -> Any:
 
     _ = _builtin
     config = container.resolve(Service.CONFIG)
+    from agent_mini.tools.builtin.search import (
+        MockProvider,
+        configure_search_provider,
+        reset_search_provider,
+    )
+
+    if config.tool.search_provider == "mock":
+        configure_search_provider(MockProvider())
+    else:
+        reset_search_provider()
     registry = DEFAULT_REGISTRY if config.tool.enabled else ToolRegistry()
     context = ToolContext(
         session_id="",

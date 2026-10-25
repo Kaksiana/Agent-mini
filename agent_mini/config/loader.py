@@ -45,6 +45,7 @@ class _Env(BaseSettings):
     system_pool_timeout: float | None = Field(default=None, alias="MYSQL_POOL_TIMEOUT")
     system_auto_create: bool | None = Field(default=None, alias="MYSQL_AUTO_CREATE")
     sandbox_root: Path | None = Field(default=None, alias="SANDBOX_ROOT")
+    search_provider: str | None = Field(default=None, alias="SEARCH_PROVIDER")
     prompt_path: Path | None = Field(default=None, alias="SYSTEM_PROMPT_PATH")
     window_rounds: int | None = Field(default=None, alias="WINDOW_ROUNDS")
 
@@ -156,6 +157,8 @@ def _merge_tool(data: object, env: _Env) -> dict[str, Any]:
     merged = dict(data) if isinstance(data, dict) else {}
     if env.sandbox_root is not None:
         merged["sandbox_root"] = env.sandbox_root
+    if env.search_provider is not None:
+        merged["search_provider"] = env.search_provider
     return merged
 
 
