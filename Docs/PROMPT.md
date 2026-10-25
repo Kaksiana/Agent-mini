@@ -2442,3 +2442,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 真实 Redis+Mongo+ContextBuilder 链路；search_rounds 索引；Agent.close 客户端。
 - 重复 build/fit 回退（deadline 语义）；394/1；Python3.11 393/2；覆盖率 94.72%。
+
+## 2026-10-25 16:55 — 按请求缓存
+
+- 首次 fit 复用 build，Memory 只读 1 次；deadline 工具步测试保留。
+- 395/1；Python3.11 394/2；覆盖率 94.95%。

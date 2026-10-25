@@ -57,3 +57,11 @@ M3 核心集成用例全绿；**未**做独立人工审阅，不把 M3 标为“
 - **P3 close 关闭**：`Agent.close()` 依次排空并调用 LLM/Short/Mid/SystemDB 的 `aclose/close`。
 - **P3 重复 build/fit 未关闭**：尝试首轮复用 payload 会破坏 `test_fit_is_bounded_by_deadline` 的 deadline 语义，已回退；保留为已知 P3。
 - 最终：M3 五文件 53 passed；全量 394 passed、1 skipped；覆盖率 94.72%。
+
+## P3 重复 build/fit（2026-10-25）
+
+- 已按请求缓存：首次 `fit` 复用 `builder.build` 的 payload，不再读取 Memory；工具步后的第二次 fit 才重新读取。
+- deadline 语义保留：`test_fit_is_bounded_by_deadline` 改为工具步触发第二次慢 fit，仍以 `truncated/deadline` 通过。
+- 新增 `test_context_reads_memory_once_and_closes_dependency`：一次 run 中 `get_recent_rounds` 仅 1 次；`Agent.close` 关闭 short。
+
+M3 指定 P2/P3 均已关闭；M3 五文件 54 passed（含新用例）。

@@ -249,3 +249,9 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 - **M3 P2 关闭**：真实 Redis+Mongo+ContextBuilder 链路测试通过。
 - **M3 P3**：search_rounds 自动建索引、Agent.close 关闭外部客户端已关闭；重复 build/fit 保留（回退以免破坏 deadline 语义）。
 - **门禁**：395 收集；Docker+LIVE 394 passed、1 skipped；默认 387 passed、8 skipped；Python 3.11 393 passed、2 skipped；覆盖率 **94.72%**。
+
+### 追加（2026-10-25 16:55）
+
+- **M3 P3 重复 build/fit 关闭**：首次 fit 复用 build payload，工具步后才重读；deadline 测试改为工具步触发。
+- **门禁**：396 收集；Docker+LIVE 395 passed、1 skipped；默认 388 passed、8 skipped；Python 3.11 394 passed、2 skipped；覆盖率 **94.95%**。
+- M3 指定 P2/P3 全部关闭；wheel 重建/仓库外导入通过。

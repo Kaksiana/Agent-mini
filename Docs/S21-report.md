@@ -301,3 +301,9 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - search_rounds 自动建索引；Agent.close 关闭客户端。
 - 重复 build/fit 因 deadline 语义回退，保留 P3。
 - 395 收集；Docker+LIVE 394/1；Python 3.11 393/2；覆盖率 94.72%。
+
+## 22. 按请求缓存（2026-10-25）
+
+- 首次 fit 复用 build payload，Memory 只读 1 次；工具步后 fit 重读。
+- deadline 测试改用工具步触发，仍通过。
+- 396 收集；Docker+LIVE 395/1；Python 3.11 394/2；覆盖率 94.95%。
