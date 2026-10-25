@@ -145,12 +145,20 @@ class ContextBuilder:
         if short_term is not None:
             short_rounds = await self._read_short_term(short_term, session_id)
         if short_rounds:
-            first = short_rounds[0].round_id
-            index = next(
-                (position for position, item in enumerate(mid_rounds) if item.round_id == first),
-                len(mid_rounds),
-            )
-            merged = [*mid_rounds[:index], *short_rounds]
+            short_ids = {item.round_id for item in short_rounds}
+            common = [
+                (index, item.round_id)
+                for index, item in enumerate(mid_rounds)
+                if item.round_id in short_ids
+            ]
+            prefix: list[StoredRound] = []
+            tail: list[StoredRound] = []
+            if common:
+                prefix = mid_rounds[: common[0][0]]
+                tail = mid_rounds[common[-1][0] + 1 :]
+            merged = [*prefix, *short_rounds]
+            known = {item.round_id for item in merged}
+            merged.extend(item for item in tail if item.round_id not in known)
         else:
             merged = mid_rounds
         seen: set[str] = set()

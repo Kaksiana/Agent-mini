@@ -350,3 +350,29 @@ async def test_cross_store_merge_keeps_short_order() -> None:
     )
     contents = [message.content for message in payload.messages]
     assert contents.index("one") < contents.index("two") < contents.index("three")
+
+
+async def test_cross_store_partial_write_failures_keep_order() -> None:
+    builder = ContextBuilder(TokenCounter(FakeEncoder()), 16_000)
+    cases = [
+        (
+            [_round("r2", "two"), _round("r3", "three")],
+            [_round("r1", "one"), _round("r2", "two"), _round("r3", "three")],
+        ),
+        (
+            [_round("r1", "one"), _round("r2", "two"), _round("r3", "three")],
+            [_round("r1", "one"), _round("r2", "two")],
+        ),
+    ]
+    for mid, short in cases:
+        payload = await builder.build(
+            BuildRequest(
+                "current",
+                _tools(),
+                session_id="A",
+                short_term=cast(Any, FakeShort(short)),
+                mid_term=cast(Any, FakeMid(mid)),
+            )
+        )
+        contents = [message.content for message in payload.messages]
+        assert contents.index("one") < contents.index("two") < contents.index("three")
