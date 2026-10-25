@@ -221,12 +221,13 @@ def _build_context(config: AppConfig) -> Any:
     )
 
 
-async def _redis_health(client: Any) -> bool:
-    return bool(await client.ping())
+async def _redis_health(memory: Any) -> bool:
+    return bool(await memory._client.ping())
 
 
-async def _mongo_health(client: Any) -> bool:
-    return bool(await client.admin.command("ping"))
+async def _mongo_health(memory: Any) -> bool:
+    collection = memory._collection
+    return bool(await collection.database.command("ping"))
 
 
 async def _mysql_health(repository: Any) -> bool:
