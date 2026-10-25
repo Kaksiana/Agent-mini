@@ -2437,3 +2437,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 独立复核 A/B 故障路径闭合；M3 53 passed。
 - Python3.11 392/2；wheel 导入；本机 393/1；覆盖率 94.62%。
+
+## 2026-10-25 16:45 — M3 P2/P3
+
+- 真实 Redis+Mongo+ContextBuilder 链路；search_rounds 索引；Agent.close 客户端。
+- 重复 build/fit 回退（deadline 语义）；394/1；Python3.11 393/2；覆盖率 94.72%。

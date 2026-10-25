@@ -294,3 +294,10 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - 独立子代理确认跨存储 A/B 故障路径闭合；M3 53 passed。
 - Python 3.11 全量 392 passed、2 skipped；wheel 重建并仓库外导入成功。
 - 本机 Docker+LIVE 393 passed、1 skipped；覆盖率 94.62%。
+
+## 21. M3 P2/P3 收尾（2026-10-25）
+
+- 真实 Redis+Mongo+ContextBuilder 链路通过。
+- search_rounds 自动建索引；Agent.close 关闭客户端。
+- 重复 build/fit 因 deadline 语义回退，保留 P3。
+- 395 收集；Docker+LIVE 394/1；Python 3.11 393/2；覆盖率 94.72%。

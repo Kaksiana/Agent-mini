@@ -49,3 +49,11 @@ M3 核心集成用例全绿；**未**做独立人工审阅，不把 M3 标为“
 4 项 P1 全部闭合。
 
 残留：P2 无真实 Redis+Mongo+ContextBuilder 全链路；P3 重复 build/fit、search_rounds 不建索引、Agent.close 不关客户端。
+
+## P2/P3 收尾（2026-10-25）
+
+- **P2 真实全链路关闭**：`test_real_redis_mongo_context_chain` 使用真实 Redis+Mongo 写入 r1/r2/r3（Mongo 缺 r2 模拟写失败），ContextBuilder 输出 r1,r2,r3。
+- **P3 index 关闭**：`MidTermMemory.search_rounds` 首次调用 `ensure_indexes`；`_index_attempted` 防止故障时每轮重试。
+- **P3 close 关闭**：`Agent.close()` 依次排空并调用 LLM/Short/Mid/SystemDB 的 `aclose/close`。
+- **P3 重复 build/fit 未关闭**：尝试首轮复用 payload 会破坏 `test_fit_is_bounded_by_deadline` 的 deadline 语义，已回退；保留为已知 P3。
+- 最终：M3 五文件 53 passed；全量 394 passed、1 skipped；覆盖率 94.72%。
