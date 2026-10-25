@@ -228,6 +228,7 @@ HTTP /chat
 | [Docs/PROMPT.md](Docs/PROMPT.md) | **AIPROMPT**：各阶段 AI 执行 Prompt 与摘要（即 PROMPT.md） |
 | [Docs/test-result.md](Docs/test-result.md) | **真机测试完整结果**：命令、HTTP 请求/响应、工具输出、Docker 证据 |
 | [Docs/test-report.md](Docs/test-report.md) | 项目演示测试用例（DEMO-001~018） |
+| [后端架构题：题目](Docs/interview/shengxingou/题目.md) / [答案](Docs/interview/shengxingou/答案.txt) | 来源：`E:\DevTools\Projects\Studies\shengxingou\题目.md`、`E:\DevTools\Projects\Studies\shengxingou\答案.txt`；源题目为空，题面据答案【题目】整理 |
 | [Docs/ISSUE.md](Docs/ISSUE.md) | **问题台账**：Open/Resolved、ISSUE-024/025/044 等 |
 | [Docs/PLAN.md](Docs/PLAN.md) | S00–S21 阶段计划与状态 |
 | [Docs/DESIGN.md](Docs/DESIGN.md) | 架构、数据模型、错误/日志/配置设计 |
