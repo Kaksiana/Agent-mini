@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, cast
@@ -119,3 +120,25 @@ def test_sentinel_not_in_tracked_files() -> None:
         path = root / name
         if path.is_file() and sentinel in path.read_text(encoding="utf-8", errors="ignore"):
             raise AssertionError(f"sentinel leaked into {name}")
+
+
+@pytest.mark.skipif(not os.environ.get("MYSQL_TEST_DSN"), reason="MYSQL_TEST_DSN 未配置")
+async def test_mysql_audit_sentinel_scan(monkeypatch: pytest.MonkeyPatch) -> None:
+    secret = "sk-" + uuid4().hex
+    repo = SystemDBRepository(SystemDBConfig(dsn=os.environ["MYSQL_TEST_DSN"], auto_create=True))
+    assert await repo.ensure_schema()
+    agent = Agent(
+        cast(Any, _SecretLLM(secret)),
+        tool_executor=_SecretExecutor(secret),
+    ).with_system_db(repo, 1.0)
+    app = create_app(agent)
+    transport = httpx.ASGITransport(app=cast(Any, app), raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/chat", json={"message": "mysql-audit"})
+        await agent.drain()
+    assert response.status_code == 200
+    async with repo.engine.connect() as connection:
+        for table in ("sessions", "models", "tools", "tool_invocations", "request_metrics"):
+            rows = await connection.execute(text(f"SELECT * FROM {table}"))
+            assert secret not in str(rows.all())
+    await repo.close()
