@@ -256,3 +256,10 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - health：异步/同步检查线程化、2s 超时、空依赖 degraded；容器注入 mysql/redis/mongo。
 - 启动：`agent-mini` console script 捕获 ConfigError，单行 stderr、退出码 2、无 Traceback。
 - 381 passed、2 skipped；unit 222、contract 64、integration 95；覆盖率 94.56%。
+
+## 15. 收尾二（2026-10-25）
+
+- S20 异常堆栈 JSON 化并脱敏，补测试。
+- S19 仓库扫描测试；MySQL 审计扫描仍缺。
+- M3 只读复验 51 passed，记录于 M3-review；非独立评审。
+- 383 passed、2 skipped；覆盖率 94.57%。

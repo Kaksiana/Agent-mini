@@ -198,3 +198,12 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 - **M4-S21-03 部分关闭**：新增 `agent_mini.interface.server:main` 与 `agent-mini` console script；ConfigError 单行退出码 2，无 Traceback；README 明确 `DEEPSEEK_API_KEY` 与 `MYSQL_DSN` 必填。
 - **M4-S21-01 仍部分**：Redis/Mongo 仅在 URL 配置时装配，未做真实服务链路测试。
 - 门禁：381 passed、2 skipped；unit 222；integration 95；覆盖率 94.56%。
+
+### 追加（2026-10-25 15:45）
+
+- **M3-01 部分关闭**：`Docs/M3-review.md` 记录 51 passed；只读执行，非独立第三方评审。
+- **M4-S19-01 部分关闭**：新增 `test_sentinel_not_in_tracked_files` 扫描 `git ls-files`；真实 MySQL 审计表扫描仍未做。
+- **M4-S20-01 关闭**：`JsonFormatter` 输出脱敏 `error_type/error_message/stack`；新增异常堆栈 JSON 测试。
+- **Docker Redis/Mongo 未执行**：Docker Desktop 再次停止，无法启动 redis/mongo 容器；MySQL/Linux 证据沿用前次。
+- **M4-GATE-01**：`DEEPSEEK_API_KEY` 仍不存在，LIVE 阻塞。
+- 门禁：383 passed、2 skipped；unit 223、contract 64、integration 96；覆盖率 94.57%。

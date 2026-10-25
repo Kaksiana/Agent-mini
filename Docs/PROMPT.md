@@ -2404,3 +2404,9 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - health 2s 超时/空依赖 degraded；console script 单行启动失败。
 - 381 passed、2 skipped；覆盖率 94.56%。
+
+## 2026-10-25 15:45 — S19/S20/M3 收尾
+
+- exc_info JSON 脱敏；git ls-files 哨兵扫描；M3 51 passed 只读复验。
+- Redis/Mongo Docker 未启动；LIVE 无 Key。
+- 383 passed、2 skipped；覆盖率 94.57%。
