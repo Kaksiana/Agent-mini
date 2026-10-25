@@ -2421,3 +2421,9 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 真实 MySQL 审计五表哨兵扫描；Redis/Mongo 记忆往返。
 - Docker+LIVE 390 passed、1 skipped；默认 383 passed、8 skipped；覆盖率 94.76%。
+
+## 2026-10-25 16:20 — S17/wheel/Python3.11
+
+- S17 真实五表链路测试。
+- wheel 构建 + 仓库外导入。
+- Python3.11 Docker 全量 390 passed、2 skipped；本机 391/1；覆盖率 94.76%。

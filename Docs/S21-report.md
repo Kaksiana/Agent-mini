@@ -275,3 +275,10 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - MySQL 审计：真实五表哨兵扫描通过。
 - Redis/Mongo：真实记忆往返通过。
 - 全部 Docker + LIVE：390 passed、1 skipped；默认 383 passed、8 skipped；覆盖率 94.76%。
+
+## 18. 构建与跨版本（2026-10-25）
+
+- wheel 构建成功，仓库外 target 导入成功。
+- Python 3.11 全量（Docker + 三服务 + LIVE）：390 passed、2 skipped。
+- 本机 Docker+LIVE 全量：391 passed、1 skipped；覆盖率 94.76%。
+- S17 五表真实链路测试通过。

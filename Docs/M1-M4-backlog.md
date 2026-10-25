@@ -221,3 +221,11 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 - **M4-S21-01 关闭**：新增真实 Redis/Mongo 往返测试（`test_redis_real_round_trip`、`test_mongo_real_round_trip`）与容器装配 health。
 - **真机门禁**：`RUN_LIVE=1` + 三个 Docker 组件环境，全量 **390 passed、1 skipped**；默认 **383 passed、8 skipped**。
 - 覆盖率 **94.76%**（2670 statements，140 missed）。
+
+### 追加（2026-10-25 16:20）
+
+- **M4-S17-01 关闭**：新增真实 SQLite 仓储 + RegistryExecutor + Agent 五表链路测试；断言 sessions/tool_invocations/request_metrics 各 1、trace_id 一致。
+- **wheel + 仓库外导入**：`python -m build --wheel` 成功；`pip install --no-deps --target <temp> dist/*.whl` 后在 `C:\` 导入，`agent_mini` 与 `agent_mini.config.models` 均解析到 temp。
+- **Python 3.11 全量**：`python:3.11-slim` + 三 Docker 服务 + RUN_LIVE=1 全量 **390 passed、2 skipped**（git 不可用、POSIX Windows seam）。
+- 本机 Docker+LIVE 全量 **391 passed、1 skipped**；覆盖率 **94.76%**。
+- M3 独立评审子代理进行中，未关闭 M3-01。
