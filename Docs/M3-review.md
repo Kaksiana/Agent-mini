@@ -24,3 +24,17 @@ pytest tests/integration/test_m3_demo.py tests/integration/test_short_term.py \
 ## 结论
 
 M3 核心集成用例全绿；**未**做独立人工审阅，不把 M3 标为“独立复验完成”。
+
+## 复审修复（2026-10-25）
+
+独立评审列出的 4 项 P1 已修复：
+
+1. `trim_reason` 无裁剪返回 `None`（`test_five_rounds_order_and_system_first` 断言）。
+2. 跨存储合并以 short 顺序为主，避免 Mongo 部分写回导致 r2 排到 r3 后（`test_cross_store_merge_keeps_short_order`）。
+3. `MidTermMemory.get_rounds` 首次调用 `ensure_indexes`，生产读取路径会建索引。
+4. 容器 `with_context(include_reasoning=False)`，与 `HttpLLMClient(thinking=False)` 的实际发送一致。
+5. P2 Mongo 脏文档改为逐条跳过（`_degraded("decode_document")`）。
+
+仍剩余：P2 无真实 Redis+Mongo+ContextBuilder 全链路；P3 每轮 build+fit 重复读取 Memory。
+
+当前 M3 门禁：**392 passed、1 skipped（Docker+LIVE 全量）**，覆盖率 94.60%。独立复审报告待子代理确认。

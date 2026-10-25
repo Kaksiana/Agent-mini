@@ -282,3 +282,9 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - Python 3.11 全量（Docker + 三服务 + LIVE）：390 passed、2 skipped。
 - 本机 Docker+LIVE 全量：391 passed、1 skipped；覆盖率 94.76%。
 - S17 五表真实链路测试通过。
+
+## 19. M3 P1 修复（2026-10-25）
+
+- trim_reason=None、跨存储顺序、ensure_indexes、include_reasoning=False。
+- Mongo 脏文档逐条跳过。
+- M3 用例 51 passed；全量 Docker+LIVE 391 passed、1 skipped；覆盖率 94.60%。

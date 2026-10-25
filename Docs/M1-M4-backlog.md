@@ -229,3 +229,10 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 - **Python 3.11 全量**：`python:3.11-slim` + 三 Docker 服务 + RUN_LIVE=1 全量 **390 passed、2 skipped**（git 不可用、POSIX Windows seam）。
 - 本机 Docker+LIVE 全量 **391 passed、1 skipped**；覆盖率 **94.76%**。
 - M3 独立评审子代理进行中，未关闭 M3-01。
+
+### 追加（2026-10-25 16:15）
+
+- **M3-01 P1 修复**：trim_reason、跨存储顺序、ensure_indexes、reasoning 计费一致性；Mongo 脏文档逐条跳过。
+- **M4-S17-01 关闭**：真实五表链路测试。
+- **wheel/仓库外导入、Python 3.11 全量** 已完成。
+- M3 独立复审已提交子代理复核，P2/P3（真实全链路、重复读）仍开放。

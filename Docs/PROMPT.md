@@ -2427,3 +2427,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - S17 真实五表链路测试。
 - wheel 构建 + 仓库外导入。
 - Python3.11 Docker 全量 390 passed、2 skipped；本机 391/1；覆盖率 94.76%。
+
+## 2026-10-25 16:15 — M3 P1 修复
+
+- trim_reason/顺序/ensure_indexes/reasoning；Mongo 脏文档跳过。
+- M3 51 passed；全量 391/1；覆盖率 94.60%；独立复审待回。
