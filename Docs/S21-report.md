@@ -235,3 +235,12 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 | P2-03 文档 | README S21、DESIGN 字面 \\n、TESTING 计数 |
 
 **复验**：376 passed、2 skipped；unit 219、contract 64、integration 93；覆盖率 **94.93%**；ruff/mypy 通过。
+
+## 12. 修复记录（2026-10-25）
+
+- 容器新增 short/mid/systemdb/context 服务；Agent 注入 short_term/system_db/context；Prompt 文件可读。
+- `/healthz` 注入 redis/mongo/mysql 检查（Redis/Mongo 仅配置 URL 时）。
+- Docker 真机：MySQL 8 用例 8 passed；Linux/Python 3.11 POSIX 22 passed、1 skip。
+- POSIX `write_file`：`os.replace`、发布失败不误报 path_escape、FileExists 临时文件清理。
+- 复验：377 passed、2 skipped；unit 220、contract 64、integration 93；覆盖率 94.56%。
+- 未关闭：search_provider、health 超时、M3 独立复验、LIVE、P2 其余项。

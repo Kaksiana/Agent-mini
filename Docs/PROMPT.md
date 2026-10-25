@@ -2369,3 +2369,28 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - retry 接 RetryPolicy；非法 env/YAML 统一 ConfigError；Context trace 序列化；ToolConfig 生效。
 - 376 passed、2 skipped；unit 219、integration 93；覆盖率 94.93%。
 - Memory/SystemDB/ContextBuilder 装配仍未完成。
+
+## 2026-10-25 12:45 — 汇总 M1–M4 未闭环任务
+
+### 原始 Prompt
+
+```text
+【评估】整理汇总M1-M4未闭环的所有任务，按阶段按优先级
+```
+
+### 执行摘要
+
+- 目标：以 `4bad549` 为基线，汇总 S01–S21 报告、ISSUE、PLAN/TESTING 与当前代码中仍未闭环的任务，按 M1–M4 与 P0–P3 分级。
+- 关键约束：只读整理；除 `Docs/M1-M4-backlog.md` 与本 Prompt 记录外，不修改实现、测试、OpenSpec 或远程状态。
+- 产出：新增 `Docs/M1-M4-backlog.md`；共 21 项：P0 1、P1 5、P2 8、P3 7。
+- 关键发现：LIVE 仍无测试/记录；S21 容器未装配 Memory/ContextBuilder/SystemDB/Redis/Mongo；search provider 与 health 检查仍有缺口；POSIX 与 M3 独立复验待完成。
+- 验证：376 passed、2 skipped、覆盖率 94.93%；ruff/format、mypy、OpenSpec、diff-check 通过；`-m live` 0 个用例。
+- 人工修正 / 最终决策：未修改实现；建议先完成 P1 全链路与 health，再做 LIVE、POSIX 与 M3 复验。
+- 关联提交：无；本轮未提交、未推送。
+
+## 2026-10-25 13:01 — Docker 真机与 P1 装配
+
+- 启动 agent-mini-mysql；MySQL 8 passed。
+- python:3.11-slim 跑 POSIX write_file：22 passed、1 skip；修复 replace/清理/竞态注入。
+- 容器装配 short/mid/systemdb/context 与 health；377 passed、2 skipped；覆盖率 94.56%。
+- 未关闭：search provider、health 超时、M3 复验、LIVE。
