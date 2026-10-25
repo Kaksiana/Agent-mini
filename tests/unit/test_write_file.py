@@ -177,7 +177,7 @@ def test_replace_failure_leaves_no_residue(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def boom(source: object, target: object) -> None:
+    def boom(*args: object, **kwargs: object) -> None:
         raise OSError("replace failed")
 
     monkeypatch.setattr(os, "replace", boom)
@@ -196,12 +196,22 @@ def test_concurrent_create_is_not_overwritten(
 
     original = tempfile.mkstemp
 
-    def create_competitor(*args: Any, **kwargs: Any) -> tuple[int, str]:
-        descriptor, path = original(*args, **kwargs)
-        (tmp_path / "a.txt").write_text("competitor")
-        return descriptor, path
+    if os.name == "posix":
+        real_link = os.link
 
-    monkeypatch.setattr(tempfile, "mkstemp", create_competitor)
+        def link_competitor(*args: Any, **kwargs: Any) -> None:
+            (tmp_path / "a.txt").write_text("competitor")
+            real_link(*args, **kwargs)
+
+        monkeypatch.setattr(os, "link", link_competitor)
+    else:
+
+        def create_competitor(*args: Any, **kwargs: Any) -> tuple[int, str]:
+            descriptor, path = original(*args, **kwargs)
+            (tmp_path / "a.txt").write_text("competitor")
+            return descriptor, path
+
+        monkeypatch.setattr(tempfile, "mkstemp", create_competitor)
     result = write_file("a.txt", "mine", context=_context(tmp_path))
 
     assert result.error_code == "file_exists"
@@ -209,6 +219,7 @@ def test_concurrent_create_is_not_overwritten(
     assert _temps(tmp_path) == []
 
 
+@pytest.mark.skipif(os.name == "posix", reason="Windows mkstemp injection seam")
 def test_parent_swap_before_publish_is_blocked(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -208,6 +208,7 @@ def _posix_publish(  # pragma: no cover - POSIX-only
     parent_fd = os.open(root, os.O_RDONLY | _O_DIRECTORY | _O_NOFOLLOW)
     opened: list[int] = [parent_fd]
     temp_name = f".write-{uuid4().hex}.tmp"
+    publishing = False
     try:
         for part in target.parent.relative_to(root).parts:
             child = os.open(
@@ -229,8 +230,9 @@ def _posix_publish(  # pragma: no cover - POSIX-only
                 _FCHMOD(descriptor, mode)
         finally:
             os.close(descriptor)
+        publishing = True
         if overwrite:
-            os.rename(
+            os.replace(
                 temp_name,
                 target.name,
                 src_dir_fd=parent_fd,
@@ -247,9 +249,15 @@ def _posix_publish(  # pragma: no cover - POSIX-only
         except FileExistsError as exc:
             raise _TargetExistsError from exc
         os.unlink(temp_name, dir_fd=parent_fd)
+    except _TargetExistsError:
+        with suppress(OSError):
+            os.unlink(temp_name, dir_fd=parent_fd)
+        raise
     except OSError as exc:
         with suppress(OSError):
             os.unlink(temp_name, dir_fd=parent_fd)
+        if publishing:
+            raise
         raise SandboxViolation("path_escape", "POSIX 发布失败") from exc
     finally:
         for file_descriptor in reversed(opened):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
 import pytest
 from pydantic import ValidationError
 
@@ -136,3 +137,18 @@ def test_invalid_env_type_and_yaml_section_raise_config_error(tmp_path: Path) ->
     path = _write_yaml(tmp_path / "config.yaml", "model: not-a-map\n")
     with pytest.raises(ConfigError, match="model"):
         load_config(path, ENV)
+
+
+async def test_container_assembles_context_systemdb_and_health(tmp_path: Path) -> None:
+    dsn = f"sqlite+aiosqlite:///{tmp_path / 'audit.db'}"
+    config = load_config(environ={**ENV, "MYSQL_DSN": dsn})
+    container = build_container(config)
+    agent = container.resolve("agent")
+    assert agent._context_builder is not None
+    assert agent._system_db is not None
+    app = container.build()
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/healthz")
+    assert response.status_code == 200
+    assert "mysql" in response.json()["dependencies"]

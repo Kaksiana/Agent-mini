@@ -9,6 +9,8 @@ from typing import Any
 from agent_mini.config.models import AppConfig
 from agent_mini.observability.errors import ConfigError
 
+DEFAULT_CONTEXT_TOKENS = 32_000
+
 
 class Scope(StrEnum):
     """组件生命周期。"""
@@ -22,6 +24,10 @@ class Service(StrEnum):
 
     CONFIG = "config"
     LLM = "llm"
+    SHORT_TERM = "short_term"
+    MID_TERM = "mid_term"
+    SYSTEM_DB = "system_db"
+    CONTEXT = "context"
     AGENT = "agent"
     APP = "app"
 
@@ -82,6 +88,10 @@ def build_container(config: AppConfig) -> Container:
     container = Container()
     container.register(Service.CONFIG, lambda: config, Scope.SINGLETON)
     container.register(Service.LLM, lambda: _build_llm(config), Scope.SINGLETON)
+    container.register(Service.SHORT_TERM, lambda: _build_short_term(config), Scope.SINGLETON)
+    container.register(Service.MID_TERM, lambda: _build_mid_term(config), Scope.SINGLETON)
+    container.register(Service.SYSTEM_DB, lambda: _build_system_db(config), Scope.SINGLETON)
+    container.register(Service.CONTEXT, lambda: _build_context(config), Scope.SINGLETON)
     container.register(Service.AGENT, lambda: _build_agent(container), Scope.TRANSIENT)
     container.register(Service.APP, lambda: _build_app(container), Scope.TRANSIENT)
     return container
@@ -119,13 +129,99 @@ def _build_agent(container: Container) -> Any:
         sandbox_root=config.tool.sandbox_root,
         max_file_size=config.tool.max_file_size,
     )
-    return Agent(
+    agent = Agent(
         container.resolve(Service.LLM),
         tool_executor=RegistryExecutor(registry, context),
+        short_term=container.resolve(Service.SHORT_TERM),
     )
+    mid = container.resolve(Service.MID_TERM)
+    if mid is not None:
+        agent = agent.with_mid_term(mid, config.systemdb.pool_timeout_seconds)
+    system = container.resolve(Service.SYSTEM_DB)
+    if system is not None:
+        agent = agent.with_system_db(system, config.systemdb.pool_timeout_seconds)
+    builder = container.resolve(Service.CONTEXT)
+    if builder is not None:
+        prompt_path = config.prompt.system_prompt_path
+        system_prompt = prompt_path.read_text(encoding="utf-8") if prompt_path.is_file() else None
+        agent = agent.with_context(builder, system_prompt=system_prompt)
+    return agent
 
 
 def _build_app(container: Container) -> Any:
     from agent_mini.interface.http import create_app
 
-    return create_app(container.resolve(Service.AGENT))
+    checks: dict[str, Any] = {}
+    redis = container.resolve(Service.SHORT_TERM)
+    if redis is not None:
+        checks["redis"] = lambda: _redis_health(redis)
+    mongo = container.resolve(Service.MID_TERM)
+    if mongo is not None:
+        checks["mongo"] = lambda: _mongo_health(mongo)
+    system = container.resolve(Service.SYSTEM_DB)
+    if system is not None:
+        checks["mysql"] = lambda: _mysql_health(system)
+    return create_app(container.resolve(Service.AGENT), checks)
+
+
+def _build_short_term(config: AppConfig) -> Any:
+    if config.redis_url is None:
+        return None
+    from redis.asyncio import Redis
+
+    from agent_mini.memory.short_term import ShortTermMemory
+
+    client = Redis.from_url(config.redis_url.get_secret_value())
+    return ShortTermMemory(client, max_rounds=config.prompt.window_rounds)
+
+
+def _build_mid_term(config: AppConfig) -> Any:
+    if config.mongo_uri is None:
+        return None
+    from pymongo import AsyncMongoClient
+
+    from agent_mini.memory.mid_term import COLLECTION_NAME, MidTermMemory
+
+    client: Any = AsyncMongoClient(config.mongo_uri.get_secret_value())
+    collection: Any = client["agent_mini"][COLLECTION_NAME]
+    return MidTermMemory(collection)
+
+
+def _build_system_db(config: AppConfig) -> Any:
+    from agent_mini.systemdb.models import SystemDBConfig as StoreConfig
+    from agent_mini.systemdb.repository import SystemDBRepository
+
+    store = StoreConfig(
+        dsn=config.systemdb.dsn.get_secret_value(),
+        pool_size=config.systemdb.pool_size,
+        pool_timeout_seconds=config.systemdb.pool_timeout_seconds,
+        auto_create=config.systemdb.auto_create,
+    )
+    return SystemDBRepository(store)
+
+
+def _build_context(config: AppConfig) -> Any:
+    from agent_mini.context.builder import ContextBuilder
+    from agent_mini.context.token_counter import TokenCounter
+
+    return ContextBuilder(
+        TokenCounter(),
+        DEFAULT_CONTEXT_TOKENS,
+        max_rounds=config.prompt.window_rounds,
+    )
+
+
+async def _redis_health(client: Any) -> bool:
+    return bool(await client.ping())
+
+
+async def _mongo_health(client: Any) -> bool:
+    return bool(await client.admin.command("ping"))
+
+
+async def _mysql_health(repository: Any) -> bool:
+    from sqlalchemy import text
+
+    async with repository.engine.connect() as connection:
+        await connection.execute(text("SELECT 1"))
+    return True
