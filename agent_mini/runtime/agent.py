@@ -191,8 +191,13 @@ class Agent:
             include_reasoning=self._include_reasoning,
         )
         payload = await builder.build(request)
+        first = True
 
         async def fit(messages: list[Message]) -> list[Message]:
+            nonlocal first
+            if first:
+                first = False
+                return list(payload.messages)
             updated = await builder.fit(request, messages)
             return list(updated.messages)
 

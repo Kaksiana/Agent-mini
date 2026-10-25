@@ -186,7 +186,7 @@ async def test_fit_is_bounded_by_deadline() -> None:
                 await asyncio.sleep(1)
             return []
 
-    llm = _LLM()
+    llm = _ToolLLM()
     builder = ContextBuilder(
         TokenCounter(Encoder()),
         max_context_tokens=100_000,
@@ -194,6 +194,7 @@ async def test_fit_is_bounded_by_deadline() -> None:
     )
     agent = Agent(
         cast(Any, llm),
+        tool_executor=cast(Any, _HugeExecutor()),
         policy=LoopPolicy(deadline_seconds=0.01),
         short_term=cast(Any, HangingShort()),
     ).with_context(builder)
@@ -202,7 +203,7 @@ async def test_fit_is_bounded_by_deadline() -> None:
 
     assert result.truncated is True
     assert result.termination_reason == "deadline"
-    assert llm.calls == 0
+    assert llm.calls >= 1
 
 
 class _ToolLLM:
@@ -289,3 +290,30 @@ async def test_builder_payload_tracks_trim_fields() -> None:
     assert payload.rounds_after == 10
     assert payload.trim_reason == "rounds"
     assert payload.tokens_before >= payload.tokens_after
+
+
+async def test_context_reads_memory_once_and_closes_dependency() -> None:
+    class CountingShort:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.closed = False
+
+        async def append_round(self, *args: object, **kwargs: object) -> bool:
+            return True
+
+        async def get_recent_rounds(
+            self, session_id: str, limit: int | None = None
+        ) -> list[StoredRound]:
+            self.calls += 1
+            return []
+
+        async def close(self) -> None:
+            self.closed = True
+
+    short = CountingShort()
+    builder = ContextBuilder(TokenCounter(Encoder()), max_context_tokens=100_000)
+    agent = Agent(cast(Any, _LLM()), short_term=cast(Any, short)).with_context(builder)
+    await agent.run("current", session_id="A")
+    assert short.calls == 1
+    await agent.close()
+    assert short.closed is True
