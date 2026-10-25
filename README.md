@@ -225,7 +225,7 @@ HTTP /chat
 
 | 文档 | 内容 |
 | --- | --- |
-| [Docs/AIPROMPT.md](Docs/AIPROMPT.md) | **AIPROMPT**：各阶段 AI 执行 Prompt 与摘要索引 |
+| [Docs/PROMPT.md](Docs/PROMPT.md) | **AIPROMPT**：各阶段 AI 执行 Prompt 与摘要（即 PROMPT.md） |
 | [Docs/test-result.md](Docs/test-result.md) | **真机测试完整结果**：命令、HTTP 请求/响应、工具输出、Docker 证据 |
 | [Docs/test-report.md](Docs/test-report.md) | 项目演示测试用例（DEMO-001~018） |
 | [Docs/ISSUE.md](Docs/ISSUE.md) | **问题台账**：Open/Resolved、ISSUE-024/025/044 等 |
@@ -235,7 +235,6 @@ HTTP /chat
 | [Docs/REQUIREMENT.md](Docs/REQUIREMENT.md) | FR/NFR/AC 需求 |
 | [Docs/M1-M4-backlog.md](Docs/M1-M4-backlog.md) | M1–M4 未闭环任务与执行顺序 |
 | [Docs/M3-review.md](Docs/M3-review.md) | M3 独立复验与 P2/P3 收尾 |
-| [Docs/PROMPT.md](Docs/PROMPT.md) | 逐阶段 Prompt/执行记录原文 |
 | [openspec/](openspec/) | OpenSpec 主规格与归档 change |
 
 ## 5. 已知限制
