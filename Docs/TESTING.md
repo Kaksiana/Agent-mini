@@ -9,9 +9,9 @@
 | 版本 | v0.25（S21 配置与 DI） |
 | 日期 | 2026-10-24 |
 | 状态 | 执行中（S00–S21 已实现；LIVE 条件未满足） |
-| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 378（unit 221、contract 64、integration 93、unmarked 0；MySQL/POSIX skip） |
+| 用例总数 | 设计 79（L1×33、L2×10、L3×15、L4×12、L5×6、LIVE×3）；自动化测试 381（unit 222、contract 64、integration 95、unmarked 0；MySQL/POSIX skip） |
 
-> 本文件同时记录测试设计与执行状态。截至 S21，S00–S21 已实现 378 个 pytest 用例（最近全量 378 passed、2 skipped、覆盖率 94.58%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
+> 本文件同时记录测试设计与执行状态。截至 S21，S00–S21 已实现 381 个 pytest 用例（最近全量 381 passed、2 skipped、覆盖率 94.56%）；L3–L5 与 LIVE 仍为设计项，未执行不表示通过。S00 工程 smoke 已纳入 unit，不再另计设计 TC。
 
 ---
 

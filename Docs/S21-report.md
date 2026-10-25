@@ -250,3 +250,9 @@ S20 报告修复提交为 `fbfd178` 与 `6173912`，本次先复核其是否真�
 - 当前阶段仅 mock：`none` 返回 `not_configured`；`mock` 返回确定性本地结果。
 - 不接真实搜索 API；`ToolConfig.search_provider` 限定 `none|mock`，支持 `SEARCH_PROVIDER` 环境变量。
 - 复验：378 passed、2 skipped；unit 221；覆盖率 94.58%。
+
+## 14. 收尾（2026-10-25）
+
+- health：异步/同步检查线程化、2s 超时、空依赖 degraded；容器注入 mysql/redis/mongo。
+- 启动：`agent-mini` console script 捕获 ConfigError，单行 stderr、退出码 2、无 Traceback。
+- 381 passed、2 skipped；unit 222、contract 64、integration 95；覆盖率 94.56%。

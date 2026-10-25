@@ -2399,3 +2399,8 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 支持 none|mock；mock 本地确定性结果；none 明确 not_configured。
 - 378 passed、2 skipped；覆盖率 94.58%。
+
+## 2026-10-25 15:27 — 收尾 health/启动
+
+- health 2s 超时/空依赖 degraded；console script 单行启动失败。
+- 381 passed、2 skipped；覆盖率 94.56%。

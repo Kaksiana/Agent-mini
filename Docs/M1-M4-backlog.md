@@ -191,3 +191,10 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 
 - M4-S21-02 按当前阶段决策 **mock-only 关闭**：`ToolConfig.search_provider` 支持 `none|mock`；`mock` 返回确定性本地结果，不访问网络；`none` 明确 `not_configured`。测试：`test_search_provider_mock_and_none`。
 - 真实搜索 provider 不进 v0.1；后续接入需新 change。
+
+### 追加（2026-10-25 15:27）
+
+- **M4-S18-01 关闭**：health 检查支持异步函数/同步函数线程化；单项 2s 超时；空 checks 返回 degraded；容器注入 mysql/redis/mongo（配置时）。测试 `test_health_slow_check_times_out`、`test_health_empty_is_degraded`。
+- **M4-S21-03 部分关闭**：新增 `agent_mini.interface.server:main` 与 `agent-mini` console script；ConfigError 单行退出码 2，无 Traceback；README 明确 `DEEPSEEK_API_KEY` 与 `MYSQL_DSN` 必填。
+- **M4-S21-01 仍部分**：Redis/Mongo 仅在 URL 配置时装配，未做真实服务链路测试。
+- 门禁：381 passed、2 skipped；unit 222；integration 95；覆盖率 94.56%。
