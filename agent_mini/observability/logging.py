@@ -69,6 +69,11 @@ class JsonFormatter(logging.Formatter):
             if key in payload or key in _STANDARD_LOG_ATTRS:
                 continue
             payload[key] = value
+        if record.exc_info is not None:
+            exc_type, exc, _ = record.exc_info
+            payload["error_type"] = exc_type.__name__ if exc_type is not None else None
+            payload["error_message"] = redact_text(str(exc)) if exc is not None else None
+            payload["stack"] = redact_text(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=False, default=str)
 
 

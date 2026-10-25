@@ -113,3 +113,19 @@ def test_configure_logging_disables_propagation_and_old_handlers() -> None:
     assert logger.propagate is False
     assert stale not in logger.handlers
     assert any(isinstance(handler, _JsonHandler) for handler in logger.handlers)
+
+
+def test_exception_stack_is_json_and_redacted() -> None:
+    logger, stream = _capture()
+    try:
+        raise RuntimeError("Bearer secret-token sk-secret1234")
+    except RuntimeError:
+        logger.exception("boom")
+
+    lines = _lines(stream)
+    assert lines[0]["error_type"] == "RuntimeError"
+    stack = lines[0]["stack"]
+    assert isinstance(stack, str)
+    assert "secret-token" not in stack
+    assert "sk-secret1234" not in stack
+    assert "RuntimeError" in stack

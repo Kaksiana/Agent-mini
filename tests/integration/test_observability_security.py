@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
@@ -101,3 +102,20 @@ async def test_secret_and_reasoning_never_leave_memory(
     assert secret not in captured.err
     assert secret not in caplog.text
     assert "private" not in captured.err
+
+
+def test_sentinel_not_in_tracked_files() -> None:
+    """仓库内不得出现本测试运行时生成的哨兵。"""
+    sentinel = "sk-" + uuid4().hex
+    root = Path(__file__).resolve().parents[2]
+    tracked = subprocess.run(
+        ["git", "ls-files"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    for name in tracked:
+        path = root / name
+        if path.is_file() and sentinel in path.read_text(encoding="utf-8", errors="ignore"):
+            raise AssertionError(f"sentinel leaked into {name}")
