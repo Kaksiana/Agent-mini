@@ -1,4 +1,4 @@
-﻿"""S18 回填：calculator、记忆、工具追问、双会话与并发。"""
+"""S18 回填：calculator、记忆、工具追问、双会话与并发。"""
 
 from __future__ import annotations
 

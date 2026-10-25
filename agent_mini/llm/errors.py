@@ -1,4 +1,4 @@
-﻿"""LLM 错误类型（S20 接入 AgentError）。"""
+"""LLM 错误类型（S20 接入 AgentError）。"""
 
 from agent_mini.observability.errors import LLMError
 

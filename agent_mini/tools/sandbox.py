@@ -1,4 +1,4 @@
-﻿"""S10 文件沙箱：root + realpath 四步校验。"""
+"""S10 文件沙箱：root + realpath 四步校验。"""
 
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
