@@ -168,3 +168,19 @@ async def test_search_provider_mock_and_none(tmp_path: Path) -> None:
     build_container(load_config(path, ENV)).resolve("agent")
     reset_search_provider()
     assert (await search("probe")).error_code == "not_configured"
+
+
+def test_server_config_error_is_single_line(capsys: pytest.CaptureFixture[str]) -> None:
+    from fastapi import FastAPI
+
+    from agent_mini.interface.server import main
+
+    def broken() -> FastAPI:
+        raise ConfigError("配置缺失: DEEPSEEK_API_KEY")
+
+    with pytest.raises(SystemExit) as exc:
+        main(factory=broken)
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "配置缺失: DEEPSEEK_API_KEY" in captured.err
+    assert "Traceback" not in captured.err

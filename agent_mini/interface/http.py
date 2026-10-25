@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -28,6 +29,7 @@ from agent_mini.runtime.result import AgentResult
 from agent_mini.tools import builtin as _builtin
 
 MAX_MESSAGE_CHARS = 32_000
+HEALTH_TIMEOUT_SECONDS = 2.0
 LOGGER = __import__("logging").getLogger("agent_mini.http")
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-chat"
@@ -139,14 +141,15 @@ def create_app(
     @app.get("/healthz")
     async def healthz() -> dict[str, object]:
         dependencies: dict[str, str] = {}
-        healthy = True
+        healthy = bool(checks)
         for name, check in checks.items():
             try:
-                value = check()
-                if inspect.isawaitable(value):
-                    value = await value
+                value = await asyncio.wait_for(
+                    _run_health_check(check),
+                    timeout=HEALTH_TIMEOUT_SECONDS,
+                )
                 dependencies[name] = "ok" if value else "unavailable"
-            except Exception:
+            except (TimeoutError, Exception):
                 dependencies[name] = "unavailable"
             healthy = healthy and dependencies[name] == "ok"
         return {
@@ -262,3 +265,13 @@ def _error(
     if extra:
         content.update(extra)
     return JSONResponse(status_code=status, content=content)
+
+
+async def _run_health_check(check: Callable[[], bool | Awaitable[bool]]) -> bool:
+    """同步检查放线程，异步检查直接等待。"""
+    if inspect.iscoroutinefunction(check):
+        return bool(await check())
+    value = await asyncio.to_thread(check)
+    if inspect.isawaitable(value):
+        return bool(await value)
+    return bool(value)

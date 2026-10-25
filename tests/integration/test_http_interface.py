@@ -288,3 +288,27 @@ async def test_unknown_error_hides_type_and_secret(caplog: Any) -> None:
     assert "RuntimeError" not in response.text
     assert "sk-secret" not in response.text
     assert any(item.levelname == "ERROR" for item in caplog.records)
+
+
+async def test_health_empty_is_degraded() -> None:
+    app = create_app(cast(Any, _Agent()), {})
+    transport = httpx.ASGITransport(app=cast(Any, app))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json()["status"] == "degraded"
+
+
+async def test_health_slow_check_times_out() -> None:
+    async def slow() -> bool:
+        await asyncio.sleep(10)
+        return True
+
+    app = create_app(cast(Any, _Agent()), {"slow": slow})
+    transport = httpx.ASGITransport(app=cast(Any, app))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "degraded"
+    assert response.json()["dependencies"]["slow"] == "unavailable"
