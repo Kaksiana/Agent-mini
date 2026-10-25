@@ -10,8 +10,9 @@ from typing import Any, cast
 import pytest
 from sqlalchemy import text
 
-from agent_mini.llm.models import LLMResponse, Message, Usage
+from agent_mini.llm.models import LLMResponse, Message, ToolCall, Usage
 from agent_mini.runtime.agent import Agent
+from agent_mini.runtime.registry_adapter import RegistryExecutor
 from agent_mini.runtime.result import AgentResult
 from agent_mini.systemdb.models import (
     ModelRecord,
@@ -21,6 +22,8 @@ from agent_mini.systemdb.models import (
     ToolRecord,
 )
 from agent_mini.systemdb.repository import SystemDBRepository
+from agent_mini.tools import builtin as _builtin
+from agent_mini.tools.registry import DEFAULT_REGISTRY
 
 pytestmark = pytest.mark.integration
 
@@ -210,3 +213,49 @@ async def test_real_mysql_schema_when_configured() -> None:
         names = {row[0] for row in rows}
     await repo.close()
     assert {"sessions", "models", "tools", "tool_invocations", "request_metrics"} <= names
+
+
+class _ToolLLM:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def chat(
+        self,
+        messages: list[Message],
+        tools: list[Any] | None = None,
+        **params: object,
+    ) -> LLMResponse:
+        self.calls += 1
+        if self.calls == 1:
+            return LLMResponse(
+                tool_calls=[ToolCall(id="c1", name="calculator", arguments={"expression": "2+2"})],
+                finish_reason="tool_calls",
+                usage=Usage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+            )
+        return LLMResponse(
+            content="4",
+            finish_reason="stop",
+            usage=Usage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+        )
+
+
+async def test_real_repository_five_table_chain(tmp_path: Path) -> None:
+    _ = _builtin
+    repo = _repo(tmp_path)
+    assert await repo.ensure_schema()
+    agent = Agent(
+        cast(Any, _ToolLLM()),
+        tool_executor=RegistryExecutor(DEFAULT_REGISTRY),
+    ).with_system_db(repo, 1.0)
+    result = await agent.run("calc", session_id="chain", trace_id="trace-chain")
+    await agent.drain()
+    assert result.tool_calls == 1
+    assert result.trace_id == "trace-chain"
+    async with repo.engine.connect() as connection:
+        counts = {}
+        for table in ("sessions", "tool_invocations", "request_metrics"):
+            counts[table] = (
+                await connection.execute(text(f"SELECT COUNT(*) FROM {table}"))
+            ).scalar()
+    await repo.close()
+    assert counts == {"sessions": 1, "tool_invocations": 1, "request_metrics": 1}

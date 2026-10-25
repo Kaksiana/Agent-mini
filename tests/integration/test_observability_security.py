@@ -107,6 +107,10 @@ async def test_secret_and_reasoning_never_leave_memory(
 
 def test_sentinel_not_in_tracked_files() -> None:
     """仓库内不得出现本测试运行时生成的哨兵。"""
+    import shutil
+
+    if shutil.which("git") is None:
+        pytest.skip("git 不可用")
     sentinel = "sk-" + uuid4().hex
     root = Path(__file__).resolve().parents[2]
     tracked = subprocess.run(
