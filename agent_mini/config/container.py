@@ -198,7 +198,7 @@ def _build_mid_term(config: AppConfig) -> Any:
 
     client: Any = AsyncMongoClient(config.mongo_uri.get_secret_value())
     collection: Any = client["agent_mini"][COLLECTION_NAME]
-    return MidTermMemory(collection)
+    return MidTermMemory(collection, client)
 
 
 def _build_system_db(config: AppConfig) -> Any:

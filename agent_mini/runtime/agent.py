@@ -102,8 +102,17 @@ class Agent:
             )
 
     async def close(self) -> None:
-        """关闭前排空后台写入。"""
+        """排空后台写入并关闭持有的外部客户端。"""
         await self.drain()
+        for dependency in (
+            self._llm_client,
+            self._short_term,
+            self._mid_term,
+            self._system_db,
+        ):
+            close = getattr(dependency, "aclose", None) or getattr(dependency, "close", None)
+            if callable(close):
+                await close()
 
     async def run(
         self,

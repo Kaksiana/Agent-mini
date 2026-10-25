@@ -41,8 +41,11 @@ class _AsyncCollection(Protocol):
 class MidTermMemory(MidTermStore):
     """按 session 存储完整轮次，提供时间倒序/关键词检索。"""
 
-    def __init__(self, collection: _AsyncCollection) -> None:
+    def __init__(self, collection: _AsyncCollection, client: object | None = None) -> None:
         self._collection = collection
+        self._client = client
+        self._index_ready = False
+        self._index_attempted = False
 
     @classmethod
     def from_uri(
@@ -116,6 +119,9 @@ class MidTermMemory(MidTermStore):
         """按 session 过滤、时间倒序返回；默认剥离 reasoning。"""
         if not valid_session_id(session_id) or limit <= 0:
             return []
+        if not self._index_attempted:
+            self._index_attempted = True
+            self._index_ready = await self.ensure_indexes()
         query: dict[str, object] = {"session_id": session_id}
         if keyword:
             query["messages.content"] = {"$regex": re.escape(keyword), "$options": "i"}
@@ -137,14 +143,18 @@ class MidTermMemory(MidTermStore):
         """Mongo 写入由 Runtime 任务管理，本层无需额外等待。"""
         return
 
+    async def close(self) -> None:
+        """关闭可选 Mongo 客户端。"""
+        close = getattr(self._client, "close", None)
+        if callable(close):
+            await close()
+
     async def get_rounds(
         self,
         session_id: str,
         limit: int = 100,
     ) -> list[StoredRound]:
         """按时间正序读取并保留私有 reasoning。"""
-        if not getattr(self, "_index_ready", False):
-            self._index_ready = await self.ensure_indexes()
         rounds = await self.search_rounds(
             session_id,
             limit=limit,

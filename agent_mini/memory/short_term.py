@@ -37,6 +37,10 @@ class ShortTermMemory:
         """返回含 session_id 的 Redis key。"""
         return f"{KEY_PREFIX}:{session_id}:rounds"
 
+    async def close(self) -> None:
+        """关闭 Redis 客户端。"""
+        await self._client.aclose()
+
     async def append_round(
         self,
         session_id: str,
