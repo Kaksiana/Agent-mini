@@ -146,6 +146,7 @@ async def test_container_assembles_context_systemdb_and_health(tmp_path: Path) -
     agent = container.resolve("agent")
     assert agent._context_builder is not None
     assert agent._system_db is not None
+    assert agent._include_reasoning is False
     app = container.build()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

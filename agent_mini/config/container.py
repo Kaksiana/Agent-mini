@@ -154,7 +154,11 @@ def _build_agent(container: Container) -> Any:
     if builder is not None:
         prompt_path = config.prompt.system_prompt_path
         system_prompt = prompt_path.read_text(encoding="utf-8") if prompt_path.is_file() else None
-        agent = agent.with_context(builder, system_prompt=system_prompt)
+        agent = agent.with_context(
+            builder,
+            system_prompt=system_prompt,
+            include_reasoning=False,
+        )
     return agent
 
 

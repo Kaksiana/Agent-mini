@@ -138,16 +138,23 @@ class ContextBuilder:
     ) -> list[StoredRound]:
         if session_id is None or not valid_session_id(session_id):
             return []
-        rounds: list[StoredRound] = []
+        mid_rounds: list[StoredRound] = []
         if mid_term is not None:
-            rounds.extend(await self._read_mid_term(mid_term, session_id))
-        seen: set[str] = set()
-        deduped: list[StoredRound] = []
-        _append_unique(rounds, seen, deduped)
+            mid_rounds = await self._read_mid_term(mid_term, session_id)
+        short_rounds: list[StoredRound] = []
         if short_term is not None:
-            recent = await self._read_short_term(short_term, session_id)
-            _append_unique(recent, seen, deduped)
-        return deduped
+            short_rounds = await self._read_short_term(short_term, session_id)
+        if short_rounds:
+            first = short_rounds[0].round_id
+            index = next(
+                (position for position, item in enumerate(mid_rounds) if item.round_id == first),
+                len(mid_rounds),
+            )
+            merged = [*mid_rounds[:index], *short_rounds]
+        else:
+            merged = mid_rounds
+        seen: set[str] = set()
+        return _dedupe(merged, seen)
 
     async def _read_mid_term(
         self,
@@ -201,16 +208,14 @@ def _current_round(
     return [Message(role="user", content=user_input)]
 
 
-def _append_unique(
-    source: list[StoredRound],
-    seen: set[str],
-    target: list[StoredRound],
-) -> None:
-    for stored in source:
+def _dedupe(rounds: list[StoredRound], seen: set[str]) -> list[StoredRound]:
+    output: list[StoredRound] = []
+    for stored in rounds:
         if stored.round_id in seen:
             continue
         seen.add(stored.round_id)
-        target.append(stored)
+        output.append(stored)
+    return output
 
 
 def _degraded(source: str) -> None:

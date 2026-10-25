@@ -113,6 +113,7 @@ async def test_five_rounds_order_and_system_first() -> None:
 
     assert payload.messages[0] == Message(role="system", content="system")
     assert payload.messages[-1] == Message(role="user", content="current")
+    assert payload.trim_reason is None
     assert [message.content for message in payload.messages[1:-1]] == [
         "history-0",
         "ok",
@@ -332,3 +333,20 @@ async def test_mid_term_rounds_are_consumed() -> None:
         "ok",
         "current",
     ]
+
+
+async def test_cross_store_merge_keeps_short_order() -> None:
+    mid = [_round("r1", "one"), _round("r3", "three")]
+    short = [_round("r1", "one"), _round("r2", "two"), _round("r3", "three")]
+    builder = ContextBuilder(TokenCounter(FakeEncoder()), 16_000)
+    payload = await builder.build(
+        BuildRequest(
+            "current",
+            _tools(),
+            session_id="A",
+            short_term=cast(Any, FakeShort(short)),
+            mid_term=cast(Any, FakeMid(mid)),
+        )
+    )
+    contents = [message.content for message in payload.messages]
+    assert contents.index("one") < contents.index("two") < contents.index("three")

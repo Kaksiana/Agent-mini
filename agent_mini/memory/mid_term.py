@@ -122,7 +122,13 @@ class MidTermMemory(MidTermStore):
         try:
             cursor = self._collection.find(query).sort("created_at", -1).limit(limit)
             documents = await cursor.to_list(length=limit)
-            return [_decode_document(item, include_private=include_private) for item in documents]
+            decoded: list[StoredRound] = []
+            for item in documents:
+                try:
+                    decoded.append(_decode_document(item, include_private=include_private))
+                except Exception:
+                    _degraded("decode_document")
+            return decoded
         except Exception:
             _degraded("search_rounds")
             return []
@@ -137,6 +143,8 @@ class MidTermMemory(MidTermStore):
         limit: int = 100,
     ) -> list[StoredRound]:
         """按时间正序读取并保留私有 reasoning。"""
+        if not getattr(self, "_index_ready", False):
+            self._index_ready = await self.ensure_indexes()
         rounds = await self.search_rounds(
             session_id,
             limit=limit,

@@ -162,7 +162,11 @@ def _fixed_exceeds(spec: FitInput, tools: Sequence[ToolSchema]) -> bool:
     return False
 
 
-def _reason(over_rounds: bool, over_tokens: bool) -> TrimReason:
+def _reason(over_rounds: bool, over_tokens: bool) -> TrimReason | None:
     if over_rounds and over_tokens:
         return "both"
-    return "rounds" if over_rounds else "tokens"
+    if over_rounds:
+        return "rounds"
+    if over_tokens:
+        return "tokens"
+    return None
