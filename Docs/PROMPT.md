@@ -2345,3 +2345,27 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 
 - 执行摘要：四类配置、SecretStr、ConfigError 启动失败、轻量容器、HTTP 迁移、ISSUE-025 决策。
 - 验收：373 passed、2 skipped；覆盖率 94.85%。
+
+## 2026-10-25 12:28 — 独立评估 S21 代码产出
+
+### 原始 Prompt
+
+```text
+【评估】S21代码产出
+```
+
+### 执行摘要
+
+- 目标：独立复核 S21 四类配置、YAML+env 加载、ConfigError 启动校验、轻量 DI 容器、HTTP 工厂迁移、依赖收口与阶段门禁。
+- 关键约束：只读评估；除 `Docs/S21-report.md` 与本 Prompt 记录外，不修改实现、测试、OpenSpec 或远程状态；不调用真实 API，不输出 `.env` 秘密值。
+- 产出：新增 `Docs/S21-report.md`；结论为不通过，P0 0 项、P1 6 项、P2 4 项、P3 1 项；S21 不可收口，M4/v0.1 不可交付。
+- 关键发现：容器只装配 LLM/Agent/APP，Tool/Prompt/Memory/Context/SystemDB 配置未生效；retry 被忽略；非法 env/YAML 类型不转 ConfigError；真实 ContextTooLarge.trace 返回 500；ruff format 失败；README/DESIGN/PROMPT/ISSUE-025 证据漂移。
+- 验证：373 passed、2 skipped、覆盖率 94.85%；ruff check 通过但 ruff format 4 files 失败；mypy 78 files 0 errors；OpenSpec 21 passed；build 成功；配置/DI、非法配置、启动、Context 与健康检查探针均复现。
+- 人工修正 / 最终决策：未修改实现、测试或 OpenSpec；要求关闭 P1 并补齐 M4 的 LIVE/MySQL/POSIX 验收后再复评。
+- 关联提交：无；本轮未提交、未推送。
+
+## 2026-10-25 12:37 — 修复 S21 报告
+
+- retry 接 RetryPolicy；非法 env/YAML 统一 ConfigError；Context trace 序列化；ToolConfig 生效。
+- 376 passed、2 skipped；unit 219、integration 93；覆盖率 94.93%。
+- Memory/SystemDB/ContextBuilder 装配仍未完成。
