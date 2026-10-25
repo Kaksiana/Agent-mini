@@ -512,12 +512,12 @@
 - 状态：Resolved（2026-10-24，Docker mysql:8.0，端口 3307；schema/upsert/session/audit/metrics/索引实测通过）
 - 复现命令：`docker run -d --name agent-mini-mysql -e MYSQL_ROOT_PASSWORD=testpass -e MYSQL_DATABASE=agent_mini -p 3307:3306 mysql:8.0`；`MYSQL_TEST_DSN=mysql+asyncmy://root:testpass@127.0.0.1:3307/agent_mini pytest tests/integration/test_systemdb.py`
 
-### ISSUE-044 — LIVE 验收未运行
+### ISSUE-044 — LIVE 验收未运行（已关闭）
 
 - 日期：2026-10-24
 - 现象：`DEEPSEEK_API_KEY` 与 `RUN_LIVE` 均未设置，TC-LIVE-001/002/003 未执行。
-- 处理：不伪造通过；启用命令：`RUN_LIVE=1 DEEPSEEK_API_KEY=... pytest -m live`。
-- 状态：Open
+- 处理：`.env` 提供 Key；`RUN_LIVE=1 pytest tests/live -q` → 3 passed（LIVE-001/002/003）。
+- 状态：Resolved（2026-10-25）
 
 ### ISSUE-039 — S12 TC-L3-006 与 search 不匹配
 

@@ -207,3 +207,10 @@ Docker 容器：`agent-mini-mysql`（mysql:8.0，3307->3306）已启动并保留
 - **Docker Redis/Mongo 未执行**：Docker Desktop 再次停止，无法启动 redis/mongo 容器；MySQL/Linux 证据沿用前次。
 - **M4-GATE-01**：`DEEPSEEK_API_KEY` 仍不存在，LIVE 阻塞。
 - 门禁：383 passed、2 skipped；unit 223、contract 64、integration 96；覆盖率 94.57%。
+
+### 追加（2026-10-25 15:55）
+
+- **M4-GATE-01 关闭**：`RUN_LIVE=1 pytest tests/live -q` → **3 passed**（LIVE-001/002/003）；Key 来自 `.env`，未输出。
+- **真实组件**：`agent-mini-mysql`(3307)、`agent-mini-redis`(6380)、`agent-mini-mongo`(27018) 均 Up；容器 health 探针返回 `{'redis':'ok','mongo':'ok','mysql':'ok'}`。
+- **M4-S21-01 部分关闭**：Redis/Mongo/MySQL 客户端装配与 health 已实测；对话记忆链路未做真实 Redis/Mongo 往返。
+- 门禁：`RUN_LIVE=1` 全量 **386 passed、2 skipped**；默认全量 383 passed、2 skipped + live 3 skipped；覆盖率 94.53%。

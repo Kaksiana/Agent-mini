@@ -58,7 +58,7 @@ agent-mini  # 或 uvicorn agent_mini.interface.http:create_app_from_env --factor
 curl http://127.0.0.1:8000/healthz
 ```
 
-LIVE 验收：`RUN_LIVE=1 DEEPSEEK_API_KEY=... pytest -m live`；缺失时 skip。
+LIVE 验收：`.env` 提供 Key 后执行 `RUN_LIVE=1 pytest -m live`；缺失时 skip。
 
 ## M3 离线演示
 

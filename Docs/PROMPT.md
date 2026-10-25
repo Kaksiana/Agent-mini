@@ -2410,3 +2410,9 @@ S11 将复用本阶段的沙箱实现做 write_file，接口需为其预留。
 - exc_info JSON 脱敏；git ls-files 哨兵扫描；M3 51 passed 只读复验。
 - Redis/Mongo Docker 未启动；LIVE 无 Key。
 - 383 passed、2 skipped；覆盖率 94.57%。
+
+## 2026-10-25 15:55 — LIVE/Docker 组件
+
+- .env Key，RUN_LIVE=1；LIVE 3 passed。
+- MySQL/Redis/Mongo 容器 Up；health 三项 ok。
+- 386 passed、2 skipped；覆盖率 94.53%。
