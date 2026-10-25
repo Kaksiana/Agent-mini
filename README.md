@@ -53,8 +53,8 @@ pytest -q \
 ```bash
 pip install -e ".[dev]"
 cp .env.example .env
-# 在环境中设置 DEEPSEEK_API_KEY，禁止写入 tracked 文件
-uvicorn agent_mini.interface.http:create_app_from_env --factory --port 8000
+# 在环境中设置 DEEPSEEK_API_KEY 与 MYSQL_DSN，禁止写入 tracked 文件
+agent-mini  # 或 uvicorn agent_mini.interface.http:create_app_from_env --factory
 curl http://127.0.0.1:8000/healthz
 ```
 
