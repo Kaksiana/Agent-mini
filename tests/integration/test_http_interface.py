@@ -260,7 +260,7 @@ async def test_error_log_code_matches_response_and_level(caplog: Any) -> None:
 
 async def test_context_too_large_keeps_evidence() -> None:
     error = ContextTooLarge(steps=2)
-    error.trace = ({"step": 1},)
+    error.trace = (ThoughtStep(step=1, decision="tool_call", thought="计算"),)
 
     class Broken:
         async def run(self, *args: object, **kwargs: object) -> AgentResult:
@@ -272,7 +272,8 @@ async def test_context_too_large_keeps_evidence() -> None:
     assert body["code"] == "CONTEXT_TOO_LARGE"
     assert body["steps"] == 2
     assert body["truncated"] is True
-    assert body["trace"] == [{"step": 1}]
+    assert body["trace"][0]["step"] == 1
+    assert body["trace"][0]["thought"] == "计算"
 
 
 async def test_unknown_error_hides_type_and_secret(caplog: Any) -> None:

@@ -88,6 +88,7 @@ ignore = [
 "agent_mini/interface/http.py" = ["complex-structure", "too-many-statements"]
 "agent_mini/observability/logging.py" = ["too-many-return-statements"]
 "agent_mini/config/container.py" = ["any-type"]
+"agent_mini/config/loader.py" = ["complex-structure", "too-many-branches"]
 "agent_mini/runtime/loop.py" = [
     "complex-structure",
     "too-many-return-statements",

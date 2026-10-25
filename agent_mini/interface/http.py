@@ -192,9 +192,13 @@ def create_app(
         message = "请求失败" if exc.http_status >= 500 else exc.message
         extra: dict[str, object] = {}
         if isinstance(exc, ContextTooLarge):
+            trace_items = []
+            for item in exc.trace:
+                dump = getattr(item, "model_dump", None)
+                trace_items.append(dump(mode="json") if callable(dump) else item)
             extra = {
                 "steps": exc.steps,
-                "trace": list(exc.trace),
+                "trace": trace_items,
                 "truncated": exc.truncated,
             }
         return _error(exc.code, message, exc.http_status, request, extra)

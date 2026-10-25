@@ -106,3 +106,33 @@ def test_build_container_tops() -> None:
     container = build_container(config)
     assert container.resolve("config") is config
     assert container.resolve("agent") is not container.resolve("agent")
+
+
+def test_retry_reaches_client(tmp_path: Path) -> None:
+    from agent_mini.config.container import Service
+
+    config = load_config(environ={**ENV, "DEEPSEEK_RETRY": "1"})
+    client = build_container(config).resolve(Service.LLM)
+    assert client._max_attempts == 1
+
+
+def test_tool_config_reaches_executor(tmp_path: Path) -> None:
+    path = _write_yaml(
+        tmp_path / "config.yaml",
+        "tool:\n  enabled: false\n  sandbox_root: ./sandbox\n  max_file_size: 123\n",
+    )
+    config = load_config(path, ENV)
+    agent = build_container(config).resolve("agent")
+    executor = agent._tool_executor
+    assert executor.schemas() == []
+    context = executor._context
+    assert str(context.sandbox_root) == "sandbox"
+    assert context.max_file_size == 123
+
+
+def test_invalid_env_type_and_yaml_section_raise_config_error(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="MYSQL_POOL_SIZE"):
+        load_config(environ={**ENV, "MYSQL_POOL_SIZE": "abc"})
+    path = _write_yaml(tmp_path / "config.yaml", "model: not-a-map\n")
+    with pytest.raises(ConfigError, match="model"):
+        load_config(path, ENV)

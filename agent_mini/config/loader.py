@@ -66,10 +66,21 @@ def load_config(
         missing = _missing_mapping(environ)
         if missing:
             raise ConfigError(f"配置缺失: {', '.join(missing)}")
-    env = cast(Any, _Env)(**dict(source))
+    try:
+        env = cast(Any, _Env)(**dict(source))
+    except ValidationError as exc:
+        names = []
+        for error in exc.errors():
+            name = ".".join(str(part) for part in error["loc"])
+            names.append(FIELD_HINTS.get(name, name))
+        raise ConfigError(f"配置校验失败: {', '.join(names)}") from exc
     missing = _missing_required(env)
     if missing:
         raise ConfigError(f"配置缺失: {', '.join(missing)}")
+    for section in ("model", "tool", "prompt", "systemdb"):
+        value = data.get(section)
+        if value is not None and not isinstance(value, dict):
+            raise ConfigError(f"配置校验失败: {section} 必须是映射")
     model_data = dict(data.get("model") or {})
     system_data = dict(data.get("systemdb") or {})
     _apply_model_env(model_data, env)

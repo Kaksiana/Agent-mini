@@ -88,7 +88,7 @@ def build_container(config: AppConfig) -> Container:
 
 
 def _build_llm(config: AppConfig) -> Any:
-    from agent_mini.llm.client import HttpLLMClient
+    from agent_mini.llm.client import HttpLLMClient, RetryPolicy
     from agent_mini.llm.models import ModelConfig as ClientConfig
 
     client_config = ClientConfig(
@@ -96,19 +96,32 @@ def _build_llm(config: AppConfig) -> Any:
         model=config.model.model,
         timeout=config.model.timeout,
     )
-    return HttpLLMClient(client_config, config.model.api_key.get_secret_value())
+    retry = RetryPolicy(max_attempts=config.model.retry)
+    return HttpLLMClient(
+        client_config,
+        config.model.api_key.get_secret_value(),
+        retry=retry,
+    )
 
 
 def _build_agent(container: Container) -> Any:
     from agent_mini.runtime.agent import Agent
     from agent_mini.runtime.registry_adapter import RegistryExecutor
     from agent_mini.tools import builtin as _builtin
-    from agent_mini.tools.registry import DEFAULT_REGISTRY
+    from agent_mini.tools.registry import DEFAULT_REGISTRY, ToolContext, ToolRegistry
 
     _ = _builtin
+    config = container.resolve(Service.CONFIG)
+    registry = DEFAULT_REGISTRY if config.tool.enabled else ToolRegistry()
+    context = ToolContext(
+        session_id="",
+        trace_id="",
+        sandbox_root=config.tool.sandbox_root,
+        max_file_size=config.tool.max_file_size,
+    )
     return Agent(
         container.resolve(Service.LLM),
-        tool_executor=RegistryExecutor(DEFAULT_REGISTRY),
+        tool_executor=RegistryExecutor(registry, context),
     )
 
 

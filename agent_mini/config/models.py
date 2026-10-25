@@ -33,7 +33,7 @@ class ModelConfig(_Frozen):
     base_url: str = DEFAULT_BASE_URL
     model: str = DEFAULT_MODEL
     timeout: float = Field(default=DEFAULT_TIMEOUT, gt=0)
-    retry: int = Field(default=DEFAULT_RETRIES, ge=0, le=5)
+    retry: int = Field(default=DEFAULT_RETRIES, ge=1, le=3)
     api_key: SecretStr
 
     @field_validator("base_url", "model")
